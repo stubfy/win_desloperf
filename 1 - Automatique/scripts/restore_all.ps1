@@ -79,6 +79,9 @@ Invoke-Script "$RESTORE\10_debloat_restore.ps1"
 Write-Step "Restauration tweaks reseau (Teredo)"
 Invoke-Script "$RESTORE\14_network_tweaks.ps1"
 
+Write-Step "Restauration Windows Update (mode maximum - defaut Windows)"
+Invoke-Script "$RESTORE\15_windows_update.ps1"
+
 # Taches planifiees
 Write-Host ""
 Write-Host "    Note: les taches planifiees de telemetrie desactivees ne sont pas" -ForegroundColor Gray

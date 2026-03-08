@@ -84,6 +84,22 @@ Write-Host ""
 
 $uninstallEdge     = $false
 $uninstallOneDrive = $false
+$updateProfil      = '2'   # defaut : securite uniquement
+
+Write-Host "  PROFIL WINDOWS UPDATE :" -ForegroundColor White
+Write-Host "    [1] Maximum    - Toutes les MAJ (securite, qualite, pilotes, fonctionnalites)" -ForegroundColor Green
+Write-Host "    [2] Securite   - MAJ securite/qualite uniquement, pas de fonctionnalites ni pilotes" -ForegroundColor Yellow
+Write-Host "    [3] Desactiver - Desactive completement Windows Update" -ForegroundColor Red
+Write-Host ""
+do {
+    $ans = Read-Host "  Choix profil MAJ (1/2/3) [defaut: 2]"
+    if ($ans -eq '') { $ans = '2' }
+} while ($ans -notin @('1','2','3'))
+$updateProfil = $ans
+$profilLabel = @{'1'='Maximum'; '2'='Securite uniquement'; '3'='Desactive'}[$updateProfil]
+Write-Host "  -> Profil MAJ : $profilLabel" -ForegroundColor Yellow
+Write-Log "Option choisie : profil Windows Update = $profilLabel" 'INFO'
+Write-Host ""
 
 $ans = Read-Host "  Desinstaller Microsoft Edge completement ? (O/N)"
 if ($ans -ieq 'O') {
@@ -148,6 +164,9 @@ Invoke-Script "$SCRIPTS\13_telemetry_tasks.ps1"
 
 Write-Step "PHASE B.13 - Tweaks reseau complementaires (Teredo)"
 Invoke-Script "$SCRIPTS\14_network_tweaks.ps1"
+
+Write-Step "PHASE B.14 - Profil Windows Update : $profilLabel"
+& "$SCRIPTS\15_windows_update.ps1" -Profil $updateProfil
 
 # ── OPTIONS : desinstallations physiques ─────────────────────────────────────
 if ($uninstallEdge) {
