@@ -1,86 +1,83 @@
 4 - CONTROL PANEL
-Reglages manuels via l'interface Windows
-=========================================
+Manual settings via the Windows interface
+==========================================
 
-CE QUE CA FAIT
---------------
-Certains parametres Windows ne sont accessibles qu'a travers l'interface
-graphique — soit parce qu'ils dependent d'une session utilisateur active,
-soit parce qu'ils passent par des API WinRT non exposees en ligne de
-commande, soit parce qu'ils modifient des parametres par composant (par
-ecran, par application) qui ne se generalisent pas en une seule cle registre.
+WHAT IT DOES
+------------
+Some Windows settings are only accessible through the graphical interface --
+either because they depend on an active user session, or because they go
+through WinRT APIs not exposed on the command line, or because they modify
+per-component settings (per monitor, per application) that cannot be
+generalized to a single registry key.
 
-Ce dossier contient des raccourcis vers chaque page de reglage concernee.
-Ouvrir chaque raccourci et appliquer le reglage indique ci-dessous.
+This folder contains shortcuts to each relevant settings page.
+Open each shortcut and apply the setting described below.
 
 
-LISTE DES REGLAGES A APPLIQUER
--------------------------------
+SETTINGS TO APPLY
+-----------------
 
-0 - Planificateur graphique (ms-settings:display-advancedgraphics)
-    Activer "Planification GPU avec acceleration materielle" (HAGS).
-    Reduit la latence d'entree sur GPU NVIDIA GTX 1000+ et AMD RX 5000+
-    en permettant au GPU de gerer lui-meme l'ordonnancement de ses tampons.
-    Technique : active HwSchMode=2 dans HKLM\SYSTEM\CurrentControlSet\
-    Control\GraphicsDrivers, ce qui confie l'ordonnancement des frames
-    au pilote GPU plutot qu'au scheduler Windows.
+0 - GPU Scheduler (ms-settings:display-advancedgraphics)
+    Enable "Hardware-accelerated GPU scheduling" (HAGS).
+    Reduces input latency on NVIDIA GTX 1000+ and AMD RX 5000+ GPUs
+    by letting the GPU manage its own buffer scheduling.
+    Technical : enables HwSchMode=2 in HKLM\SYSTEM\CurrentControlSet\
+    Control\GraphicsDrivers, handing frame scheduling to the GPU driver
+    instead of the Windows scheduler.
 
 1 - Notifications (ms-settings:notifications)
-    Desactiver "Ne pas deranger", desactiver "Concentration", onglet
-    Parametres supplementaires : tout decocher.
-    Empeche les interruptions pendant les parties et supprime les DPC
-    lies a l'affichage des toasts de notification.
+    Disable "Do not disturb", disable "Focus", Additional settings tab :
+    uncheck everything.
+    Prevents interruptions during gameplay and removes the DPCs
+    associated with notification toast rendering.
 
-2 - Stockage (ms-settings:storagesense)
-    Desactiver le nettoyage automatique (Storage Sense).
-    Evite les acces disque en arriere-plan pendant les sessions de jeu.
+2 - Storage (ms-settings:storagesense)
+    Disable automatic cleanup (Storage Sense).
+    Avoids background disk accesses during gaming sessions.
 
-3 - Couleurs (ms-settings:colors)
-    Mode sombre, desactiver la transparence, couleur d'accentuation
-    noire, desactiver l'accentuation sur la barre des taches, activer
-    l'accentuation sur les barres de titre.
-    La transparence (DWM blur) consomme du GPU ; la desactiver reduit
-    la charge graphique du bureau.
+3 - Colors (ms-settings:colors)
+    Dark mode, disable transparency, black accent color, disable accent
+    on taskbar, enable accent on title bars.
+    Transparency (DWM blur) uses GPU resources ; disabling it reduces
+    the desktop graphics load.
 
-4 - Applications installees (ms-settings:appsfeatures)
-    Supprimer les applications pre-installees encore presentes
-    (celles non retirees automatiquement par le script 08_debloat.ps1
-    car elles varient selon les editions Windows).
+4 - Installed apps (ms-settings:appsfeatures)
+    Remove any pre-installed applications still present
+    (those not removed automatically by script 08_debloat.ps1 because
+    they vary between Windows editions).
 
-5 - Loupe (ms-settings:easeofaccess-magnifier)
-    Desactiver la loupe Windows si elle n'est pas utilisee.
+5 - Magnifier (ms-settings:easeofaccess-magnifier)
+    Disable the Windows Magnifier if not in use.
 
-6 - Confidentialite (ms-settings:privacy)
-    Verifier que tout ce qui precede "Autorisations des applications"
-    est desactive : diagnostics, encre et frappe, historique d'activite,
-    publicites, etc.
+6 - Privacy (ms-settings:privacy)
+    Verify that everything above "App permissions" is disabled :
+    diagnostics, inking & typing, activity history, advertising, etc.
 
-7 - Effets visuels
-    Suivre la capture d'ecran fournie (Effets Visuels Settings.png).
-    Panneau de configuration > Systeme > Parametres systeme avances >
-    Avance > Performances > Parametres.
-    Choisir "Ajuster afin d'obtenir les meilleures performances", puis
-    recocher uniquement "Afficher les vignettes" et "Lisser les polices
-    de caracteres a l'ecran" pour garder une lisibilite correcte.
-    Desactiver les animations reduit les DPC du gestionnaire de fenetres
-    (DWM) et les redraws inutiles de l'interface.
+7 - Visual Effects
+    Follow the provided screenshot (Effets Visuels Settings.png).
+    Control Panel > System > Advanced system settings >
+    Advanced > Performance > Settings.
+    Choose "Adjust for best performance", then re-check only
+    "Show thumbnails" and "Smooth edges of screen fonts" to maintain
+    readable text.
+    Disabling animations reduces DPCs from the Desktop Window Manager
+    (DWM) and unnecessary interface redraws.
 
-8 - Options d'alimentation
-    Selectionner le plan "Ultimate Performance" (ajoute par run_all.ps1).
-    Desactiver la mise en veille.
-    Technique : ce plan desactive les etats C-states profonds et les
-    transitions P-state agressives, maintenant le CPU a sa frequence
-    maximale en permanence pour eliminer la latence de reveil du processeur.
+8 - Power options
+    Select the "Ultimate Performance" plan (added by run_all.bat).
+    Disable sleep.
+    Technical : this plan disables deep C-states and aggressive P-state
+    transitions, keeping the CPU at maximum frequency at all times to
+    eliminate processor wake-up latency.
 
-9 - Pare-feu
-    Desactiver le pare-feu Windows si un autre pare-feu est en place,
-    ou conserver si c'est la seule protection reseau active.
+9 - Firewall
+    Disable Windows Firewall if another firewall is in place,
+    or keep it if it is the only active network protection.
 
-10 - Accessibilite clavier (ms-settings:easeofaccess-keyboard)
-    Desactiver les touches remanentes (Sticky Keys).
-    Activer la touche Impr Ecran pour ouvrir l'outil capture.
+10 - Keyboard accessibility (ms-settings:easeofaccess-keyboard)
+    Disable Sticky Keys.
+    Enable the Print Screen key to open the snipping tool.
 
-11 - Barre des taches (ms-settings:taskbar)
-    Ajuster le comportement de la barre des taches selon preference.
-    Activer l'affichage des secondes dans l'horloge (tout en bas des
-    options de la page).
+11 - Taskbar (ms-settings:taskbar)
+    Adjust taskbar behavior as preferred.
+    Enable seconds display in the clock (at the bottom of the page).

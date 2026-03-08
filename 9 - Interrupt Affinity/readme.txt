@@ -1,71 +1,69 @@
 9 - INTERRUPT AFFINITY
-Epinglage des interruptions GPU sur un coeur CPU dedie
-======================================================
+Pinning GPU interrupts to a dedicated CPU core
+===============================================
 
-CE QUE CA FAIT
---------------
-Par defaut, Windows distribue les interruptions materielles (IRQ) sur
-l'ensemble des cœurs logiques du processeur. Les interruptions generees
-par le GPU passent donc potentiellement sur des cœurs deja occupes par
-des taches de jeu, ce qui cree de la contention et augmente la variance
-de latence (jitter).
+WHAT IT DOES
+------------
+By default, Windows distributes hardware interrupts (IRQs) across all
+logical cores of the processor. GPU-generated interrupts may therefore land
+on cores already busy with game threads, creating contention and increasing
+latency variance (jitter).
 
-Ce parametre epingle les interruptions du GPU sur un cœur CPU specifique
-et dedie, separant physiquement le traitement des IRQ GPU du thread de
-rendu principal.
+This setting pins GPU interrupts to a specific, dedicated CPU core,
+physically separating GPU IRQ processing from the main render thread.
 
 
-DETAIL TECHNIQUE
+TECHNICAL DETAIL
 ----------------
-Les interruptions du GPU transitent par la chaine :
-  GPU -> Pont PCI-PCI (PCI Bridge) -> Root Complex PCI -> APIC -> CPU
+GPU interrupts travel through the chain :
+  GPU -> PCI-PCI Bridge -> PCI Root Complex -> APIC -> CPU
 
-L'outil intPolicy_x64.exe ecrit une politique d'affinite dans le registre :
+The intPolicy_x64.exe tool writes an affinity policy to the registry :
 
   HKLM\SYSTEM\CurrentControlSet\Enum\PCI\<DeviceID>\<InstanceID>\
     Device Parameters\Interrupt Management\Affinity Policy\
-      DevicePolicy       = 4  (IrqPolicySpecifiedProcessors)
-      AssignmentSetOverride = <bitmask du cœur cible>
+      DevicePolicy          = 4  (IrqPolicySpecifiedProcessors)
+      AssignmentSetOverride = <bitmask of target core>
 
-DevicePolicy=4 indique au driver de router les DPC vers le cœur specifie
-par le bitmask. Par exemple, cœur 2 = bitmask 0x00000004 (bit 2).
+DevicePolicy=4 instructs the driver to route DPCs to the core specified
+by the bitmask. For example, core 2 = bitmask 0x00000004 (bit 2).
 
-Le cœur 2 est recommande car il evite le cœur 0 (utilise par l'OS et
-les interruptions systeme) et reste sur un cœur physique distinct en
-presence d'Hyper-Threading (cœur 1 logique = paire HT du cœur 0 physique).
+Core 2 is recommended because it avoids core 0 (used by the OS and system
+interrupts) and stays on a separate physical core in the presence of
+Hyper-Threading (logical core 1 = HT pair of physical core 0).
 
 
-RISQUE
-------
-Un mauvais choix de cœur ou un mauvais peripherique peut augmenter la
-latence plutot que la reduire. Identifier precisement la chaine GPU ->
-PCI Bridge -> Root Complex avant d'appliquer ce parametre.
+RISK
+----
+A wrong core choice or wrong device selection can increase latency instead
+of reducing it. Precisely identify the GPU -> PCI Bridge -> Root Complex
+chain before applying this setting.
 
 
 PROCEDURE
 ---------
-ETAPE 1 — Identifier le pont PCI du GPU
+STEP 1 -- Identify the GPU's PCI bridge
 
-1. Ouvrir le Gestionnaire de peripheriques (raccourci Gestionnaire.lnk)
-2. Menu Affichage > Peripheriques par connexion
-3. Localiser la carte graphique dans l'arbre des connexions
-4. Identifier le "Pont PCI vers PCI" parent immediat du GPU
-5. Clic droit sur ce pont > Proprietes > Details
-6. Selectionner "Nom de l'objet du peripherique physique" dans la liste
-7. Noter la valeur (ex: \Device\NTPNP_PCI0010)
+1. Open Device Manager (Gestionnaire.lnk shortcut)
+2. Menu View > Devices by connection
+3. Locate the graphics card in the connection tree
+4. Identify the "PCI to PCI Bridge" immediately above the GPU
+5. Right-click on this bridge > Properties > Details
+6. Select "Physical device object name" from the dropdown
+7. Note the value (e.g. \Device\NTPNP_PCI0010)
 
-ETAPE 2 — Configurer l'affinite
+STEP 2 -- Configure affinity
 
-1. Ouvrir intPolicy_x64.exe en administrateur
-2. Dans la liste, localiser :
-   - La carte graphique (GPU)
-   - Le pont PCI associe (PCI to PCI Bridge identifie ci-dessus)
-   - La racine complexe PCI (PCI Express Root Complex)
-3. Pour chacun de ces trois elements, definir l'affinite sur le CPU 2
-4. Appliquer et redemarrer
+1. Open intPolicy_x64.exe as administrator
+2. In the list, locate :
+   - The graphics card (GPU)
+   - The associated PCI bridge (PCI to PCI Bridge identified above)
+   - The PCI root complex (PCI Express Root Complex)
+3. For each of these three items, set the affinity to CPU 2
+4. Apply and reboot
 
 
-RESTAURATION
-------------
-Ouvrir intPolicy_x64.exe > selectionner chaque peripherique modifie >
-choisir "Default" comme politique d'affinite > appliquer > redemarrer.
+ROLLBACK
+--------
+Open intPolicy_x64.exe > select each modified device >
+choose "Default" as affinity policy > apply > reboot.

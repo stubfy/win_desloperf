@@ -1,70 +1,66 @@
 6 - MOUSE ACCEL FIX
-Suppression de l'acceleration souris (fix MarkC)
-=================================================
+Removing mouse acceleration (MarkC fix)
+========================================
 
-CE QUE CA FAIT
---------------
-Windows applique par defaut une acceleration dynamique au mouvement du
-curseur : plus la souris est deplacee rapidement, plus le curseur parcourt
-une distance importante par rapport a la distance physique reelle. Ce
-comportement rend impossible de developper une memoire musculaire fiable
-pour les jeux, puisque le meme mouvement physique peut donner des resultats
-differents selon la vitesse d'execution.
+WHAT IT DOES
+------------
+Windows applies dynamic acceleration to mouse movement by default : the
+faster the mouse is moved, the greater the distance the cursor travels
+relative to the actual physical movement. This behavior makes it impossible
+to develop reliable muscle memory for gaming, since the same physical
+movement can produce different results depending on execution speed.
 
-Ce fix remplace les courbes d'acceleration par des valeurs lineaires,
-garantissant un rapport 1:1 strict entre le deplacement physique de la
-souris et le deplacement du curseur a l'ecran.
+This fix replaces the acceleration curves with linear values, guaranteeing
+a strict 1:1 ratio between physical mouse movement and cursor movement
+on screen.
 
 
-DETAIL TECHNIQUE
+TECHNICAL DETAIL
 ----------------
-Windows calcule le deplacement du curseur en appliquant deux courbes de
-Bezier stockees dans le registre :
+Windows calculates cursor displacement by applying two Bezier curves stored
+in the registry :
 
   HKCU\Control Panel\Mouse
-    SmoothMouseXCurve  (courbe horizontale — 40 octets)
-    SmoothMouseYCurve  (courbe verticale — 40 octets)
-    MouseSpeed         (0 = acceleration desactivee, 1 ou 2 = activee)
-    MouseThreshold1    (seuil d'acceleration basse vitesse)
-    MouseThreshold2    (seuil d'acceleration haute vitesse)
+    SmoothMouseXCurve  (horizontal curve -- 40 bytes)
+    SmoothMouseYCurve  (vertical curve -- 40 bytes)
+    MouseSpeed         (0 = acceleration disabled, 1 or 2 = enabled)
+    MouseThreshold1    (low-speed acceleration threshold)
+    MouseThreshold2    (high-speed acceleration threshold)
 
-Le fix MarkC remplace ces courbes par des segments lineaires calcules
-specifiquement pour chaque niveau de scaling d'affichage (DPI Windows).
-Cette precision est necessaire parce que Windows applique une mise a
-l'echelle supplementaire au mouvement du curseur en fonction du rapport
-entre la resolution logique et la resolution physique de l'ecran.
+The MarkC fix replaces these curves with linear segments calculated
+specifically for each Windows display scaling level (DPI). This precision
+is necessary because Windows applies an additional scaling factor to cursor
+movement based on the ratio between the logical and physical screen resolution.
 
-Le script automatique (02_registry.ps1 via tweaks_consolidated.reg)
-applique deja le fix pour un scaling a 100%. Ce dossier est uniquement
-necessaire pour les autres niveaux de scaling.
-
-
-QUEL FICHIER .REG APPLIQUER
-----------------------------
-Ouvrir Parametres > Systeme > Affichage et verifier le pourcentage
-d'echelle affiche pour votre ecran principal.
-
-  100%  -> Deja applique par les scripts automatiques
-  125%  -> Ouvrir le dossier "Windows 10 Fixes" > appliquer le .reg 125%
-  150%  -> Ouvrir le dossier "Windows 10 Fixes" > appliquer le .reg 150%
-  175%  -> Ouvrir le dossier "Windows 10 Fixes" > appliquer le .reg 175%
-  200%  -> Ouvrir le dossier "Windows 10 Fixes" > appliquer le .reg 200%
-
-Double-cliquer sur le fichier .reg correspondant et confirmer la fusion.
-Deconnexion/reconnexion de session requise pour que le changement
-prenne effet.
+The automated script (02_registry.ps1 via tweaks_consolidated.reg)
+already applies the fix for 100% scaling. This folder is only needed
+for other scaling levels.
 
 
-RESTAURATION
-------------
-Appliquer le fichier Windows_10+8.x_Default.reg a la racine de ce
-dossier pour revenir aux valeurs d'acceleration Windows par defaut.
+WHICH .REG FILE TO APPLY
+-------------------------
+Open Settings > System > Display and check the scale percentage shown
+for your primary monitor.
+
+  100%  -> Already applied by the automated scripts
+  125%  -> Open "Windows 10 Fixes" folder > apply the 125% .reg file
+  150%  -> Open "Windows 10 Fixes" folder > apply the 150% .reg file
+  175%  -> Open "Windows 10 Fixes" folder > apply the 175% .reg file
+  200%  -> Open "Windows 10 Fixes" folder > apply the 200% .reg file
+
+Double-click the corresponding .reg file and confirm the merge.
+A sign-out / sign-in is required for the change to take effect.
 
 
-NOTE SUR WINDOWS 11
--------------------
-Windows 11 22H2+ propose une option "Precision du pointeur amelioree"
-dans Parametres > Bluetooth et peripheriques > Souris > Parametres
-supplementaires de la souris. Cette option est equivalente au fix pour
-le scaling 100%, mais le fix MarkC reste plus precis pour les autres
-niveaux de scaling.
+ROLLBACK
+--------
+Apply the Windows_10+8.x_Default.reg file at the root of this folder
+to revert to the Windows default acceleration values.
+
+
+NOTE ON WINDOWS 11
+------------------
+Windows 11 22H2+ includes an "Enhanced pointer precision" toggle in
+Settings > Bluetooth & devices > Mouse > Additional mouse settings.
+This option is equivalent to the fix for 100% scaling, but the MarkC fix
+remains more precise for other scaling levels.

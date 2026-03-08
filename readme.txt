@@ -1,67 +1,57 @@
-OPTI PACK — Windows 11 25H2
-Optimisation gaming, debloat et qualite de vie
-===============================================
+OPTI PACK -- Windows 11 25H2
+Gaming optimization, debloat and quality of life
+=================================================
 
-Ce pack regroupe des tweaks et outils pour ameliorer les performances gaming
-(latence d'entree, frametime, fluidite systeme), supprimer le bloatware Microsoft
-et corriger des comportements Windows par defaut defavorables au gaming.
+This pack bundles tweaks and tools to improve gaming performance
+(input latency, frametime, system fluidity), remove Microsoft bloatware
+and fix Windows default behaviors that are unfavorable to gaming.
 
-Cible : Windows 11 25H2, configuration PC gaming (GPU NVIDIA, NIC Intel I226-V).
-
-
-ORDRE D'UTILISATION
--------------------
-
-ETAPE 1 — Lancer les tweaks automatiques
-  Ouvrir "1 - Automatique\" en administrateur et executer run_all.ps1.
-  Le script applique tous les tweaks scriptables en une passe, cree une
-  sauvegarde de l'etat initial et propose un redemarrage a la fin.
-  Duree estimee : 5 a 15 minutes selon la configuration.
-
-ETAPE 2 — Redemarrer le PC (demande par run_all.ps1)
-
-ETAPE 3 — Effectuer les etapes manuelles dans l'ordre des dossiers :
-
-  2 - Windows Defender     Desactiver Defender en Mode Sans Echec (requis)
-  3 - Windows Tweaker      Appliquer tweaks GUI supplementaires (UWT v5)
-  4 - Control Panel        Reglages interface graphique Windows
-  5 - MSI Utils            Activer les interruptions MSI sur GPU / NIC / NVMe
-  6 - Mouse Accel fix      Corriger la courbe d'acceleration souris (si scaling != 100%)
-  7 - NVInspector          Profils pilote NVIDIA par jeu
-  8 - Gestionnaire         Desactiver economie d'energie USB (clavier, souris)
-  9 - Interrupt Affinity   Epingler les IRQ GPU sur un coeur CPU dedie
-  10 - Network WIP         Reglages avances carte reseau (offloads, buffers)
-  11 - Autres              Outils complementaires (Autoruns, DeviceCleanup, temp)
-
-Chaque dossier contient un readme.txt avec les instructions detaillees.
+Target : Windows 11 25H2, gaming PC (NVIDIA GPU, Intel I226-V NIC).
 
 
-ANNULER LES TWEAKS AUTOMATIQUES
---------------------------------
-Executer "1 - Automatique\restore_all.ps1" en administrateur.
-Remet les services, le registre, le DNS et la configuration boot a leurs
-valeurs d'origine. Un redemarrage est necessaire pour finaliser.
+USAGE ORDER
+-----------
 
-Les desinstallations d'applications UWP ne sont pas automatiquement reversibles
-(reinstallation possible depuis le Microsoft Store).
+STEP 1 -- Run the automated tweaks
+  Open "1 - Automatique\" as administrator and run run_all.bat.
+  The script applies all scriptable tweaks in a single pass, creates a
+  backup of the initial state and prompts for a reboot at the end.
+  Estimated duration : 5 to 15 minutes depending on configuration.
+
+STEP 2 -- Reboot (prompted by run_all.bat)
+
+STEP 3 -- Complete the manual steps in folder order :
+
+  2 - Windows Defender     Disable Defender in Safe Mode (required)
+  3 - Windows Tweaker      Apply additional GUI tweaks (UWT v5)
+  4 - Control Panel        Windows graphical interface settings
+  5 - MSI Utils            Enable MSI interrupts on GPU / NIC / NVMe
+  6 - Mouse Accel fix      Fix mouse acceleration curve (if scaling != 100%)
+  7 - NVInspector          Per-game NVIDIA driver profiles
+  8 - Gestionnaire         Disable USB power saving (keyboard, mouse)
+  9 - Interrupt Affinity   Pin GPU IRQs to a dedicated CPU core
+  10 - Network WIP         Advanced NIC settings (offloads, buffers)
+  11 - Autres              Complementary tools (Autoruns, DeviceCleanup, temp)
+
+Each folder contains a readme.txt with detailed instructions.
 
 
-CONTENU DE 1 - AUTOMATIQUE
-----------------------------
-  run_all.ps1      Lanceur principal (tweaks automatiques)
-  restore_all.ps1  Restauration complete
-  scripts\         Scripts individuels par categorie
-  restore\         Scripts de restauration correspondants
-  tools\           Outils tiers utilises par les scripts
+ROLLBACK
+--------
+Run "1 - Automatique\restore_all.bat" as administrator.
+Restores services, registry, DNS and boot configuration to their
+original values. A reboot is required to finalize.
+
+UWP app removals are not automatically reversible
+(reinstallation available from the Microsoft Store).
+
+
+CONTENTS OF 1 - AUTOMATIQUE
+-----------------------------
+  run_all.bat      Main entry point (automated tweaks)
+  restore_all.bat  Full rollback entry point
+  scripts\         Individual scripts by category
+  restore\         Corresponding restore scripts
+  tools\           Third-party tools used by the scripts
                    (OOSU10.exe, SetTimerResolution.exe, MeasureSleep.exe)
-  backup\          Cree au premier lancement — sauvegarde de l'etat initial
-
-
-DOSSIER old\
-------------
-Contient les anciens dossiers du pack dont le contenu est desormais integre
-dans les scripts automatiques. Conserves a titre d'archive.
-  old\2 - Logiciels automatises  OOSU10 (maintenant dans tools\)
-  old\4 - Scripts                Scripts originaux (integres dans scripts\)
-  old\12 - SetTimerResolution    Exe maintenant dans tools\
-  old\manual                     Remplace par les readme.txt par dossier
+  backup\          Created on first run -- backup of the initial state

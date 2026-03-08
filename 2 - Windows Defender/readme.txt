@@ -1,74 +1,72 @@
 2 - WINDOWS DEFENDER
-Desactivation du moteur antivirus en temps reel
-================================================
+Disabling the real-time antivirus engine
+=========================================
 
-CE QUE CA FAIT
---------------
-Windows Defender tourne en permanence en arriere-plan et analyse chaque
-fichier ouvert ou execute en temps reel. Sur un PC gaming dedie, ce
-comportement consomme des ressources CPU et introduit des acces disque
-imprevus pendant les parties, ce qui peut provoquer des stutters.
+WHAT IT DOES
+------------
+Windows Defender runs continuously in the background and scans every
+file opened or executed in real time. On a dedicated gaming PC, this
+behavior consumes CPU resources and introduces unexpected disk accesses
+during gameplay, which can cause stutters.
 
-Ce dossier contient un script PowerShell pour desactiver les six services
-qui composent Defender au niveau noyau.
+This folder contains a PowerShell script to disable the six kernel-level
+services that make up Defender.
 
-ATTENTION : Desactiver Defender supprime entierement la protection antivirus
-en temps reel. A reserver aux machines exclusivement dediees au gaming,
-sans navigation web non filtree ni reception de fichiers externes.
-
-
-POURQUOI LE MODE SANS ECHEC EST OBLIGATOIRE
---------------------------------------------
-Sur Windows 11 25H2, Defender est protege par deux mecanismes :
-- Tamper Protection : empeche toute modification de la configuration
-  Defender depuis un processus normal, meme en administrateur.
-- Protected Process Light (PPL) : les services WinDefend et WdFilter
-  s'executent en tant que processus proteges, non terminables par le
-  gestionnaire de taches ou PowerShell en mode normal.
-
-En Mode Sans Echec, Tamper Protection est inactif et les pilotes minifilter
-(WdFilter) ne se chargent pas. La modification du registre devient alors
-possible.
+WARNING : Disabling Defender entirely removes real-time antivirus protection.
+Recommended only for machines exclusively dedicated to gaming, with no
+unfiltered web browsing or reception of external files.
 
 
-SERVICES CONCERNES
-------------------
-Le script desactive ces six services en mettant leur valeur "Start" a 4
-(desactive) dans le registre :
+WHY SAFE MODE IS MANDATORY
+---------------------------
+On Windows 11 25H2, Defender is protected by two mechanisms :
+- Tamper Protection : blocks any modification to the Defender configuration
+  from a normal process, even as administrator.
+- Protected Process Light (PPL) : WinDefend and WdFilter services run as
+  protected processes, which cannot be terminated by Task Manager or
+  PowerShell in normal mode.
 
-  WinDefend    Service principal Defender (moteur AV)          defaut : 3
-  Sense        Microsoft Defender for Endpoint (telemetrie EDR) defaut : 3
-  WdFilter     Pilote minifilter — s'insere dans la pile I/O    defaut : 0
-  WdNisDrv     Pilote inspection reseau                         defaut : 3
-  WdNisSvc     Service inspection reseau                        defaut : 3
-  WdBoot       Pilote de demarrage precoce (ELAM)               defaut : 0
+In Safe Mode, Tamper Protection is inactive and the minifilter drivers
+(WdFilter) do not load. Registry modification then becomes possible.
 
-WdFilter est particulierement impactant : en tant que minifilter, il
-intercepte toutes les operations sur le systeme de fichiers (IRP_MJ_CREATE,
-IRP_MJ_READ, etc.) via le Filter Manager (fltmgr.sys). Le desactiver
-elimine ce point d'interception dans la pile I/O.
+
+SERVICES AFFECTED
+-----------------
+The script disables these six services by setting their "Start" value to 4
+(disabled) in the registry :
+
+  WinDefend    Main Defender service (AV engine)               default : 3
+  Sense        Microsoft Defender for Endpoint (EDR telemetry) default : 3
+  WdFilter     Minifilter driver -- hooks into the I/O stack    default : 0
+  WdNisDrv     Network inspection driver                        default : 3
+  WdNisSvc     Network inspection service                       default : 3
+  WdBoot       Early launch anti-malware driver (ELAM)          default : 0
+
+WdFilter is particularly impactful : as a minifilter, it intercepts all
+file system operations (IRP_MJ_CREATE, IRP_MJ_READ, etc.) through the
+Filter Manager (fltmgr.sys). Disabling it removes this interception point
+from the I/O stack.
 
 
 PROCEDURE
 ---------
-1. Ouvrir msconfig (Win+R > msconfig > Entree)
-2. Onglet "Demarrage" > cocher "Demarrage securise" > mode Minimal > OK
-3. Redemarrer — Windows demarre en Mode Sans Echec
-4. Ouvrir PowerShell en administrateur
-5. Executer : Set-ExecutionPolicy Bypass -Scope Process
-6. Executer le script : .\DisableDefender.ps1
-7. Rouvrir msconfig > decocher "Demarrage securise" > OK
-8. Redemarrer normalement
+1. Open msconfig (Win+R > msconfig > Enter)
+2. Boot tab > check "Safe boot" > Minimal mode > OK
+3. Reboot -- Windows starts in Safe Mode
+4. Open PowerShell as administrator
+5. Run : Set-ExecutionPolicy Bypass -Scope Process
+6. Run the script : .\DisableDefender.ps1
+7. Reopen msconfig > uncheck "Safe boot" > OK
+8. Reboot normally
 
-Note : sur certaines configurations 25H2, meme en Mode Sans Echec, les
-modifications peuvent etre bloquees si Smart App Control est actif. Dans
-ce cas, desactiver Smart App Control d'abord via Securite Windows >
-Protection contre les applications et les fichiers.
+Note : on some 25H2 configurations, even in Safe Mode, modifications may
+be blocked if Smart App Control is active. In that case, disable Smart App
+Control first via Windows Security > App & browser control.
 
 
-RESTAURATION
-------------
-Pour reactivater Defender, appliquer les valeurs par defaut :
+ROLLBACK
+--------
+To re-enable Defender, restore the default values :
 
   WinDefend : Start = 3
   Sense      : Start = 3
@@ -77,5 +75,5 @@ Pour reactivater Defender, appliquer les valeurs par defaut :
   WdNisSvc   : Start = 3
   WdBoot     : Start = 0
 
-Ou utiliser le fichier restore fourni dans ce dossier (meme procedure
-Mode Sans Echec requise).
+Or use the restore file provided in this folder (same Safe Mode procedure
+required).

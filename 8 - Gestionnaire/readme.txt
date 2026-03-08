@@ -1,84 +1,78 @@
-8 - GESTIONNAIRE DE PERIPHERIQUES
-Economie d'energie USB et suppression des peripheriques inutiles
-================================================================
+8 - DEVICE MANAGER
+USB power saving and unused device cleanup
+==========================================
 
-CE QUE CA FAIT
---------------
-Windows coupe automatiquement l'alimentation des peripheriques USB
-(clavier, souris, concentrateurs) apres une periode d'inactivite pour
-economiser de l'energie. Ce comportement peut provoquer des micro-coupures
-d'entree ou un delai de reveil perceptible sur les peripheriques de jeu.
+WHAT IT DOES
+------------
+Windows automatically cuts power to USB devices (keyboard, mouse, hubs)
+after a period of inactivity to save energy. This behavior can cause brief
+input dropouts or a noticeable wake-up delay on gaming peripherals.
 
-Ce dossier contient le raccourci vers le Gestionnaire de peripheriques
-et les instructions pour desactiver cette gestion d'energie au niveau
-individuel des peripheriques.
+This folder contains a shortcut to Device Manager and instructions for
+disabling this power management at the individual device level.
 
 
-DISTINCTION AVEC LE SCRIPT AUTOMATIQUE
----------------------------------------
-Le script 11_usb.ps1 (lance par run_all.ps1) desactive la suspension
-selective USB au niveau du plan d'alimentation via powercfg. Cette action
-agit sur la politique globale du bus USB mais pas sur les nœuds de
-peripheriques individuels.
+DISTINCTION FROM THE AUTOMATED SCRIPT
+--------------------------------------
+The 11_usb.ps1 script (run by run_all.bat) disables USB selective suspend
+at the power plan level via powercfg. This acts on the global USB bus
+policy but not on individual device nodes.
 
-La procedure manuelle ci-dessous agit au niveau de chaque peripherique
-dans son DevNode : elle desactive la propriete DEVPROP AllowIdleIrpInD3
-sur le nœud specifique, ce qui empeche le pilote hub USB de transmettre
-les commandes de suspension a ce peripherique en particulier. Les deux
-actions sont complementaires.
+The manual procedure below acts at the DevNode level for each device :
+it disables the DEVPROP AllowIdleIrpInD3 property on the specific node,
+which prevents the USB hub driver from sending suspend commands to that
+particular device. The two actions are complementary.
 
 
-PROCEDURE — ECONOMIE D'ENERGIE USB
-------------------------------------
-1. Ouvrir le Gestionnaire de peripheriques (raccourci Gestionnaire.lnk)
-2. Pour chaque peripherique liste ci-dessous :
-   - Clic droit > Proprietes > onglet "Gestion de l'alimentation"
-   - Decocher "Autoriser l'ordinateur a eteindre ce peripherique
-     pour economiser de l'energie"
+PROCEDURE -- USB POWER SAVING
+------------------------------
+1. Open Device Manager (Gestionnaire.lnk shortcut)
+2. For each device listed below :
+   - Right-click > Properties > "Power Management" tab
+   - Uncheck "Allow the computer to turn off this device to save power"
    - OK
 
-Peripheriques a traiter :
-  Claviers
-    > Clavier HID / Clavier USB
+Devices to process :
+  Keyboards
+    > HID Keyboard / USB Keyboard
 
-  Controleurs de bus USB
-    > Controleur USB (tous ceux de la liste)
+  Universal Serial Bus controllers
+    > USB Controller (all entries in the list)
 
-  Peripheriques d'interface utilisateur (HID)
-    > Tous les peripheriques HID presentes
+  Human Interface Devices (HID)
+    > All HID devices listed
 
-  Souris et autres dispositifs de pointage
-    > Souris HID / Souris USB
+  Mice and other pointing devices
+    > HID Mouse / USB Mouse
 
 
-PROCEDURE — DESACTIVATION DES PERIPHERIQUES INUTILES
-------------------------------------------------------
-Les peripheriques suivants peuvent etre desactives s'ils ne sont pas
-utilises, pour supprimer leurs DPC et interruptions associes.
+PROCEDURE -- DISABLING UNUSED DEVICES
+--------------------------------------
+The following devices can be disabled if not in use, to remove their
+associated DPCs and interrupts.
 
-  Controleurs audio, jeu et video :
-    > Desactiver ce qui n'est pas utilise (cartes son secondaires,
-      controleurs de jeu non connectes)
+  Audio, video and game controllers :
+    > Disable anything unused (secondary sound cards,
+      disconnected game controllers)
 
-  Peripheriques systeme :
-    > Controleur High Definition Audio (si son USB ou carte son PCI
-      dediee utilisee a la place)
-    > Intel Management Engine Interface (si gestion a distance non
-      requise)
-    > Bus redirecteur de peripherique du bureau a distance
-    > Enumerateur de lecteur virtuel Microsoft
-    > Pilote d'infrastructure de virtualisation Microsoft Hyper-V
+  System devices :
+    > High Definition Audio Controller (if USB audio or a dedicated
+      PCI sound card is used instead)
+    > Intel Management Engine Interface (if remote management not needed)
+    > Remote Desktop Device Redirector Bus
+    > Microsoft Virtual Drive Enumerator
+    > Microsoft Hyper-V Virtualization Infrastructure Driver
 
-  Peripheriques logiciels :
+  Software devices :
     > Microsoft Root Enum
-    > Synthetiseur de table de son Microsoft (si son MIDI non utilise)
+    > Microsoft GS Wavetable Synth (if MIDI audio not in use)
 
-Attention : ne desactiver que ce dont vous etes certain de ne pas
-avoir besoin. En cas de doute, ne pas toucher — il est toujours possible
-de reactivear via Affichage > Afficher les peripheriques caches.
+Caution : only disable devices you are certain you do not need. When in
+doubt, leave them alone -- they can always be re-enabled via
+View > Show hidden devices.
 
 
-RESTAURATION
-------------
-Onglet "Gestion de l'alimentation" : recocher la case.
-Pour les peripheriques desactives : clic droit > Activer le peripherique.
+ROLLBACK
+--------
+"Power Management" tab : re-check the box.
+For disabled devices : right-click > Enable device.

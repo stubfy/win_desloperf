@@ -1,80 +1,78 @@
 5 - MSI UTILS
-Activation des interruptions MSI sur les peripheriques
-======================================================
+Enabling MSI interrupts on hardware devices
+============================================
 
-CE QUE CA FAIT
---------------
-Active le mode MSI (Message Signaled Interrupts) sur les composants
-principaux du PC. En mode MSI, les peripheriques communiquent avec le
-processeur via des ecritures memoire directes plutot que via des signaux
-electriques partages, ce qui reduit la latence de traitement des
-interruptions et elimine les conflits d'IRQ.
+WHAT IT DOES
+------------
+Enables MSI (Message Signaled Interrupts) mode on the main PC components.
+In MSI mode, devices communicate with the processor through direct memory
+writes rather than shared electrical signals, which reduces interrupt
+processing latency and eliminates IRQ conflicts.
 
-L'impact concret : moins de DPC (Deferred Procedure Calls) empiles,
-frametime plus stable, latence d'entree plus reguliere.
+The practical impact : fewer stacked DPCs (Deferred Procedure Calls),
+more stable frametime, more consistent input latency.
 
 
-DETAIL TECHNIQUE
+TECHNICAL DETAIL
 ----------------
-Par defaut, les peripheriques PCI/PCIe utilisent le mode INTx (line-based
-interrupts). Dans ce mode, plusieurs peripheriques peuvent partager la meme
-ligne d'interruption (IRQ sharing), ce qui oblige le processeur a interroger
-chaque peripherique pour savoir lequel a genere l'interruption.
+By default, PCI/PCIe devices use INTx mode (line-based interrupts). In this
+mode, multiple devices can share the same interrupt line (IRQ sharing),
+which forces the processor to poll each device to find which one triggered
+the interrupt.
 
-En mode MSI (Message Signaled Interrupts, defini dans la spec PCIe), le
-peripherique envoie une ecriture memoire directement a l'adresse cible de
-l'APIC (Advanced Programmable Interrupt Controller). Cela :
-- Elimine le partage d'IRQ (chaque peripherique a un vecteur unique)
-- Reduit le DPC latency (moins d'attente dans la file d'interruptions)
-- Permet MSI-X : jusqu'a 2048 vecteurs par peripherique, un par file CPU
+In MSI mode (Message Signaled Interrupts, defined in the PCIe spec), the
+device sends a memory write directly to the APIC (Advanced Programmable
+Interrupt Controller) target address. This :
+- Eliminates IRQ sharing (each device gets a unique vector)
+- Reduces DPC latency (less waiting in the interrupt queue)
+- Enables MSI-X : up to 2048 vectors per device, one per CPU queue
 
-Les outils fournis (PCIutil.exe et MSI_util_v3.exe) lisent l'etat MSI
-de chaque peripherique et permettent de l'activer ou de le desactiver.
+The tools provided (PCIutil.exe and MSI_util_v3.exe) read the MSI state
+of each device and allow enabling or disabling it.
 
 
-PERIPHERIQUES A ACTIVER
-------------------------
-Compatibles et recommandes :
-  - Carte graphique (GPU)
-  - Carte reseau Ethernet
-  - Carte reseau WiFi
-  - Controleur NVMe (SSD NVMe)
-  - Controleurs AHCI SATA recents (SSD et disques SATA)
-  - Controleurs USB Intel, AMD ou ASMedia
+DEVICES TO ENABLE
+-----------------
+Compatible and recommended :
+  - Graphics card (GPU)
+  - Ethernet NIC
+  - Wi-Fi card
+  - NVMe controller (NVMe SSD)
+  - Recent AHCI SATA controllers (SATA SSDs and drives)
+  - Intel, AMD or ASMedia USB controllers
   - AMD PSP / Intel Management Engine
 
-Risques (a eviter si non maitrise) :
-  - Pont PCI vers PCI (PCI to PCI bridge)
+Use with caution (avoid if unsure) :
+  - PCI to PCI Bridge
   - Intel PCIe Controller (x16)
   - Intel PCI Express Root Port / PCI Express Root Port
 
 
-A NE PAS ACTIVER — RISQUE DE BSOD
------------------------------------
-  - Cartes d'acquisition ELGATO
-  - Controleur High Definition Audio (pilote audio integre)
-  - Cartes son Soundblaster, ASUS Xonar, Creative
-  - Anciens controleurs USB 1.0 / 1.1 / 2.0 (PC de plus de 10 ans)
+DO NOT ENABLE -- BSOD RISK
+---------------------------
+  - ELGATO capture cards
+  - High Definition Audio controller (integrated audio driver)
+  - Soundblaster, ASUS Xonar, Creative sound cards
+  - Legacy USB 1.0 / 1.1 / 2.0 controllers (PCs older than 10 years)
 
-Note : si le mode MSI est deja actif sur un controleur USB, c'est que
-le pilote le supporte nativement — ne rien modifier dans ce cas.
+Note : if MSI mode is already active on a USB controller, the driver
+supports it natively -- do not change anything in that case.
 
 
 PROCEDURE
 ---------
-1. Ouvrir MSI_util_v3.exe en administrateur
-2. Identifier les peripheriques cibles dans la liste
-3. Pour chaque peripherique compatible, cliquer sur la colonne MSI
-   et selectionner "MSI" (ou "MSI-X" si disponible)
-4. Appliquer et redemarrer le PC
-5. Verifier apres redemarrage que les peripheriques fonctionnent
-   correctement (son, reseau, USB)
+1. Open MSI_util_v3.exe as administrator
+2. Identify the target devices in the list
+3. For each compatible device, click the MSI column
+   and select "MSI" (or "MSI-X" if available)
+4. Apply and reboot
+5. After rebooting, verify devices work correctly (audio, network, USB)
 
-En cas de BSOD au redemarrage : demarrer en Mode Sans Echec et
-desactiver le mode MSI sur le dernier peripherique modifie.
+In case of BSOD on reboot : start in Safe Mode and disable MSI mode
+on the last device that was modified.
 
 
-RESTAURATION
-------------
-Ouvrir MSI_util_v3.exe en administrateur, remettre chaque
-peripherique en mode "Line Based" (INTx), redemarrer.
+ROLLBACK
+--------
+Open MSI_util_v3.exe as administrator, set each device back to
+"Line Based" (INTx) mode, reboot.

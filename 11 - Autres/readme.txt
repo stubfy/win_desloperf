@@ -1,76 +1,72 @@
-11 - AUTRES
-Outils complementaires divers
-==============================
+11 - OTHERS
+Miscellaneous complementary tools
+===================================
 
-Ce dossier regroupe des outils utilitaires qui ne s'integrent pas dans
-les autres categories mais restent utiles pour le suivi et la maintenance
-du systeme apres optimisation.
+This folder groups utility tools that do not fit into the other categories
+but remain useful for monitoring and system maintenance after optimization.
 
 
 AUTORUNS (Sysinternals)
------------------------
-Outil de Microsoft Sysinternals qui liste exhaustivement tous les points
-de demarrage automatique du systeme Windows.
+------------------------
+A Microsoft Sysinternals tool that exhaustively lists all automatic startup
+points on a Windows system.
 
-Ce que ca couvre :
-  - Cles Run / RunOnce dans HKLM et HKCU
-  - Services systeme (HKLM\SYSTEM\CurrentControlSet\Services)
-  - Pilotes de demarrage
-  - Taches planifiees (Task Scheduler)
-  - AppInit_DLLs (DLL injectees dans tous les processus)
-  - Browser Helper Objects (extensions navigateur)
+What it covers :
+  - Run / RunOnce keys in HKLM and HKCU
+  - System services (HKLM\SYSTEM\CurrentControlSet\Services)
+  - Boot drivers
+  - Scheduled tasks (Task Scheduler)
+  - AppInit_DLLs (DLLs injected into all processes)
+  - Browser Helper Objects (browser extensions)
   - LSA Authentication Packages
   - Winlogon Notify packages
   - Boot Execute entries
 
-Utilisation :
-  Ouvrir Autoruns\Autoruns64.exe en administrateur. Decocher une entree
-  pour la desactiver (sans la supprimer). La colonne "Publisher" affiche
-  le signataire — tout element non signe ou de publisher inconnu merite
-  attention. Menu Options > Scan Options > Check VirusTotal.com permet
-  de verifier les executables contre la base de donnees VirusTotal.
+Usage :
+  Open Autoruns\Autoruns64.exe as administrator. Unchecking an entry
+  disables it without deleting it. The "Publisher" column shows the
+  code signer -- any unsigned entry or unknown publisher warrants
+  investigation. Menu Options > Scan Options > Check VirusTotal.com
+  allows verifying executables against the VirusTotal database.
 
 
 DEVICECLEANUP
--------------
-Supprime les entrees de peripheriques fantomes (ghost devices) du
-Gestionnaire de peripheriques et du registre Windows.
+--------------
+Removes ghost device entries (disconnected devices) from Device Manager
+and the Windows registry.
 
-Ce que ca couvre :
-  Les peripheriques deconectes conservent leurs entrees dans :
+What it covers :
+  Disconnected devices retain their entries in :
     HKLM\SYSTEM\CurrentControlSet\Enum
-  avec le flag ConfigFlags contenant le bit 0x1 (CONFIGFLAG_REINSTALL).
-  DeviceCleanup appelle CM_Get_DevNode_Status pour chaque nœud du
-  DeviceTree, identifie ceux dont l'etat est DN_WILL_BE_REMOVED ou
-  absent physiquement, puis appelle SetupDiRemoveDevice pour les
-  supprimer proprement.
+  with the ConfigFlags flag containing bit 0x1 (CONFIGFLAG_REINSTALL).
+  DeviceCleanup calls CM_Get_DevNode_Status for each node in the
+  DeviceTree, identifies those whose state is DN_WILL_BE_REMOVED or
+  physically absent, then calls SetupDiRemoveDevice to cleanly remove them.
 
-Utilisation :
-  Ouvrir deviceCleanup\DeviceCleanup.exe en administrateur. La liste
-  affiche les peripheriques non connectes. Selectionner tout (Ctrl+A)
-  et supprimer, ou filtrer par type avant de supprimer.
+Usage :
+  Open deviceCleanup\DeviceCleanup.exe as administrator. The list shows
+  all disconnected devices. Select all (Ctrl+A) and delete, or filter by
+  type before deleting.
 
-Note : apres avoir desactive des peripheriques dans le Gestionnaire de
-peripheriques (voir dossier 8), lancer DeviceCleanup pour nettoyer les
-entrees residuelles.
+Note : after disabling devices in Device Manager (see folder 8), run
+DeviceCleanup to clean up residual entries.
 
 
-FICHIERS TEMP
+TEMP FOLDERS
 -------------
-Raccourcis vers les dossiers de fichiers temporaires Windows :
-  Fichiers temp 1 : %TEMP% (dossier temporaire de l'utilisateur courant)
-  Fichiers temp 2 : %WINDIR%\Temp (dossier temporaire systeme)
+Shortcuts to Windows temporary file folders :
+  Fichiers temp 1 : %TEMP% (current user's temporary folder)
+  Fichiers temp 2 : %WINDIR%\Temp (system temporary folder)
 
-Supprimer le contenu de ces dossiers periodiquement pour liberer de
-l'espace disque. Ignorer les erreurs "fichier en cours d'utilisation"
-— ces fichiers sont utilises par des processus actifs et ne peuvent
-pas etre supprimes pendant la session.
+Delete the contents of these folders periodically to free disk space.
+Ignore "file in use" errors -- those files are held by active processes
+and cannot be deleted during the current session.
 
 
-FILTRES NVIDIA SHARPNESS
-------------------------
-Contient des fichiers .reg alternatifs pour le filtre NIS (chemin de
-registre legacy utilise par les anciens pilotes NVIDIA).
-Ces fichiers sont supplantas par ceux du dossier 7 - NVInspector
-qui ciblent le chemin correct pour les pilotes modernes.
-Ne pas les appliquer si les .reg du dossier 7 ont deja ete utilises.
+NVIDIA SHARPNESS FILTERS
+-------------------------
+Contains alternative .reg files for the NIS filter (legacy registry path
+used by older NVIDIA drivers).
+These files are superseded by those in folder 7 - NVInspector which target
+the correct path for modern drivers.
+Do not apply these if the .reg files from folder 7 have already been used.

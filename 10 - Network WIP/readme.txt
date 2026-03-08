@@ -1,102 +1,99 @@
 10 - NETWORK WIP
-Optimisation avancee de la carte reseau (NIC)
-=============================================
+Advanced NIC optimization
+===========================
 
-CE QUE CA FAIT
---------------
-Desactive les fonctionnalites de la carte reseau congues pour les serveurs
-et les environnements multi-connexions, qui introduisent du batching et
-de la latence supplementaire sur un PC gaming avec une seule connexion active.
-
-Inclut egalement TCP Optimizer (outil tiers) pour regler les parametres
-de la pile TCP/IP Windows.
-
-
-DETAIL TECHNIQUE
-----------------
-Les offloads NIC deplacent du traitement TCP/IP vers le firmware de la
-carte reseau pour reduire la charge CPU sur les serveurs. Sur un PC gaming :
-
-- Large Send Offload (LSO) : regroupe plusieurs paquets TCP sortants en
-  un seul segment avant de les envoyer. Reduit les interruptions mais
-  augmente la latence de chaque paquet individuel.
-
-- Interrupt Moderation : regroupe plusieurs interruptions NIC en une
-  seule avant de les remonter au CPU. Tres utile a 10 Gbps, nuisible
-  en gaming (delai supplementaire entre reception du paquet et traitement).
-
-- Receive/Transmit Buffers : taille du ring buffer DMA entre le NIC et
-  la memoire systeme. A 2048, on evite les drops sous charge tout en
-  limitant la latence de remplissage du buffer.
-
-- Flow Control (PAUSE frames) : mecanisme de regulation du debit entre
-  le NIC et le switch. Peut introduire des pauses artificielles.
-
-- Energy Efficient Ethernet (EEE) : met le transceiver en veille lors
-  des periodes de faible activite. Provoque des pics de latence au reveil.
-
-Les reglages ci-dessous ciblent specifiquement le Intel I226-V. Les noms
-exacts des parametres peuvent varier selon la carte reseau installee.
-
-
-PROCEDURE — GESTIONNAIRE DE PERIPHERIQUES
-------------------------------------------
-1. Ouvrir le Gestionnaire de peripheriques
-2. Cartes reseau > clic droit sur l'adaptateur > Proprietes
-3. Onglet "Avance" — appliquer les valeurs suivantes :
-
-  ARP Offload                    : Desactive
-  DMA Coalescing                 : Desactive
-  Enable PME                     : Desactive
-  Energy Efficient Ethernet      : Desactive
-  Flow Control                   : Desactive
-  Interrupt Moderation           : Desactive
-  Interrupt Moderation Rate      : Off
-  IPv4 Checksum Offload          : Active (Rx et Tx)
-  Large Send Offload V2 (IPv4)   : Desactive
-  Large Send Offload V2 (IPv6)   : Desactive
-  Log Link State Event           : Desactive
-  NS Offload                     : Desactive
-  Packet Priority & VLAN         : Desactive
-  Receive Buffers                : 2048
-  Selective Suspend              : Desactive
-  Selective Suspend Idle Timeout : 5
-  Speed & Duplex                 : Choisir la vitesse correspondant
-                                   au port Ethernet du routeur
-                                   (eviter Auto-Negotiation si possible)
-  TCP Checksum Offload IPv4      : Rx & Tx Active
-  TCP Checksum Offload IPv6      : Rx & Tx Active
-  Transmit Buffers               : 2048
-  UDP Checksum Offload IPv4      : Rx & Tx Active
-  UDP Checksum Offload IPv6      : Rx & Tx Active
-  Wait for Link                  : Off
-  Wake from S0ix on Magic Packet : Desactive
-  Wake on Link Settings          : Desactive
-  Wake on Magic Packet           : Desactive
-  Wake on Pattern Match          : Desactive
-
-4. Onglet "Gestion de l'alimentation" :
-   Decocher "Autoriser l'ordinateur a eteindre ce peripherique
-   pour economiser de l'energie"
-
-
-PROCEDURE — TCP OPTIMIZER
---------------------------
-1. Ouvrir TCPOptimizer.exe en administrateur
-2. Appliquer les reglages du profil Export.spg fourni dans ce dossier
-   (File > Load Settings > selectionner Export.spg)
-3. Ajuster le MTU selon ce que propose votre FAI
-   (generalement 1500 pour Ethernet standard, 1492 pour PPPoE)
-4. Cliquer "Apply Changes" et redemarrer
-
-Le profil FirstBackup.spg contient les valeurs TCP d'origine enregistrees
-lors de la premiere utilisation — l'appliquer pour restaurer les reglages
-TCP par defaut.
-
-
-RESTAURATION
+WHAT IT DOES
 ------------
-Onglet "Avance" du NIC : cliquer "Restore Defaults" ou "Restaurer les
-parametres par defaut" si disponible, sinon remettre chaque valeur
-manuellement.
-TCP : appliquer FirstBackup.spg dans TCP Optimizer.
+Disables NIC features designed for servers and multi-connection environments,
+which introduce batching and additional latency on a gaming PC with a single
+active connection.
+
+Also includes TCP Optimizer (third-party tool) to tune Windows TCP/IP stack
+parameters.
+
+
+TECHNICAL DETAIL
+----------------
+NIC offloads move TCP/IP processing to the card firmware to reduce CPU load
+on servers. On a gaming PC :
+
+- Large Send Offload (LSO) : batches multiple outgoing TCP packets into
+  a single segment before sending. Reduces interrupts but increases
+  per-packet latency.
+
+- Interrupt Moderation : batches multiple NIC interrupts into one before
+  raising them to the CPU. Very useful at 10 Gbps, harmful in gaming
+  (extra delay between packet reception and processing).
+
+- Receive/Transmit Buffers : size of the DMA ring buffer between the NIC
+  and system memory. At 2048, packet drops under load are avoided while
+  buffer fill latency is kept low.
+
+- Flow Control (PAUSE frames) : throughput regulation mechanism between
+  the NIC and the switch. Can introduce artificial pauses.
+
+- Energy Efficient Ethernet (EEE) : puts the transceiver to sleep during
+  low-activity periods. Causes latency spikes on wake-up.
+
+The settings below target the Intel I226-V specifically. Exact parameter
+names may vary depending on the installed network card.
+
+
+PROCEDURE -- DEVICE MANAGER
+----------------------------
+1. Open Device Manager
+2. Network adapters > right-click on the adapter > Properties
+3. "Advanced" tab -- apply the following values :
+
+  ARP Offload                    : Disabled
+  DMA Coalescing                 : Disabled
+  Enable PME                     : Disabled
+  Energy Efficient Ethernet      : Disabled
+  Flow Control                   : Disabled
+  Interrupt Moderation           : Disabled
+  Interrupt Moderation Rate      : Off
+  IPv4 Checksum Offload          : Enabled (Rx & Tx)
+  Large Send Offload V2 (IPv4)   : Disabled
+  Large Send Offload V2 (IPv6)   : Disabled
+  Log Link State Event           : Disabled
+  NS Offload                     : Disabled
+  Packet Priority & VLAN         : Disabled
+  Receive Buffers                : 2048
+  Selective Suspend              : Disabled
+  Selective Suspend Idle Timeout : 5
+  Speed & Duplex                 : Select the speed matching your router's
+                                   Ethernet port (avoid Auto-Negotiation
+                                   if possible)
+  TCP Checksum Offload IPv4      : Rx & Tx Enabled
+  TCP Checksum Offload IPv6      : Rx & Tx Enabled
+  Transmit Buffers               : 2048
+  UDP Checksum Offload IPv4      : Rx & Tx Enabled
+  UDP Checksum Offload IPv6      : Rx & Tx Enabled
+  Wait for Link                  : Off
+  Wake from S0ix on Magic Packet : Disabled
+  Wake on Link Settings          : Disabled
+  Wake on Magic Packet           : Disabled
+  Wake on Pattern Match          : Disabled
+
+4. "Power Management" tab :
+   Uncheck "Allow the computer to turn off this device to save power"
+
+
+PROCEDURE -- TCP OPTIMIZER
+---------------------------
+1. Open TCPOptimizer.exe as administrator
+2. Apply the settings from the Export.spg profile in this folder
+   (File > Load Settings > select Export.spg)
+3. Adjust MTU according to your ISP
+   (typically 1500 for standard Ethernet, 1492 for PPPoE)
+4. Click "Apply Changes" and reboot
+
+The FirstBackup.spg profile contains the original TCP values recorded
+on first use -- apply it to restore default TCP settings.
+
+
+ROLLBACK
+--------
+NIC "Advanced" tab : click "Restore Defaults" if available, otherwise
+revert each value manually.
+TCP : apply FirstBackup.spg in TCP Optimizer.
