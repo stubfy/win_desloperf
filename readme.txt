@@ -1,4 +1,4 @@
-OPTI PACK -- Windows 11 25H2
+WIN_DESLOPPER v0.1 -- Windows 11 25H2
 Gaming optimization, debloat and quality of life
 =================================================
 
@@ -6,7 +6,7 @@ This pack bundles tweaks and tools to improve gaming performance
 (input latency, frametime, system fluidity), remove Microsoft bloatware
 and fix Windows default behaviors that are unfavorable to gaming.
 
-Target : Windows 11 25H2, gaming PC (NVIDIA GPU, Intel I226-V NIC).
+Target : Windows 11 25H2
 
 
 USAGE ORDER
