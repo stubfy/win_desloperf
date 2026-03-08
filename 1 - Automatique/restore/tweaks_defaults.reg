@@ -1,0 +1,179 @@
+Windows Registry Editor Version 5.00
+
+; ===========================================================================
+; OPTI PACK - Restauration valeurs Windows par defaut
+; Inverse de scripts\tweaks_consolidated.reg
+; ===========================================================================
+
+; --- Restaurer HDCP ---
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000]
+"RMHdcpKeyglobZero"=-
+
+; --- Restaurer Prefetch (3 = SSD optimal sur Win11) ---
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters]
+"EnablePrefetcher"=dword:00000003
+
+; --- Restaurer GameDVR ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR]
+"value"="00000001"
+
+[HKEY_CURRENT_USER\System\GameConfigStore]
+"GameDVR_Enabled"=dword:00000001
+
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\GameDVR]
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR]
+"AppCaptureEnabled"=dword:00000001
+
+; --- Restaurer timeouts Windows par defaut ---
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control]
+"WaitToKillServiceTimeout"="5000"
+
+[HKEY_CURRENT_USER\Control Panel\Desktop]
+"AutoEndTasks"="0"
+"HungAppTimeout"="5000"
+"MenuShowDelay"="400"
+"WaitToKillAppTimeout"="20000"
+
+; --- Restaurer extensions fichiers (masquees par defaut) ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+"HideFileExt"=dword:00000001
+
+; --- Restaurer recherche automatique de drivers ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching]
+"SearchOrderConfig"=dword:00000001
+
+; --- Restaurer applications en arriere plan ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications]
+"GlobalUserDisabled"=-
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search]
+"BackgroundAppGlobalToggle"=-
+
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy]
+
+; --- Restaurer maintenance automatique ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance]
+"MaintenanceDisabled"=-
+
+; --- Restaurer courbes souris Windows par defaut ---
+[HKEY_CURRENT_USER\Control Panel\Mouse]
+"SmoothMouseXCurve"=hex:\
+	00,00,00,00,00,00,00,00,\
+	15,6E,00,00,00,00,00,00,\
+	00,40,01,00,00,00,00,00,\
+	29,DC,03,00,00,00,00,00,\
+	00,00,28,00,00,00,00,00
+"SmoothMouseYCurve"=hex:\
+	00,00,00,00,00,00,00,00,\
+	FD,11,01,00,00,00,00,00,\
+	00,24,04,00,00,00,00,00,\
+	00,FC,12,00,00,00,00,00,\
+	00,00,38,02,00,00,00,00
+
+[HKEY_USERS\.DEFAULT\Control Panel\Mouse]
+"MouseSpeed"="1"
+"MouseThreshold1"="6"
+"MouseThreshold2"="10"
+
+; --- Restaurer MMCSS Games par defaut ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games]
+"GPU Priority"=dword:00000001
+"Priority"=dword:00000002
+"Scheduling Category"="Medium"
+"SFIO Priority"="Normal"
+
+; --- Restaurer throttling CPU ---
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling]
+"PowerThrottlingOff"=-
+
+; --- Restaurer throttling reseau / reactivite systeme ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile]
+"NetworkThrottlingIndex"=dword:0000000a
+"SystemResponsiveness"=dword:00000014
+
+; --- Restaurer option veille / hibernation ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings]
+"ShowSleepOption"=-
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power]
+"HibernateEnabled"=dword:00000001
+
+; --- Supprimer le menu contextuel classique ---
+[-HKEY_CURRENT_USER\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}]
+
+; --- Restaurer Widgets ---
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Dsh]
+
+; --- Restaurer vitesse clavier par defaut ---
+[HKEY_CURRENT_USER\Control Panel\Keyboard]
+"KeyboardDelay"="1"
+"KeyboardSpeed"="20"
+
+; --- Restaurer VBS/HVCI ---
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\DeviceGuard]
+"EnableVirtualizationBasedSecurity"=dword:00000001
+
+; --- Restaurer GlobalTimerResolutionRequests ---
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel]
+"GlobalTimerResolutionRequests"=dword:00000000
+
+; --- Restaurer taille files d'attente souris/clavier par defaut ---
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\mouclass\Parameters]
+"MouseDataQueueSize"=dword:00000064
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters]
+"KeyboardDataQueueSize"=dword:00000064
+
+; --- Restaurer GPU scheduling (1 = logiciel, defaut avant Win10 2004) ---
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers]
+"HwSchMode"=dword:00000001
+
+; --- Restaurer notifications Centre de securite ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance]
+"Enabled"=-
+
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows Defender Security Center\Notifications]
+"DisableNotifications"=-
+
+; --- Restaurer niveau telemetrie ---
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection]
+
+; --- Restaurer historique d'activites Windows ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System]
+"EnableActivityFeed"=-
+"PublishUserActivities"=-
+"UploadUserActivities"=-
+
+; --- Restaurer Consumer Features ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent]
+"DisableWindowsConsumerFeatures"=-
+
+; --- Restaurer geolocalisation ---
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors]
+
+; --- Restaurer preference IPv6 ---
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters]
+"DisabledComponents"=-
+
+; --- Restaurer "Accueil" dans le panneau Explorateur ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}]
+@="Home"
+
+; --- Restaurer "Galerie" dans le panneau Explorateur ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}]
+@="Gallery"
+
+; --- Restaurer clic droit barre des taches ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\TaskManager]
+"Preference"=-
+
+; --- Restaurer detection automatique type de dossier ---
+[HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\AllFolders\Shell]
+"FolderType"=-
+
+; --- Restaurer Storage Sense (desactive) ---
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy]
+"01"=-
+"04"=-
+"08"=-

@@ -1,0 +1,85 @@
+[netsh]
+AutoTuningLevelLocal=3
+ScalingHeuristics=2
+CongestionProvider=5
+ReceiveSegmentCoalescing=2
+ReceiveSideScaling=1
+Large Send Offload=2
+Checksum Offload=1
+EcnCapability=2
+Chimney=2
+Timestamps=2
+MaxSynRetransmissions=1
+NonSackRttResiliency=2
+InitialRto(ms)=2000
+MinRto(ms)=300
+[SOFTWARE\Microsoft\Internet Explorer\MAIN\FeatureControl\FEATURE_MAXCONNECTIONSPER1_0SERVER]
+explorer.exe=10
+iexplore.exe=10
+[SOFTWARE\Microsoft\Internet Explorer\MAIN\FeatureControl\FEATURE_MAXCONNECTIONSPERSERVER]
+explorer.exe=10
+iexplore.exe=10
+[SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider]
+LocalPriority=4
+HostsPriority=5
+DnsPriority=6
+NetbtPriority=7
+[SOFTWARE\Policies\Microsoft\Windows\Psched]
+NonBestEffortLimit=0
+[System\CurrentControlSet\Services\Tcpip\QoS]
+Do not use NLA=1
+Do not use NLA_SEL=1
+[SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile]
+NetworkThrottlingIndex=-1
+NetworkThrottlingIndex_SEL=0
+SystemResponsiveness=0
+SystemResponsiveness_SEL=0
+[SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters]
+Size=1
+Size_SEL=1
+[SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management]
+LargeSystemCache=0
+LargeSystemCache_SEL=0
+[SYSTEM\CurrentControlSet\Services\Tcpip\Parameters]
+MaxUserPort=65534
+TcpTimedWaitDelay=30
+DefaultTTL=64
+[SOFTWARE\Microsoft\MSMQ\Parameters]
+TCPNoDelay=1
+TCPNoDelay_SEL=1
+[Ethernet 3]
+MTU=0
+[SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\{56D0B52D-B1AD-4193-98DE-E86522AE4096}]
+TcpAckFrequency=-1
+TcpAckFrequency_SEL=0
+TcpDelAckTicks=-1
+TcpDelAckTicks_SEL=0
+TCPNoDelay=-1
+TCPNoDelay_SEL=0
+[Wi-Fi]
+MTU=0
+[SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\{91FA3235-39DF-4705-9E3D-40123FDF059A}]
+TcpAckFrequency=-1
+TcpAckFrequency_SEL=0
+TcpDelAckTicks=-1
+TcpDelAckTicks_SEL=0
+TCPNoDelay=-1
+TCPNoDelay_SEL=0
+[Ethernet 6]
+MTU=1500
+[SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\{2DA362EA-20DB-45AF-B8D6-3DC71ACFB897}]
+TcpAckFrequency=1
+TcpAckFrequency_SEL=1
+TcpDelAckTicks=0
+TcpDelAckTicks_SEL=0
+TCPNoDelay=1
+TCPNoDelay_SEL=1
+[Ethernet]
+MTU=0
+[SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\{1047757C-BF1F-4474-B9F4-65451EF9E576}]
+TcpAckFrequency=-1
+TcpAckFrequency_SEL=0
+TcpDelAckTicks=-1
+TcpDelAckTicks_SEL=0
+TCPNoDelay=-1
+TCPNoDelay_SEL=0
