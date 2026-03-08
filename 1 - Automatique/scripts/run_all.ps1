@@ -17,8 +17,8 @@ $ErrorActionPreference = 'Continue'
 $ROOT         = Split-Path (Split-Path $MyInvocation.MyCommand.Path)
 $SCRIPTS      = Join-Path $ROOT "scripts"
 $PACK_VERSION = 'v0.1'
-$LOG_DIR      = Join-Path $env:APPDATA 'win_unslopper\logs'
-$LOG_FILE     = Join-Path $LOG_DIR "win_unslopper.log"
+$LOG_DIR      = Join-Path $env:APPDATA 'win_deslopper\logs'
+$LOG_FILE     = Join-Path $LOG_DIR "win_deslopper.log"
 
 if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null }
 
@@ -60,14 +60,14 @@ function Invoke-Script {
 
 # ── En-tete ───────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "  win_unslopper v0.1" -ForegroundColor Cyan
+Write-Host "  win_deslopper v0.1" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  by stubfy" -ForegroundColor DarkGray
 Write-Host ""
 
 # ── Init log ──────────────────────────────────────────────────────────────────
 Write-Log "============================================================"
-Write-Log "win_unslopper $PACK_VERSION" 'INFO'
+Write-Log "win_deslopper $PACK_VERSION" 'INFO'
 Write-Log "Date    : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" 'INFO'
 Write-Log "OS      : $([System.Environment]::OSVersion.VersionString)" 'INFO'
 Write-Log "Machine : $env:COMPUTERNAME" 'INFO'
