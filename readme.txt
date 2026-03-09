@@ -1,4 +1,4 @@
-WIN_DESLOPPER v0.1 -- Windows 11 25H2
+WIN_DESLOPPER v0.4 -- Windows 11 25H2
 Gaming optimization, debloat and quality of life
 =================================================
 

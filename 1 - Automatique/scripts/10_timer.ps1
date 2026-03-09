@@ -1,12 +1,21 @@
-# 10_timer.ps1 - Add SetTimerResolution to Windows startup (shell:startup)
+# 10_timer.ps1 - Install SetTimerResolution to AppData and add to Windows startup
 
 $ROOT     = Split-Path $PSScriptRoot
-$timerExe = Join-Path $ROOT "tools\SetTimerResolution.exe"
+$timerSrc = Join-Path $ROOT "tools\SetTimerResolution.exe"
 
-if (-not (Test-Path $timerExe)) {
-    Write-Host "    SetTimerResolution.exe not found: $timerExe" -ForegroundColor Yellow
+if (-not (Test-Path $timerSrc)) {
+    Write-Host "    SetTimerResolution.exe not found: $timerSrc" -ForegroundColor Yellow
     return
 }
+
+# Install to %APPDATA%\win_deslopper\
+$installDir = Join-Path $env:APPDATA "win_deslopper"
+if (-not (Test-Path $installDir)) {
+    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+}
+$timerExe = Join-Path $installDir "SetTimerResolution.exe"
+Copy-Item -Path $timerSrc -Destination $timerExe -Force
+Write-Host "    Installed to   : $timerExe"
 
 $startupDir   = [System.Environment]::GetFolderPath('Startup')
 $shortcutPath = Join-Path $startupDir "SetTimerResolution.lnk"
@@ -15,7 +24,7 @@ $wsh      = New-Object -ComObject WScript.Shell
 $shortcut = $wsh.CreateShortcut($shortcutPath)
 $shortcut.TargetPath       = $timerExe
 $shortcut.Arguments        = "--resolution 5200 --no-console"
-$shortcut.WorkingDirectory = Split-Path $timerExe
+$shortcut.WorkingDirectory = $installDir
 $shortcut.Description      = "SetTimerResolution - Opti Pack"
 $shortcut.Save()
 
