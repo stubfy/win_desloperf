@@ -2,6 +2,36 @@
 Enabling MSI interrupts on hardware devices
 ============================================
 
+PROCEDURE
+---------
+1. Launch PCIutil.exe as administrator, then close it immediately
+   This is required before running MSI_util_v3.exe.
+
+   Why : PCIutil.exe installs a kernel-mode driver in the background
+   (similar to WinIo / WinRing0) that opens direct read/write access to
+   the PCI configuration space. The driver stays loaded in memory even
+   after the app is closed. MSI_util_v3.exe depends on this driver to
+   enumerate all PCI devices and modify their MSI registers. Without it,
+   it can only see devices exposed by the standard Windows API (setupAPI /
+   WMI), which does not cover every device on the bus.
+
+2. Open MSI_util_v3.exe as administrator
+3. Identify the target devices in the list
+4. For each compatible device, click the MSI column
+   and select "MSI" (or "MSI-X" if available)
+5. Apply and reboot
+6. After rebooting, verify devices work correctly (audio, network, USB)
+
+In case of BSOD on reboot : start in Safe Mode and disable MSI mode
+on the last device that was modified.
+
+
+ROLLBACK
+--------
+Open MSI_util_v3.exe as administrator, set each device back to
+"Line Based" (INTx) mode, reboot.
+
+
 WHAT IT DOES
 ------------
 Enables MSI (Message Signaled Interrupts) mode on the main PC components.
@@ -57,22 +87,3 @@ DO NOT ENABLE -- BSOD RISK
 
 Note : if MSI mode is already active on a USB controller, the driver
 supports it natively -- do not change anything in that case.
-
-
-PROCEDURE
----------
-1. Open MSI_util_v3.exe as administrator
-2. Identify the target devices in the list
-3. For each compatible device, click the MSI column
-   and select "MSI" (or "MSI-X" if available)
-4. Apply and reboot
-5. After rebooting, verify devices work correctly (audio, network, USB)
-
-In case of BSOD on reboot : start in Safe Mode and disable MSI mode
-on the last device that was modified.
-
-
-ROLLBACK
---------
-Open MSI_util_v3.exe as administrator, set each device back to
-"Line Based" (INTx) mode, reboot.
