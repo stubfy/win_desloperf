@@ -46,7 +46,7 @@ Everything scriptable is automated in a single pass. The rest is guided by `read
 **1. Run the automated tweaks**
 
 ```
-src/1 - Automated/run_all.bat   (double-click — UAC prompt is automatic)
+1 - Automated/run_all.bat   (double-click — UAC prompt is automatic)
 ```
 
 You will be prompted for a few options before anything runs:
@@ -152,7 +152,7 @@ To be done in order after rebooting. Each folder contains a `readme.txt` with fu
 ## Rollback
 
 ```
-src/1 - Automated/restore_all.bat   (double-click — UAC prompt is automatic)
+1 - Automated/restore_all.bat   (double-click — UAC prompt is automatic)
 ```
 
 Restores in order:
@@ -178,36 +178,32 @@ Restores in order:
 win_deslopper/
 ├── README.md
 ├── .gitignore
-└── src/
-    ├── readme.txt                        Overview + usage order
-    │
-    ├── 1 - Automated/
-    │   ├── run_all.bat                   Main entry point
-    │   ├── restore_all.bat               Rollback entry point
-    │   ├── scripts/
-    │   │   ├── run_all.ps1               Main PowerShell launcher
-    │   │   ├── restore_all.ps1           Full rollback launcher
-    │   │   ├── 01_backup.ps1 ... 16_*   Scripts by category
-    │   │   └── opt_*.ps1                 Optional (Edge, OneDrive removal)
-    │   ├── restore/                      Symmetric rollback scripts
-    │   ├── tools/                        Third-party tools
-    │   │   ├── OOSU10.exe
-    │   │   ├── ooshutup10.cfg
-    │   │   ├── SetTimerResolution.exe
-    │   │   └── MeasureSleep.exe
-    │   └── backup/                       Created at first run (gitignored)
-    │
-    ├── 2 - Windows Defender/
-    ├── 3 - Control Panel/
-    ├── 4 - MSI Utils/
-    ├── 5 - Mouse Accel fix/
-    ├── 6 - NVInspector/
-    ├── 7 - Gestionnaire/
-    ├── 8 - Interrupt Affinity/
-    ├── 9 - Network WIP/
-    ├── 10 - Others/
-    │
-    └── old/                              Archives (pre-refactor original scripts)
+│
+├── 1 - Automated/
+│   ├── run_all.bat                   Main entry point
+│   ├── restore_all.bat               Rollback entry point
+│   ├── scripts/
+│   │   ├── run_all.ps1               Main PowerShell launcher
+│   │   ├── restore_all.ps1           Full rollback launcher
+│   │   ├── 01_backup.ps1 ... 16_*   Scripts by category
+│   │   └── opt_*.ps1                 Optional (Edge, OneDrive removal)
+│   ├── restore/                      Symmetric rollback scripts
+│   ├── tools/                        Third-party tools
+│   │   ├── OOSU10.exe
+│   │   ├── ooshutup10.cfg
+│   │   ├── SetTimerResolution.exe
+│   │   └── MeasureSleep.exe
+│   └── backup/                       Created at first run (gitignored)
+│
+├── 2 - Windows Defender/
+├── 3 - Control Panel/
+├── 4 - MSI Utils/
+├── 5 - Mouse Accel fix/
+├── 6 - NVInspector/
+├── 7 - Gestionnaire/
+├── 8 - Interrupt Affinity/
+├── 9 - Network WIP/
+└── 10 - Others/
 ```
 
 ---
