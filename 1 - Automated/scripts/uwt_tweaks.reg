@@ -1,0 +1,223 @@
+Windows Registry Editor Version 5.00
+
+; ===========================================================================
+; WIN_DESLOPPER - UWT Equivalent Tweaks (converted from settings_v2.ini)
+; Windows 11 25H2 - Gaming / Performance / Privacy
+; Applied by  : scripts\16_uwt.ps1
+; Rollback    : restore\16_uwt.ps1 + restore\uwt_defaults.reg
+; ===========================================================================
+
+; ---------------------------------------------------------------------------
+; EXPLORER / APPEARANCE
+; ---------------------------------------------------------------------------
+
+; --- Always show all tray icons (removes up-arrow button) ---
+; --- No "- Shortcut" suffix on newly created shortcuts ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]
+"EnableAutoTray"=dword:00000000
+"ShowFrequent"=dword:00000001
+"ShowRecent"=dword:00000001
+"link"=hex:00,00,00,00
+
+; --- Suppress low disk space warning balloons ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer]
+"NoLowDiskSpaceChecks"=dword:00000001
+
+; --- Don't suggest Store when opening unknown file type ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
+"NoUseStoreOpenWith"=dword:00000001
+
+; --- Suppress "New apps installed" toast notification ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+"HideNewAppNotification"=dword:00000001
+
+; --- Accent color on title bars and window borders ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
+"ColorPrevalence"=dword:00000001
+
+; --- Disable transparency effects ---
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
+"EnableTransparency"=dword:00000000
+
+; --- Hide Windows Defender Security Center tray icon ---
+; (different from DisableNotifications already in tweaks_consolidated.reg)
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender Security Center\Systray]
+"HideSystray"=dword:00000001
+
+; --- Disable Windows Ink Workspace ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsInkWorkspace]
+"AllowWindowsInkWorkspace"=dword:00000000
+
+; --- Auto-restart Explorer if it crashes ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]
+"AutoRestartShell"=dword:00000001
+
+; ---------------------------------------------------------------------------
+; PERFORMANCE
+; ---------------------------------------------------------------------------
+
+; --- Maximum foreground app priority (0x26 = 38 decimal) ---
+; short quantum / variable / max foreground boost: foreground threads get 2x longer CPU slices
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl]
+"Win32PrioritySeparation"=dword:00000026
+
+; ---------------------------------------------------------------------------
+; SECURITY / UAC
+; ---------------------------------------------------------------------------
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System]
+; --- Hide Fast User Switching button in Start menu ---
+"HideFastUserSwitching"=dword:00000001
+; --- Disable UAC entirely (single-user gaming PC) ---
+; WARNING: reduces security - eliminates all elevation prompts
+"EnableLUA"=dword:00000000
+
+; ---------------------------------------------------------------------------
+; PRIVACY / TELEMETRY
+; ---------------------------------------------------------------------------
+
+; --- Windows Error Reporting registry disable (WerSvc also disabled via 03_services.ps1) ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Windows Error Reporting]
+"Disabled"=dword:00000001
+
+; --- Disable Windows Defender via policy (complements 2 - Windows Defender step) ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender]
+"DisableAntiSpyware"=dword:00000001
+
+; --- Disable OneDrive via policy (independent of the optional uninstall) ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\OneDrive]
+"DisableFileSyncNGSC"=dword:00000001
+
+; --- App Compatibility: disable telemetry, inventory collector, steps recorder ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat]
+"AITEnable"=dword:00000000
+"DisableInventory"=dword:00000001
+"DisableUAR"=dword:00000001
+
+; --- Disable Windows Hello biometrics ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Biometrics]
+"Enabled"=dword:00000000
+
+; --- Disable feedback notifications (DataCollection key exists from tweaks_consolidated.reg) ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection]
+"DoNotShowFeedbackNotifications"=dword:00000001
+
+; --- Disable Advertising ID ---
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo]
+"Enabled"=dword:00000000
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo]
+"DisabledByGroupPolicy"=dword:00000001
+
+; --- Hide password reveal button in credential dialogs ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CredUI]
+"DisablePasswordReveal"=dword:00000001
+
+; --- Disable inking/handwriting personalization data collection ---
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\InputPersonalization]
+"RestrictImplicitInkCollection"=dword:00000001
+"RestrictImplicitTextCollection"=dword:00000001
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore]
+"HarvestContacts"=dword:00000000
+
+; --- Disable web search in taskbar (Bing results in Start/Search) ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Search]
+"DisableWebSearch"=dword:00000001
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search]
+"BingSearchEnabled"=dword:00000000
+
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer]
+"DisableSearchBoxSuggestions"=dword:00000001
+
+; --- Disable WiFi Sense (auto-connect to shared/hotspot networks) ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting]
+"value"=dword:00000000
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots]
+"value"=dword:00000000
+
+; --- Disable Settings Sync (themes, passwords, preferences via Microsoft account) ---
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync]
+"SyncPolicy"=dword:00000005
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\SettingSync]
+"DisableSettingSync"=dword:00000002
+"DisableSettingSyncUserOverride"=dword:00000001
+
+; --- Block app access: calendar, camera, microphone, messages, account info ---
+; (AppPrivacy key already has LetAppsRunInBackground from tweaks_consolidated.reg)
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy]
+"LetAppsAccessCalendar"=dword:00000002
+"LetAppsAccessCamera"=dword:00000002
+"LetAppsAccessMicrophone"=dword:00000002
+"LetAppsAccessMessaging"=dword:00000002
+"LetAppsAccessAccountInfo"=dword:00000002
+
+; ---------------------------------------------------------------------------
+; CONTEXT MENU - REMOVALS (Shell Extensions Blocked)
+; ---------------------------------------------------------------------------
+
+; (key already contains the Copilot CLSID from 12_ai_disable.ps1)
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked]
+; Cast to Device
+"{7AD84985-87B4-4a16-BE58-8B72A5B390F7}"=""
+; Share (modern share sheet)
+"{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}"=""
+; Give Access To (network sharing wizard)
+"{f81e9010-6ea4-11ce-a7ff-00aa003ca9f6}"=""
+; Include in Library
+"{289AF617-1CC3-42A6-926C-E6A863F0E3BA}"=""
+; Restore Previous Versions (files)
+"{596AB062-B4D2-4215-9F74-E9109B0A8153}"=""
+; Restore Previous Versions (directories)
+"{3742D782-BC80-4488-9B6E-9AD4E9AAC76C}"=""
+; Scan with Windows Defender
+"{09A47860-11B0-4DA5-AFA5-26D86198A780}"=""
+
+; --- Remove "Edit with Paint 3D" from image context menus ---
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.bmp\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpeg\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpg\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.png\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.gif\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.tif\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.tiff\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.ico\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.dib\Shell\3D Edit]
+
+; --- Remove "3D Print with 3D Builder" from file context menus ---
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.3mf\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.bmp\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpg\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpeg\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.png\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.stl\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.wrl\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.fbx\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.obj\Shell\3D Print]
+
+; --- "Open Command Prompt here" on folders ---
+[HKEY_CLASSES_ROOT\Directory\shell\OpenCMDHere]
+@="Open Command Prompt here"
+"Icon"="cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\shell\OpenCMDHere\command]
+@="cmd.exe /s /k pushd \"%V\""
+
+; --- "Open Command Prompt here" on folder background ---
+[HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDHere]
+@="Open Command Prompt here"
+"Icon"="cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDHere\command]
+@="cmd.exe /s /k pushd \"%V\""
+
+; --- "Open Command Prompt here" on drives ---
+[HKEY_CLASSES_ROOT\Drive\shell\OpenCMDHere]
+@="Open Command Prompt here"
+"Icon"="cmd.exe"
+
+[HKEY_CLASSES_ROOT\Drive\shell\OpenCMDHere\command]
+@="cmd.exe /s /k pushd \"%V\""

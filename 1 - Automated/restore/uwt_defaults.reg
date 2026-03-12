@@ -1,0 +1,149 @@
+Windows Registry Editor Version 5.00
+
+; ===========================================================================
+; WIN_DESLOPPER - UWT Defaults (rollback for uwt_tweaks.reg)
+; Restores Windows 11 default values
+; Applied by  : restore\16_uwt.ps1
+; ===========================================================================
+
+; ---------------------------------------------------------------------------
+; EXPLORER / APPEARANCE
+; ---------------------------------------------------------------------------
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]
+"EnableAutoTray"=dword:00000001
+"ShowFrequent"=dword:00000001
+"ShowRecent"=dword:00000001
+"link"=hex:1e,00,00,00
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer]
+"NoLowDiskSpaceChecks"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
+"NoUseStoreOpenWith"=-
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+"HideNewAppNotification"=dword:00000000
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
+"ColorPrevalence"=dword:00000000
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
+"EnableTransparency"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender Security Center\Systray]
+"HideSystray"=dword:00000000
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsInkWorkspace]
+"AllowWindowsInkWorkspace"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]
+"AutoRestartShell"=dword:00000001
+
+; ---------------------------------------------------------------------------
+; PERFORMANCE
+; ---------------------------------------------------------------------------
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl]
+"Win32PrioritySeparation"=dword:00000002
+
+; ---------------------------------------------------------------------------
+; SECURITY / UAC
+; ---------------------------------------------------------------------------
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System]
+"HideFastUserSwitching"=dword:00000000
+"EnableLUA"=dword:00000001
+
+; ---------------------------------------------------------------------------
+; PRIVACY / TELEMETRY
+; ---------------------------------------------------------------------------
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Windows Error Reporting]
+"Disabled"=dword:00000000
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender]
+"DisableAntiSpyware"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\OneDrive]
+"DisableFileSyncNGSC"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat]
+"AITEnable"=-
+"DisableInventory"=-
+"DisableUAR"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Biometrics]
+"Enabled"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection]
+"DoNotShowFeedbackNotifications"=-
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo]
+"Enabled"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo]
+"DisabledByGroupPolicy"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CredUI]
+"DisablePasswordReveal"=-
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\InputPersonalization]
+"RestrictImplicitInkCollection"=dword:00000000
+"RestrictImplicitTextCollection"=dword:00000000
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore]
+"HarvestContacts"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Search]
+"DisableWebSearch"=-
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search]
+"BingSearchEnabled"=dword:00000001
+
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer]
+"DisableSearchBoxSuggestions"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting]
+"value"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots]
+"value"=-
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync]
+"SyncPolicy"=dword:00000000
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\SettingSync]
+"DisableSettingSync"=-
+"DisableSettingSyncUserOverride"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy]
+"LetAppsAccessCalendar"=-
+"LetAppsAccessCamera"=-
+"LetAppsAccessMicrophone"=-
+"LetAppsAccessMessaging"=-
+"LetAppsAccessAccountInfo"=-
+
+; ---------------------------------------------------------------------------
+; CONTEXT MENU - REMOVALS (unblock shell extensions)
+; ---------------------------------------------------------------------------
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked]
+"{7AD84985-87B4-4a16-BE58-8B72A5B390F7}"=-
+"{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}"=-
+"{f81e9010-6ea4-11ce-a7ff-00aa003ca9f6}"=-
+"{289AF617-1CC3-42A6-926C-E6A863F0E3BA}"=-
+"{596AB062-B4D2-4215-9F74-E9109B0A8153}"=-
+"{3742D782-BC80-4488-9B6E-9AD4E9AAC76C}"=-
+"{09A47860-11B0-4DA5-AFA5-26D86198A780}"=-
+
+; Note: "Edit with Paint 3D" and "3D Print" context menu keys are NOT restored here.
+; Reinstall Paint 3D / 3D Builder from the Microsoft Store to restore them.
+
+; ---------------------------------------------------------------------------
+; CONTEXT MENU - ADDITIONS (remove Open CMD Here)
+; ---------------------------------------------------------------------------
+
+[-HKEY_CLASSES_ROOT\Directory\shell\OpenCMDHere]
+[-HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDHere]
+[-HKEY_CLASSES_ROOT\Drive\shell\OpenCMDHere]

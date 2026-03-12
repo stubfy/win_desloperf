@@ -16,7 +16,7 @@
 $ErrorActionPreference = 'Continue'
 $ROOT         = Split-Path (Split-Path $MyInvocation.MyCommand.Path)
 $SCRIPTS      = Join-Path $ROOT "scripts"
-$PACK_VERSION = 'v0.4'
+$PACK_VERSION = 'v0.5'
 $LOG_DIR      = Join-Path $env:APPDATA 'win_deslopper\logs'
 $LOG_FILE     = Join-Path $LOG_DIR "win_deslopper.log"
 
@@ -60,7 +60,7 @@ function Invoke-Script {
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "  win_deslopper v0.2" -ForegroundColor Cyan
+Write-Host "  win_deslopper v0.5" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  by stubfy" -ForegroundColor DarkGray
 Write-Host ""
@@ -167,6 +167,9 @@ Invoke-Script "$SCRIPTS\14_network_tweaks.ps1"
 
 Write-Step "PHASE B.14 - Windows Update profile: $profilLabel"
 & "$SCRIPTS\15_windows_update.ps1" -Profil $updateProfil
+
+Write-Step "PHASE B.15 - UWT equivalent tweaks (appearance, privacy, context menu)"
+Invoke-Script "$SCRIPTS\16_uwt.ps1"
 
 # ── OPTIONS: physical uninstalls ──────────────────────────────────────────────
 if ($uninstallEdge) {
