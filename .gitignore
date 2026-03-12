@@ -1,0 +1,18 @@
+# Sauvegarde cree au runtime par 01_backup.ps1
+1 - Automated/backup/
+
+# Dossier archives — non distribue
+old/
+
+# Outils locaux
+check_updates.ps1
+check_updates.bat
+
+# Instructions internes Claude Code
+CLAUDE.md
+
+# Logs locaux
+*.log
+
+# Fichiers internes Claude Code
+.claude/
