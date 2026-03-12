@@ -10,7 +10,6 @@ $services = [ordered]@{
     'dmwappushservice'   = 'WAP push telemetry'
     'WSearch'            = 'Windows Search indexer - constant background disk I/O'
     'WerSvc'             = 'Windows Error Reporting - sends crash reports to Microsoft'
-    'DoSvc'              = 'Delivery Optimization - P2P update sharing'
     'PhoneSvc'           = 'Phone service (Bluetooth calls, useless for pure gaming)'
     'SCardSvr'           = 'Smart Card - useless without a smart card reader'
     'ScDeviceEnum'       = 'Smart Card Device Enumeration Service'
@@ -34,6 +33,22 @@ foreach ($svc in $services.Keys) {
     }
 }
 
+# --- DoSvc (Delivery Optimization) — force-disable via registry + remove triggers ---
+# Set-Service is silently ignored by Windows 11 25H2 because the service has triggers
+# that relaunch it automatically. Direct registry write + TriggerInfo removal is required.
+$doSvc = Get-Service 'DoSvc' -ErrorAction SilentlyContinue
+if ($doSvc) {
+    Stop-Service 'DoSvc' -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc' -Name Start -Value 4 -ErrorAction SilentlyContinue
+    $triggerPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc\TriggerInfo'
+    if (Test-Path $triggerPath) {
+        Remove-Item $triggerPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    Write-Host "    [DISABLED]   DoSvc (registry + TriggerInfo removed)"
+} else {
+    Write-Host "    [NOT FOUND]  DoSvc" -ForegroundColor Gray
+}
+
 # --- Services set to Manual (start on demand, not at boot) ---
 # Source: Chris Titus WinUtil - services not covered by the pack
 $servicesManual = [ordered]@{
@@ -43,7 +58,7 @@ $servicesManual = [ordered]@{
     'StorSvc'      = 'Storage Service - Storage Sense (starts on demand if needed)'
     'UsoSvc'       = 'Update Session Orchestrator - automatic background updates'
     'WpnService'   = 'Windows Push Notifications - toasts and interruptions'
-    'camsvc'       = 'Capability Access Manager - UWP app access to camera/mic'
+
     'edgeupdate'   = 'Microsoft Edge Update - automatic Edge updates'
     'edgeupdatem'  = 'Microsoft Edge Update (scheduled task)'
     'BITS'         = 'Background Intelligent Transfer - background transfers'

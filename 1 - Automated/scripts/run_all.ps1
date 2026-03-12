@@ -16,7 +16,7 @@
 $ErrorActionPreference = 'Continue'
 $ROOT         = Split-Path (Split-Path $MyInvocation.MyCommand.Path)
 $SCRIPTS      = Join-Path $ROOT "scripts"
-$PACK_VERSION = 'v0.5'
+$PACK_VERSION = 'v0.7'
 $LOG_DIR      = Join-Path $env:APPDATA 'win_deslopper\logs'
 $LOG_FILE     = Join-Path $LOG_DIR "win_deslopper.log"
 
@@ -60,7 +60,7 @@ function Invoke-Script {
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "  win_deslopper v0.5" -ForegroundColor Cyan
+Write-Host "  win_deslopper v0.7" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  by stubfy" -ForegroundColor DarkGray
 Write-Host ""
@@ -82,8 +82,8 @@ Write-Host "OPTIONS BEFORE LAUNCH:" -ForegroundColor Magenta
 Write-Host "(These operations are irreversible without manual reinstallation)" -ForegroundColor DarkGray
 Write-Host ""
 
-$uninstallEdge     = $false
-$uninstallOneDrive = $false
+$uninstallEdge     = $true
+$uninstallOneDrive = $true
 $updateProfil      = '2'   # default: security only
 
 Write-Host "  WINDOWS UPDATE PROFILE:" -ForegroundColor White
@@ -101,28 +101,33 @@ Write-Host "  -> Update profile: $profilLabel" -ForegroundColor Yellow
 Write-Log "Option selected: Windows Update profile = $profilLabel" 'INFO'
 Write-Host ""
 
-$ans = Read-Host "  Completely uninstall Microsoft Edge? (Y/N)"
-if ($ans -ieq 'Y') {
+$ans = Read-Host "  Completely uninstall Microsoft Edge? (Y/N) [default: Y]"
+if ($ans -ieq 'N') {
+    $uninstallEdge = $false
+    Write-Log "Option selected: Edge uninstall = NO" 'INFO'
+} else {
     $uninstallEdge = $true
     Write-Host "  -> Edge will be uninstalled after the main tweaks." -ForegroundColor Yellow
     Write-Log "Option selected: Edge uninstall = YES" 'INFO'
-} else {
-    Write-Log "Option selected: Edge uninstall = NO" 'INFO'
 }
 
-$ans = Read-Host "  Completely uninstall OneDrive? (Y/N)"
-if ($ans -ieq 'Y') {
+$ans = Read-Host "  Completely uninstall OneDrive? (Y/N) [default: Y]"
+if ($ans -ieq 'N') {
+    $uninstallOneDrive = $false
+    Write-Log "Option selected: OneDrive uninstall = NO" 'INFO'
+} else {
     $uninstallOneDrive = $true
     Write-Host "  -> OneDrive will be uninstalled after the main tweaks." -ForegroundColor Yellow
     Write-Log "Option selected: OneDrive uninstall = YES" 'INFO'
-} else {
-    Write-Log "Option selected: OneDrive uninstall = NO" 'INFO'
 }
 
 Write-Host ""
 
-# ── PHASE A: Pre-tweak backup ──────────────────────────────────────────────────
-Write-Step "PHASE A - Backup (restore point + service/registry state)"
+# ── PHASE A: Snapshot + Backup ────────────────────────────────────────────────
+Write-Step "PHASE A.0 - Snapshot current state (for diff report at end)"
+& "$SCRIPTS\00_snapshot.ps1"
+
+Write-Step "PHASE A.1 - Backup (restore point + service/registry state)"
 Invoke-Script "$SCRIPTS\01_backup.ps1"
 
 # ── PHASE B: Automated tweaks ──────────────────────────────────────────────────
@@ -185,21 +190,26 @@ if ($uninstallOneDrive) {
     Invoke-Script "$SCRIPTS\opt_onedrive_uninstall.ps1"
 }
 
+# ── Diff report ───────────────────────────────────────────────────────────────
+Write-Step "PHASE C - Recap (what actually changed vs before)"
+& "$SCRIPTS\99_show_diff.ps1"
+
 # ── Summary ────────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Green
 Write-Host "   AUTOMATED TWEAKS COMPLETE                    " -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "REMAINING MANUAL STEPS (see readme.txt at the pack root):" -ForegroundColor Cyan
+Write-Host "REMAINING MANUAL STEPS (see README.md at the pack root):" -ForegroundColor Cyan
 Write-Host "  1. Reboot the PC"
-Write-Host "  2. [Safe Mode] Disable Windows Defender"
-Write-Host "  3. MSI Utils - enable MSI on GPU / NIC / NVMe"
-Write-Host "  4. Interrupt Affinity - pin GPU interrupts to a CPU core"
-Write-Host "  5. Network adapter - disable offloads, increase buffers"
-Write-Host "  6. Device Manager - disable USB power saving"
-Write-Host "  7. NVIDIA Profile Inspector - per-game profiles"
-Write-Host "  8. Control Panel - follow folder 4 readme"
+Write-Host "  2. [Safe Mode] Disable Windows Defender      (2 - Windows Defender/)"
+Write-Host "  3. Control Panel settings                    (3 - Control Panel/)"
+Write-Host "  4. MSI Utils - enable MSI on GPU/NIC/NVMe   (4 - MSI Utils/)"
+Write-Host "  5. NVIDIA Profile Inspector - per-game       (5 - NVInspector/)"
+Write-Host "  6. Device Manager - disable USB power saving (6 - Gestionnaire/)"
+Write-Host "  7. Interrupt Affinity - pin GPU IRQ to core  (7 - Interrupt Affinity/)"
+Write-Host "  8. NIC settings - disable offloads, buffers  (8 - Network WIP/)"
+Write-Host "  9. Verify timer: run MeasureSleep.exe        (1 - Automated/tools/)"
 Write-Host ""
 Write-Host "To undo all tweaks: .\restore_all.ps1" -ForegroundColor Gray
 Write-Host ""
@@ -210,8 +220,47 @@ Write-Log "============================================================"
 Write-Log "Execution complete: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" 'INFO'
 Write-Log "============================================================"
 
-$restart = Read-Host "Restart now? (Y/N)"
-if ($restart -ieq 'Y') {
+Write-Host "  [S] Reboot into Safe Mode  <-- RECOMMENDED: do the Defender step right now" -ForegroundColor Yellow
+Write-Host "  [Y] Normal reboot" -ForegroundColor White
+Write-Host "  [N] No reboot" -ForegroundColor DarkGray
+Write-Host ""
+$restart = Read-Host "Restart now? (S/Y/N) [default: N]"
+if ($restart -eq '') { $restart = 'N' }
+if ($restart -ieq 'S') {
+    Write-Log "Safe Mode reboot requested by user." 'INFO'
+    bcdedit /set '{current}' safeboot minimal | Out-Null
+
+    # Create "Return to Normal Mode" shortcut on the Desktop
+    $batDest        = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Return to Normal Mode.bat'
+    $defenderScript = Join-Path $ROOT '2 - Windows Defender\1 - DisableDefender.ps1'
+    @"
+@echo off
+echo.
+echo  =========================================================
+echo   win_deslopper -- Disable Defender + Return to Normal Mode
+echo  =========================================================
+echo.
+echo  This will:
+echo    1. Disable Windows Defender (6 services set to Start=4)
+echo    2. Remove Safe Boot flag
+echo    3. Reboot to normal Windows
+echo.
+pause
+PowerShell -ExecutionPolicy Bypass -File "$defenderScript"
+bcdedit /deletevalue {current} safeboot
+shutdown /r /t 0
+"@ | Set-Content -Path $batDest -Encoding ASCII
+
+    Write-Host ""
+    Write-Host "  Safe Mode is now configured." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  WHAT TO DO IN SAFE MODE:" -ForegroundColor Cyan
+    Write-Host "    Run the shortcut on your Desktop: 'Return to Normal Mode.bat'" -ForegroundColor White
+    Write-Host "    (disables Defender, removes Safe Boot, reboots automatically)" -ForegroundColor DarkGray
+    Write-Host ""
+    Read-Host "  Press Enter to reboot into Safe Mode"
+    Restart-Computer -Force
+} elseif ($restart -ieq 'Y') {
     Write-Log "Restart requested by user." 'INFO'
     Restart-Computer -Force
 }

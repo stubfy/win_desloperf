@@ -61,3 +61,15 @@ foreach ($svc in $defaults.Keys) {
         Write-Host "    [NOT FOUND] $svc" -ForegroundColor Gray
     }
 }
+
+# --- DoSvc — restore via registry (Start=2, Automatic) ---
+# Triggers are not restored here; the Windows restore point contains them if needed.
+# With Start=2 the service will start normally on demand and at boot.
+$doSvc = Get-Service 'DoSvc' -ErrorAction SilentlyContinue
+if ($doSvc) {
+    Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc' -Name Start -Value 2 -ErrorAction SilentlyContinue
+    Start-Service 'DoSvc' -ErrorAction SilentlyContinue
+    Write-Host "    [RESTORED]  DoSvc -> Automatic"
+} else {
+    Write-Host "    [NOT FOUND] DoSvc" -ForegroundColor Gray
+}

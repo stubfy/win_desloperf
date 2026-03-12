@@ -14,6 +14,14 @@ if (-not (Test-Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }
 $timerExe = Join-Path $installDir "SetTimerResolution.exe"
+
+# Stop any running instance before overwriting the executable
+$running = Get-Process -Name "SetTimerResolution" -ErrorAction SilentlyContinue
+if ($running) {
+    $running | Stop-Process -Force
+    Write-Host "    Stopped running SetTimerResolution instance"
+}
+
 Copy-Item -Path $timerSrc -Destination $timerExe -Force
 Write-Host "    Installed to   : $timerExe"
 
@@ -30,5 +38,9 @@ $shortcut.Save()
 
 Write-Host "    Shortcut created: $shortcutPath"
 Write-Host "    Arguments      : --resolution 5200 --no-console"
+
+# Launch immediately so the resolution is active without a reboot
+Start-Process -FilePath $timerExe -ArgumentList "--resolution 5200 --no-console" -WindowStyle Hidden
+Write-Host "    Launched       : SetTimerResolution is now active"
 Write-Host "    Tip            : use MeasureSleep.exe to verify the actual resolution"
 Write-Host "                     (adjust value if needed: 5000, 5100, 5200...)"

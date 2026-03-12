@@ -70,9 +70,8 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System]
 ; --- Hide Fast User Switching button in Start menu ---
 "HideFastUserSwitching"=dword:00000001
-; --- Disable UAC entirely (single-user gaming PC) ---
-; WARNING: reduces security - eliminates all elevation prompts
-"EnableLUA"=dword:00000000
+; --- Keep UAC enabled (required by StartAllBack and COM elevation) ---
+"EnableLUA"=dword:00000001
 
 ; ---------------------------------------------------------------------------
 ; PRIVACY / TELEMETRY
@@ -153,7 +152,7 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy]
 "LetAppsAccessCalendar"=dword:00000002
 "LetAppsAccessCamera"=dword:00000002
-"LetAppsAccessMicrophone"=dword:00000002
+"LetAppsAccessMicrophone"=dword:00000000
 "LetAppsAccessMessaging"=dword:00000002
 "LetAppsAccessAccountInfo"=dword:00000002
 
