@@ -7,6 +7,15 @@ if (Test-Path $noEdge) {
     Write-Host "    Edge reinstallation block removed."
 }
 
+foreach ($path in @(
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdateDev'
+    'HKLM:\SOFTWARE\Microsoft\EdgeUpdateDev'
+)) {
+    if (Test-Path $path) {
+        Remove-ItemProperty -Path $path -Name 'AllowUninstall' -ErrorAction SilentlyContinue
+    }
+}
+
 # Attempt reinstallation via winget
 Write-Host "    Reinstalling Microsoft Edge via winget..."
 $result = winget install --id Microsoft.Edge --silent --accept-package-agreements --accept-source-agreements 2>&1

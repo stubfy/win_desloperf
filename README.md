@@ -52,7 +52,7 @@ Everything scriptable is automated in a single pass. The rest is guided by `read
 
 You will be prompted for a few options before anything runs:
 - **Windows Update profile** (Maximum / Security only / Disabled), default: Security only
-- **Uninstall Edge** (optional), default: Yes
+- **Uninstall Edge (WinUtil method)** (optional), default: Yes
 - **Uninstall OneDrive** (optional), default: Yes
 - **Disable Windows Firewall profiles** (optional), default: Yes
 
@@ -217,6 +217,7 @@ win_deslopper/
 | | Risk |
 |-|------|
 | **Defender disabled** | No real-time antivirus protection. On 25H2, Tamper Protection may block disabling even in Safe Mode. |
+| **Edge uninstall** | Uses the WinUtil-style flow (temporary EEA region + official uninstaller). If Windows still refuses removal, Edge is left uninstallable from Settings for manual retry. |
 | **VBS/HVCI disabled** | Credential Guard and certain memory protections are off. Significant performance gain, notable security trade-off. |
 | **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB - BSOD risk. |
 | **Interrupt Affinity** | Wrong pinning can increase latency instead of reducing it. Identify the correct PCI bridge before any change. |

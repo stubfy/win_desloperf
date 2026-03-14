@@ -102,14 +102,14 @@ Write-Host "  -> Update profile: $profilLabel" -ForegroundColor Yellow
 Write-Log "Option selected: Windows Update profile = $profilLabel" 'INFO'
 Write-Host ""
 
-$ans = Read-Host "  Completely uninstall Microsoft Edge? (Y/N) [default: Y]"
+$ans = Read-Host "  Uninstall Microsoft Edge (WinUtil method)? (Y/N) [default: Y]"
 if ($ans -ieq 'N') {
     $uninstallEdge = $false
-    Write-Log "Option selected: Edge uninstall = NO" 'INFO'
+    Write-Log "Option selected: Edge uninstall (WinUtil method) = NO" 'INFO'
 } else {
     $uninstallEdge = $true
-    Write-Host "  -> Edge will be uninstalled after the main tweaks." -ForegroundColor Yellow
-    Write-Log "Option selected: Edge uninstall = YES" 'INFO'
+    Write-Host "  -> The pack will uninstall Edge after the main tweaks using the WinUtil method." -ForegroundColor Yellow
+    Write-Log "Option selected: Edge uninstall (WinUtil method) = YES" 'INFO'
 }
 
 $ans = Read-Host "  Completely uninstall OneDrive? (Y/N) [default: Y]"
@@ -197,7 +197,7 @@ Invoke-Script "$SCRIPTS\17_mouse_accel.ps1"
 
 # ── OPTIONS: physical uninstalls ──────────────────────────────────────────────
 if ($uninstallEdge) {
-    Write-Step "OPTION - Physical uninstall of Microsoft Edge"
+    Write-Step "OPTION - Microsoft Edge uninstall (WinUtil method)"
     Invoke-Script "$SCRIPTS\opt_edge_uninstall.ps1"
 }
 
@@ -245,14 +245,14 @@ if ($restart -ieq 'S') {
     Write-Log "Safe Mode reboot requested by user." 'INFO'
     bcdedit /set '{current}' safeboot minimal | Out-Null
 
-    # Create "Return to Normal Mode" shortcut on the Desktop
-    $batDest        = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Return to Normal Mode.bat'
+    # Create an explicit Safe Mode helper on the Desktop
+    $batDest        = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Disable Defender and Return to Normal Mode.bat'
     $defenderScript = Join-Path $ROOT '2 - Windows Defender\1 - DisableDefender.ps1'
     @"
 @echo off
 echo.
 echo  =========================================================
-echo   win_deslopper -- Disable Defender + Return to Normal Mode
+echo   win_deslopper -- Disable Defender and Return to Normal Mode
 echo  =========================================================
 echo.
 echo  This will:
@@ -270,7 +270,7 @@ shutdown /r /t 0
     Write-Host "  Safe Mode is now configured." -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  WHAT TO DO IN SAFE MODE:" -ForegroundColor Cyan
-    Write-Host "    Run the shortcut on your Desktop: 'Return to Normal Mode.bat'" -ForegroundColor White
+    Write-Host "    Run the shortcut on your Desktop: 'Disable Defender and Return to Normal Mode.bat'" -ForegroundColor White
     Write-Host "    (disables Defender, removes Safe Boot, reboots automatically)" -ForegroundColor DarkGray
     Write-Host ""
     Read-Host "  Press Enter to reboot into Safe Mode"
