@@ -17,6 +17,7 @@ $appsInfo = @{
     'Sound Recorder'                  = 'Microsoft.WindowsSoundRecorder'
     'Sticky Notes'                    = 'Microsoft.MicrosoftStickyNotes'
     'Windows Clock'                   = 'Microsoft.WindowsAlarms'
+    'Camera'                          = 'Microsoft.WindowsCamera'
     'Microsoft Copilot'               = 'Microsoft.Copilot'
     'Cortana'                         = 'Microsoft.549981C3F5F10'
     'MSN Weather'                     = 'Microsoft.BingWeather'

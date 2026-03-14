@@ -27,6 +27,7 @@ $appsToRemove = @(
     'Microsoft.WindowsSoundRecorder'
     'Microsoft.MicrosoftStickyNotes'
     'Microsoft.WindowsAlarms'           # Clock / Alarms
+    'Microsoft.WindowsCamera'
     'Microsoft.Todos'
     'Microsoft.WindowsMaps'
     'Microsoft.ZuneMusic'               # Groove Music / Media Player legacy
