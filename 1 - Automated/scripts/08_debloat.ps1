@@ -35,28 +35,78 @@ $appsToRemove = @(
     'Microsoft.WidgetsPlatformRuntime'
 )
 
-$removed = 0
-$errors  = 0
+$removedPackages      = 0
+$removedProvisioned   = 0
+$errors               = 0
+$notFound             = 0
+$perAppTimeoutSeconds = 90
 
-foreach ($appName in $appsToRemove) {
-    $pkg = Get-AppxPackage -Name $appName -AllUsers -ErrorAction SilentlyContinue
-    if ($pkg) {
+function Remove-AppxPackageWithTimeout {
+    param(
+        [Parameter(Mandatory = $true)][string]$PackageFullName,
+        [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+    )
+
+    $job = Start-Job -ScriptBlock {
+        param($pkg)
+        Remove-AppxPackage -Package $pkg -AllUsers -ErrorAction Stop
+    } -ArgumentList $PackageFullName
+
+    if (Wait-Job -Job $job -Timeout $TimeoutSeconds) {
         try {
-            Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
-            $removed++
-            Write-Host "    [REMOVED] $appName"
-        } catch {
-            $errors++
-            Write-Host "    [ERROR]   $appName - $_" -ForegroundColor Yellow
+            Receive-Job -Job $job -ErrorAction Stop | Out-Null
+            return $true
+        } finally {
+            Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
         }
     }
 
-    # Also remove the provisioned package to prevent reinstallation after reset
-    $prov = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
-            Where-Object { $_.DisplayName -eq $appName }
-    if ($prov) {
-        Remove-AppxProvisionedPackage -Online -PackageName $prov.PackageName -ErrorAction SilentlyContinue | Out-Null
+    Stop-Job -Job $job -ErrorAction SilentlyContinue | Out-Null
+    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    throw "timeout after $TimeoutSeconds seconds"
+}
+
+foreach ($appName in $appsToRemove) {
+    Write-Host "    [CHECK]   $appName" -ForegroundColor DarkGray
+
+    $packages = @(Get-AppxPackage -Name $appName -AllUsers -ErrorAction SilentlyContinue)
+    $foundPackage = $packages.Count -gt 0
+
+    if ($foundPackage) {
+        foreach ($pkg in $packages) {
+            try {
+                Write-Host "    [REMOVE]  $($pkg.PackageFullName)"
+                Remove-AppxPackageWithTimeout -PackageFullName $pkg.PackageFullName -TimeoutSeconds $perAppTimeoutSeconds
+                $removedPackages++
+                Write-Host "    [REMOVED] $($pkg.PackageFullName)"
+            } catch {
+                $errors++
+                Write-Host "    [ERROR]   $($pkg.PackageFullName) - $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+        }
+    }
+
+    $provisioned = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -eq $appName })
+
+    if ($provisioned.Count -gt 0) {
+        foreach ($prov in $provisioned) {
+            try {
+                Write-Host "    [DEPROV]  $($prov.PackageName)"
+                Remove-AppxProvisionedPackage -Online -PackageName $prov.PackageName -ErrorAction Stop | Out-Null
+                $removedProvisioned++
+                Write-Host "    [REMOVED] $($prov.PackageName)"
+            } catch {
+                $errors++
+                Write-Host "    [ERROR]   $($prov.PackageName) - $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+        }
+    }
+
+    if (-not $foundPackage -and $provisioned.Count -eq 0) {
+        $notFound++
+        Write-Host "    [NOT FOUND] $appName" -ForegroundColor Gray
     }
 }
 
-Write-Host "    Summary: $removed removed, $errors error(s), $($appsToRemove.Count - $removed - $errors) not found"
+Write-Host "    Summary: $removedPackages installed package(s) removed, $removedProvisioned provisioned package(s) removed, $errors error(s), $notFound app id(s) not found"
