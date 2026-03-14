@@ -298,44 +298,53 @@ function Uninstall-Edge {
     return $true
 }
 
+function Invoke-WebView2Setup {
+    param(
+        [Parameter(Mandatory = $true)][string]$SetupExe,
+        [Parameter(Mandatory = $true)][string]$Scope
+    )
+
+    $argList = "--uninstall --msedgewebview $Scope --verbose-logging --force-uninstall"
+    $proc = Start-Process -FilePath $SetupExe -ArgumentList $argList -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
+    return $proc
+}
+
 function Uninstall-WebView2 {
-    $uninstallInfo = Get-WebView2UninstallInfo
+    # Kill lingering WebView2 and EdgeUpdate processes before attempting
+    Get-Process -Name @('msedgewebview2', 'MicrosoftEdgeUpdate') -ErrorAction SilentlyContinue |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+
+    $tried = $false
 
     try {
-        if ($uninstallInfo) {
-            $commandLine = $uninstallInfo.UninstallString
+        $uninstallInfo = Get-WebView2UninstallInfo
 
-            if ($commandLine -match '(?i)setup\.exe') {
-                if ($commandLine -notmatch '(?i)--uninstall') {
-                    $commandLine += ' --uninstall'
-                }
-                if ($commandLine -notmatch '(?i)--force-uninstall') {
-                    $commandLine += ' --force-uninstall'
-                }
-                if ($commandLine -notmatch '(?i)--msedgewebview') {
-                    $commandLine += ' --msedgewebview'
-                }
-                if ($commandLine -notmatch '(?i)--(system|user)-level') {
-                    if ($uninstallInfo.Key -like '*HKEY_CURRENT_USER*') {
-                        $commandLine += ' --user-level'
-                    } else {
-                        $commandLine += ' --system-level'
-                    }
-                }
+        if ($uninstallInfo) {
+            $raw   = $uninstallInfo.UninstallString
+            $scope = if ($uninstallInfo.Key -like '*HKEY_CURRENT_USER*') { '--user-level' } else { '--system-level' }
+
+            # Extract setup.exe path cleanly and call it directly (avoids cmd.exe quoting issues)
+            $setupExe = $null
+            if ($raw -match '^"([^"]+)"') {
+                $setupExe = $Matches[1]
+            } elseif ($raw -match '^([^\s]+setup\.exe)') {
+                $setupExe = $Matches[1]
             }
 
-            Write-Host "    Launching WebView2 uninstall..."
-            $proc = Invoke-InstallerCommand -CommandLine $commandLine
-            Write-Host "    Exit code      : $($proc.ExitCode)"
+            if ($setupExe -and (Test-Path $setupExe)) {
+                Write-Host "    Launching WebView2 uninstall..."
+                $proc = Invoke-WebView2Setup -SetupExe $setupExe -Scope $scope
+                Write-Host "    Exit code      : $($proc.ExitCode)"
+                $tried = $true
+            }
         }
 
-        if (Test-WebView2Installed) {
+        if (-not $tried -or (Test-WebView2Installed)) {
             foreach ($setup in Get-WebView2SetupCandidates) {
                 $scope = if ($setup.FullName -like "$env:LOCALAPPDATA*") { '--user-level' } else { '--system-level' }
-                $commandLine = "`"$($setup.FullName)`" --uninstall --force-uninstall $scope --verbose-logging --msedgewebview"
 
                 Write-Host "    Fallback setup : $($setup.FullName)"
-                $proc = Invoke-InstallerCommand -CommandLine $commandLine
+                $proc = Invoke-WebView2Setup -SetupExe $setup.FullName -Scope $scope
                 Write-Host "    Exit code      : $($proc.ExitCode)"
 
                 if (-not (Test-WebView2Installed)) {
