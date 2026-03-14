@@ -8,6 +8,12 @@ if (-not (Test-Path $timerSrc)) {
     return
 }
 
+try {
+    Unblock-File -Path $timerSrc -ErrorAction Stop
+} catch {
+    # Best effort: some environments do not expose a zone identifier stream.
+}
+
 # Install to %APPDATA%\win_deslopper\
 $installDir = Join-Path $env:APPDATA "win_deslopper"
 if (-not (Test-Path $installDir)) {
@@ -25,6 +31,12 @@ if ($running) {
 Copy-Item -Path $timerSrc -Destination $timerExe -Force
 Write-Host "    Installed to   : $timerExe"
 
+try {
+    Unblock-File -Path $timerExe -ErrorAction Stop
+} catch {
+    # Best effort: if the file is already unblocked or streams are unavailable, continue.
+}
+
 $startupDir   = [System.Environment]::GetFolderPath('Startup')
 $shortcutPath = Join-Path $startupDir "SetTimerResolution.lnk"
 
@@ -40,7 +52,12 @@ Write-Host "    Shortcut created: $shortcutPath"
 Write-Host "    Arguments      : --resolution 5200 --no-console"
 
 # Launch immediately so the resolution is active without a reboot
-Start-Process -FilePath $timerExe -ArgumentList "--resolution 5200 --no-console" -WindowStyle Hidden
-Write-Host "    Launched       : SetTimerResolution is now active"
+try {
+    Start-Process -FilePath $timerExe -ArgumentList "--resolution 5200 --no-console" -WindowStyle Hidden -ErrorAction Stop
+    Write-Host "    Launched       : SetTimerResolution is now active"
+} catch {
+    Write-Host "    Launch skipped : $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "                     Startup shortcut is still installed; it will retry at next sign-in." -ForegroundColor Yellow
+}
 Write-Host "    Tip            : use MeasureSleep.exe to verify the actual resolution"
 Write-Host "                     (adjust value if needed: 5000, 5100, 5200...)"

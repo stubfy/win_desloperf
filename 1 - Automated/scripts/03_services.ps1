@@ -58,6 +58,7 @@ $servicesManual = [ordered]@{
     'StorSvc'      = 'Storage Service - Storage Sense (starts on demand if needed)'
     'UsoSvc'       = 'Update Session Orchestrator - automatic background updates'
     'WpnService'   = 'Windows Push Notifications - toasts and interruptions'
+    'camsvc'       = 'Capability Access Manager - app capability access broker'
 
     'edgeupdate'   = 'Microsoft Edge Update - automatic Edge updates'
     'edgeupdatem'  = 'Microsoft Edge Update (scheduled task)'
