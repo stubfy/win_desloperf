@@ -34,13 +34,16 @@ Windows Registry Editor Version 5.00
 "HideNewAppNotification"=dword:00000001
 "ShowSecondsInSystemClock"=dword:00000001
 "TaskbarAnimations"=dword:00000000
-"ListviewAlphaSelect"=dword:00000000
-"ListviewShadow"=dword:00000000
+"ListviewAlphaSelect"=dword:00000001
+"ListviewShadow"=dword:00000001
+"IconsOnly"=dword:00000000
 
 ; --- Accent color on title bars and window borders ---
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
 "ColorPrevalence"=dword:00000001
 "ColorizationColor"=dword:c4000000
+"EnableAeroPeek"=dword:00000000
+"AlwaysHibernateThumbnails"=dword:00000000
 
 ; --- Dark mode + no accent on taskbar/start ---
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
@@ -70,7 +73,7 @@ Windows Registry Editor Version 5.00
 "VisualFXSetting"=dword:00000003
 
 [HKEY_CURRENT_USER\Control Panel\Desktop]
-"DragFullWindows"="0"
+"DragFullWindows"="1"
 "FontSmoothing"="2"
 
 [HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]
