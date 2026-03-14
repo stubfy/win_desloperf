@@ -231,7 +231,7 @@ win_deslopper is a personal collection of Windows tweaks accumulated over the ye
 
 Some of these are simply options that should be on by default: showing file extensions, disabling GameDVR when you never use it, turning off mouse acceleration, cleaning up the right-click menu. Others go further into performance and privacy territory.
 
-The automated script system and git history were built and managed with the help of Claude. The tweak selection, what to include or exclude, and the overall direction are entirely manual; the AI handled the scripting infrastructure (orchestration, rollback, logging) and repository management.
+The automated script system and git history were built and managed with the help of AI coding tools, mainly Claude Code and Codex. The tweak selection, what to include or exclude, and the overall direction are entirely manual; the AI handled the scripting infrastructure (orchestration, rollback, logging) and repository management.
 
 **Tested on** : Intel / AMD CPU - NVIDIA GPU. Results on other hardware configurations may vary.
 
