@@ -52,7 +52,7 @@ Everything scriptable is automated in a single pass. The rest is guided by `read
 
 You will be prompted for a few options before anything runs:
 - **Windows Update profile** (Maximum / Security only / Disabled), default: Security only
-- **Uninstall Edge (WinUtil method)** (optional), default: Yes
+- **Uninstall Edge (WinUtil dummy-file method)** (optional), default: Yes
 - **Uninstall OneDrive** (optional), default: Yes
 - **Disable Windows Firewall profiles** (optional), default: Yes
 
@@ -81,7 +81,7 @@ Each folder contains a `readme.txt` with detailed instructions.
 | `07_edge.ps1` | Microsoft Edge policies |
 | `08_debloat.ps1` | UWP app removal (Clipchamp, Teams, News, Copilot...) |
 | `09_oosu10.ps1` | O&O ShutUp10++ silent mode (240 tweaks) |
-| `10_timer.ps1` | SetTimerResolution at startup (~0.5 ms) |
+| `10_timer.ps1` | SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
 | `11_usb.ps1` | USB selective suspend disabled |
 | `12_ai_disable.ps1` | Recall, AI, Copilot disabled (25H2) |
 | `13_telemetry_tasks.ps1` | Telemetry scheduled tasks + PS7 + Brave |
@@ -133,6 +133,8 @@ All executions are logged to:
 ```
 
 The log includes: pack version, timestamp, OS info, machine name, full output of each script, detailed errors with stack traces.
+
+If the Microsoft Visual C++ x64 runtime required by `SetTimerResolution.exe` is missing, `10_timer.ps1` downloads the official Microsoft redistributable and installs it silently before enabling the timer tool.
 
 ---
 
@@ -217,7 +219,7 @@ win_deslopper/
 | | Risk |
 |-|------|
 | **Defender disabled** | No real-time antivirus protection. On 25H2, Tamper Protection may block disabling even in Safe Mode. |
-| **Edge uninstall** | Uses a WinUtil / EdgeRemover-style flow (policy-gate patch + official uninstall path). On some builds, Microsoft may still resist removal and require additional inspection. |
+| **Edge uninstall** | Uses the current WinUtil-style dummy-file flow: a temporary legacy Edge file is created to unlock the official Chromium Edge uninstaller. |
 | **VBS/HVCI disabled** | Credential Guard and certain memory protections are off. Significant performance gain, notable security trade-off. |
 | **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB - BSOD risk. |
 | **Interrupt Affinity** | Wrong pinning can increase latency instead of reducing it. Identify the correct PCI bridge before any change. |

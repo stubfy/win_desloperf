@@ -102,14 +102,14 @@ Write-Host "  -> Update profile: $profilLabel" -ForegroundColor Yellow
 Write-Log "Option selected: Windows Update profile = $profilLabel" 'INFO'
 Write-Host ""
 
-$ans = Read-Host "  Uninstall Microsoft Edge (WinUtil method)? (Y/N) [default: Y]"
+$ans = Read-Host "  Uninstall Microsoft Edge (WinUtil dummy-file method)? (Y/N) [default: Y]"
 if ($ans -ieq 'N') {
     $uninstallEdge = $false
-    Write-Log "Option selected: Edge uninstall (WinUtil method) = NO" 'INFO'
+    Write-Log "Option selected: Edge uninstall (WinUtil dummy-file method) = NO" 'INFO'
 } else {
     $uninstallEdge = $true
-    Write-Host "  -> The pack will uninstall Edge after the main tweaks using the WinUtil method." -ForegroundColor Yellow
-    Write-Log "Option selected: Edge uninstall (WinUtil method) = YES" 'INFO'
+    Write-Host "  -> The pack will uninstall Edge after the main tweaks using the WinUtil dummy-file method." -ForegroundColor Yellow
+    Write-Log "Option selected: Edge uninstall (WinUtil dummy-file method) = YES" 'INFO'
 }
 
 $ans = Read-Host "  Completely uninstall OneDrive? (Y/N) [default: Y]"
@@ -197,7 +197,7 @@ Invoke-Script "$SCRIPTS\17_mouse_accel.ps1"
 
 # ── OPTIONS: physical uninstalls ──────────────────────────────────────────────
 if ($uninstallEdge) {
-    Write-Step "OPTION - Microsoft Edge uninstall (WinUtil method)"
+    Write-Step "OPTION - Microsoft Edge uninstall (WinUtil dummy-file method)"
     Invoke-Script "$SCRIPTS\opt_edge_uninstall.ps1"
 }
 
