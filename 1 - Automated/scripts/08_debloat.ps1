@@ -35,128 +35,122 @@ $appsToRemove = @(
     'Microsoft.WidgetsPlatformRuntime'
 )
 
-$removedPackages      = 0
-$removedProvisioned   = 0
-$errors               = 0
-$notFound             = 0
-$perAppTimeoutSeconds = 90
-$perProvTimeoutSeconds = 120
+$removedPackages       = 0
+$removedProvisioned    = 0
+$errors                = 0
+$notFound              = 0
+$perAppTimeoutSeconds  = 30
+$perProvTimeoutSeconds = 45
 
-function Remove-AppxPackageWithTimeout {
+function Invoke-WithTimeout {
     param(
-        [Parameter(Mandatory = $true)][string]$PackageFullName,
+        [Parameter(Mandatory = $true)][scriptblock]$ScriptBlock,
+        [Parameter(Mandatory = $true)][object[]]$Arguments,
         [Parameter(Mandatory = $true)][int]$TimeoutSeconds
     )
 
-    $job = Start-Job -ScriptBlock {
-        param($pkg)
-        Remove-AppxPackage -Package $pkg -ErrorAction Stop
-    } -ArgumentList $PackageFullName
+    $ps = [PowerShell]::Create()
+    $ps.AddScript($ScriptBlock) | Out-Null
+    foreach ($arg in $Arguments) { $ps.AddArgument($arg) | Out-Null }
 
-    if (Wait-Job -Job $job -Timeout $TimeoutSeconds) {
+    $async = $ps.BeginInvoke()
+    if ($async.AsyncWaitHandle.WaitOne($TimeoutSeconds * 1000)) {
         try {
-            Receive-Job -Job $job -ErrorAction Stop | Out-Null
+            $ps.EndInvoke($async) | Out-Null
+            if ($ps.HadErrors) { throw $ps.Streams.Error[0].Exception }
             return $true
         } finally {
-            Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+            $ps.Dispose()
         }
     }
 
-    Stop-Job -Job $job -ErrorAction SilentlyContinue | Out-Null
-    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    $ps.Stop()
+    $ps.Dispose()
     throw "timeout after $TimeoutSeconds seconds"
 }
 
-function Get-AppxRemovalTargets {
-    param([Parameter(Mandatory = $true)][string]$AppName)
-
-    $bundleTargets = @(Get-AppxPackage -Name $AppName -PackageTypeFilter Bundle -ErrorAction SilentlyContinue)
-    if ($bundleTargets.Count -gt 0) {
-        return $bundleTargets
-    }
-
-    return @(Get-AppxPackage -Name $AppName -PackageTypeFilter Main -ErrorAction SilentlyContinue)
+$knownProcesses = @{
+    'Microsoft.XboxGamingOverlay'           = @('GameBar', 'GameBarFTServer', 'GameBarPresenceWriter', 'XboxPcApp')
+    'Microsoft.GamingApp'                   = @('XboxPcApp')
+    'Microsoft.MicrosoftTeams'              = @('ms-teams', 'Teams')
+    'MicrosoftTeams'                        = @('ms-teams', 'Teams')
+    'Microsoft.YourPhone'                   = @('YourPhone', 'PhoneExperienceHost')
+    'Microsoft.Copilot'                     = @('Copilot')
+    'Microsoft.OutlookForWindows'           = @('olk')
+    'MicrosoftWindows.Client.WebExperience' = @('Widgets', 'WidgetService')
+    'Microsoft.BingSearch'                  = @('SearchApp')
 }
 
 function Stop-KnownAppProcesses {
     param([Parameter(Mandatory = $true)][string]$AppName)
 
-    switch ($AppName) {
-        'Microsoft.XboxGamingOverlay' {
-            foreach ($procName in @('GameBar', 'GameBarFTServer', 'GameBarPresenceWriter', 'XboxPcApp')) {
-                Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-            }
+    if ($knownProcesses.ContainsKey($AppName)) {
+        foreach ($procName in $knownProcesses[$AppName]) {
+            Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
         }
     }
 }
 
-function Remove-AppxProvisionedPackageWithTimeout {
-    param(
-        [Parameter(Mandatory = $true)][string]$PackageName,
-        [Parameter(Mandatory = $true)][int]$TimeoutSeconds
-    )
+function Get-AppxRemovalTargets {
+    param([Parameter(Mandatory = $true)][string]$AppName)
 
-    $job = Start-Job -ScriptBlock {
-        param($pkg)
-        Remove-AppxProvisionedPackage -Online -PackageName $pkg -ErrorAction Stop | Out-Null
-    } -ArgumentList $PackageName
+    $bundles = @($script:packageCache | Where-Object { $_.Name -eq $AppName -and $_.IsBundle })
+    if ($bundles.Count -gt 0) { return $bundles }
 
-    if (Wait-Job -Job $job -Timeout $TimeoutSeconds) {
-        try {
-            Receive-Job -Job $job -ErrorAction Stop | Out-Null
-            return $true
-        } finally {
-            Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
-        }
-    }
-
-    Stop-Job -Job $job -ErrorAction SilentlyContinue | Out-Null
-    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
-    throw "timeout after $TimeoutSeconds seconds"
+    return @($script:packageCache | Where-Object { $_.Name -eq $AppName -and -not $_.IsBundle })
 }
+
+# Upfront cache: single queries for all installed and provisioned packages
+Write-Host "    [CACHE]   Loading installed packages..." -ForegroundColor DarkGray
+$script:packageCache = @(Get-AppxPackage -ErrorAction SilentlyContinue)
+Write-Host "    [CACHE]   $($script:packageCache.Count) installed package(s) loaded" -ForegroundColor DarkGray
+
+Write-Host "    [CACHE]   Loading provisioned packages..." -ForegroundColor DarkGray
+$script:provisionedCache = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue)
+Write-Host "    [CACHE]   $($script:provisionedCache.Count) provisioned package(s) loaded" -ForegroundColor DarkGray
 
 foreach ($appName in $appsToRemove) {
     Write-Host "    [CHECK]   $appName" -ForegroundColor DarkGray
 
-    Stop-KnownAppProcesses -AppName $appName
+    $packages    = @(Get-AppxRemovalTargets -AppName $appName)
+    $provisioned = @($script:provisionedCache | Where-Object { $_.DisplayName -eq $appName })
 
-    $packages = @(Get-AppxRemovalTargets -AppName $appName)
-    $foundPackage = $packages.Count -gt 0
-
-    if ($foundPackage) {
-        foreach ($pkg in $packages) {
-            try {
-                Write-Host "    [REMOVE]  $($pkg.PackageFullName)"
-                Remove-AppxPackageWithTimeout -PackageFullName $pkg.PackageFullName -TimeoutSeconds $perAppTimeoutSeconds
-                $removedPackages++
-                Write-Host "    [REMOVED] $($pkg.PackageFullName)"
-            } catch {
-                $errors++
-                Write-Host "    [ERROR]   $($pkg.PackageFullName) - $($_.Exception.Message)" -ForegroundColor Yellow
-            }
-        }
-    }
-
-    $provisioned = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
-        Where-Object { $_.DisplayName -eq $appName })
-
-    if ($provisioned.Count -gt 0) {
-        foreach ($prov in $provisioned) {
-            try {
-                Write-Host "    [DEPROV]  $($prov.PackageName)"
-                Remove-AppxProvisionedPackageWithTimeout -PackageName $prov.PackageName -TimeoutSeconds $perProvTimeoutSeconds
-                $removedProvisioned++
-                Write-Host "    [REMOVED] $($prov.PackageName)"
-            } catch {
-                $errors++
-                Write-Host "    [ERROR]   $($prov.PackageName) - $($_.Exception.Message)" -ForegroundColor Yellow
-            }
-        }
-    }
-
-    if (-not $foundPackage -and $provisioned.Count -eq 0) {
+    if ($packages.Count -eq 0 -and $provisioned.Count -eq 0) {
         $notFound++
         Write-Host "    [NOT FOUND] $appName" -ForegroundColor Gray
+        continue
+    }
+
+    Stop-KnownAppProcesses -AppName $appName
+
+    foreach ($pkg in $packages) {
+        try {
+            Write-Host "    [REMOVE]  $($pkg.PackageFullName)"
+            Invoke-WithTimeout -ScriptBlock {
+                param($pfn)
+                Remove-AppxPackage -Package $pfn -ErrorAction Stop
+            } -Arguments @($pkg.PackageFullName) -TimeoutSeconds $perAppTimeoutSeconds
+            $removedPackages++
+            Write-Host "    [REMOVED] $($pkg.PackageFullName)"
+        } catch {
+            $errors++
+            Write-Host "    [ERROR]   $($pkg.PackageFullName) - $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    foreach ($prov in $provisioned) {
+        try {
+            Write-Host "    [DEPROV]  $($prov.PackageName)"
+            Invoke-WithTimeout -ScriptBlock {
+                param($pkg)
+                Remove-AppxProvisionedPackage -Online -PackageName $pkg -ErrorAction Stop | Out-Null
+            } -Arguments @($prov.PackageName) -TimeoutSeconds $perProvTimeoutSeconds
+            $removedProvisioned++
+            Write-Host "    [REMOVED] $($prov.PackageName)"
+        } catch {
+            $errors++
+            Write-Host "    [ERROR]   $($prov.PackageName) - $($_.Exception.Message)" -ForegroundColor Yellow
+        }
     }
 }
 
