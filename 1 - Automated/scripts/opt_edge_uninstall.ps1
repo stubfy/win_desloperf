@@ -332,16 +332,24 @@ function Remove-WebView2AppxPackage {
         }
 
         # Remove provisioned package (prevents reinstall on new user profiles)
-        $prov = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
-            Where-Object { $_.DisplayName -like '*Win32WebViewHost*' }
-        foreach ($p in $prov) {
-            Remove-AppxProvisionedPackage -PackageName $p.PackageName -Online -AllUsers -ErrorAction SilentlyContinue | Out-Null
-            Write-Host "    Deprovisioned  : $($p.PackageName)"
+        try {
+            $prov = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -like '*Win32WebViewHost*' }
+            foreach ($p in $prov) {
+                Remove-AppxProvisionedPackage -PackageName $p.PackageName -Online -AllUsers -ErrorAction SilentlyContinue | Out-Null
+                Write-Host "    Deprovisioned  : $($p.PackageName)"
+            }
+        } catch {
+            Write-Host "    Deprovision    : skipped ($($_.Exception.Message))" -ForegroundColor DarkGray
         }
 
-        # Remove the package itself
-        Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction SilentlyContinue
-        Write-Host "    AppX removed   : $($pkg.PackageFullName)"
+        # Try to remove the package itself (may fail for system apps — that's OK, DISM unlock is what matters)
+        try {
+            Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
+            Write-Host "    AppX removed   : $($pkg.PackageFullName)"
+        } catch {
+            Write-Host "    AppX removal   : system app, skipped (DISM unlock applied)" -ForegroundColor DarkGray
+        }
     }
 }
 
