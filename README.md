@@ -1,6 +1,6 @@
 # win_deslopper
 
-![Version](https://img.shields.io/badge/version-0.7-blue)
+![Version](https://img.shields.io/badge/version-0.8-blue)
 ![Windows](https://img.shields.io/badge/Windows_11-25H2-0078D4?logo=windows)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-5391FE?logo=powershell)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -30,7 +30,7 @@ win_deslopper applies a set of system tweaks to improve performance on Windows 1
 
 - **Input latency**: timer resolution (~0.5 ms), MSI interrupts, GPU IRQ affinity, mouse acceleration fix
 - **System fluidity**: power throttling disabled, MMCSS high priority, USB selective suspend disabled
-- **Debloat**: UWP app removal, telemetry service disables, Recall/AI 25H2 disabled
+- **Debloat**: UWP app removal, service startup cleanup, Recall/AI 25H2 disabled
 - **Privacy**: 240 OOSU10 tweaks, DiagTrack, Cortana, widgets, Copilot disabled
 - **Boot**: dynamic tick disabled, legacy boot menu
 - **Network**: Cloudflare DNS, network throttling disabled, NIC offloads
@@ -74,7 +74,7 @@ Each folder contains a `readme.txt` with detailed instructions.
 |--------|---------|
 | `01_backup.ps1` | Windows restore point + service/registry state export |
 | `02_registry.ps1` | Consolidated, deduplicated registry tweaks |
-| `03_services.ps1` | Unnecessary service disables |
+| `03_services.ps1` | Service startup tweaks (Manual only) |
 | `04_bcdedit.ps1` | Boot configuration (dynamictick, legacy menu) |
 | `05_power.ps1` | Ultimate Performance power plan + Bitsum values |
 | `06_dns.ps1` | Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
@@ -120,9 +120,11 @@ Each folder contains a `readme.txt` with detailed instructions.
 - Classic context menu (Windows 11)
 - Widgets / News disabled
 
-### Services disabled
+### Service startup tweaks
 
-`SysMain` · `DPS` · `Spooler` · `TabletInputService` · `RmSvc` · `DiagTrack` · `dmwappushservice` · `WSearch` · `DoSvc` · `WerSvc`
+`03_services.ps1` moves the tracked services to `Manual` startup, with one exception: `DoSvc` is still force-disabled because it ignores a normal `Set-Service` flow on current Windows builds.
+
+The `Manual` set includes the previous pack targets (`SysMain`, `DPS`, `Spooler`, `TabletInputService`, `DiagTrack`, `WSearch`, `MapsBroker`, `RemoteRegistry`) plus the wider WinUtil-aligned list such as `CDPSvc`, `RmSvc`, `dmwappushservice`, `WerSvc`, `PhoneSvc`, `UsoSvc`, `WpnService`, `camsvc`, `edgeupdate`, `wuauserv`, Xbox services, and Hyper-V helper services.
 
 ### Logging
 
@@ -224,7 +226,7 @@ win_deslopper/
 | **VBS/HVCI disabled** | Credential Guard and certain memory protections are off. Significant performance gain, notable security trade-off. |
 | **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB - BSOD risk. |
 | **Interrupt Affinity** | Wrong pinning can increase latency instead of reducing it. Identify the correct PCI bridge before any change. |
-| **Disabled services** | Print Spooler disabled = printing broken. DPS disabled = no system diagnostics. |
+| **Service startup tweaks** | Services touched by `03_services.ps1` are mostly moved to `Manual`. `DoSvc` remains force-disabled. `BITS`, `UsoSvc` and `wuauserv` can still be overridden later by the chosen Windows Update profile. |
 | **WU Disabled profile** | No security patches, only use on isolated gaming machines. |
 | **Firewall disabled** | No Windows firewall filtering. Use only if another firewall or isolated setup covers the machine. |
 

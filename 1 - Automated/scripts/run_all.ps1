@@ -16,7 +16,7 @@
 $ErrorActionPreference = 'Continue'
 $ROOT         = Split-Path (Split-Path $MyInvocation.MyCommand.Path)
 $SCRIPTS      = Join-Path $ROOT "scripts"
-$PACK_VERSION = 'v0.7'
+$PACK_VERSION = 'v0.8'
 $LOG_DIR      = Join-Path $env:APPDATA 'win_deslopper\logs'
 $LOG_FILE     = Join-Path $LOG_DIR "win_deslopper.log"
 
@@ -69,7 +69,7 @@ function Invoke-Script {
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "  win_deslopper v0.7" -ForegroundColor Cyan
+Write-Host "  win_deslopper v0.8" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  by stubfy" -ForegroundColor DarkGray
 Write-Host ""
@@ -155,7 +155,7 @@ Invoke-Script "$SCRIPTS\01_backup.ps1"
 Write-Step "PHASE B.1 - Registry tweaks (consolidated, deduplicated)"
 Invoke-Script "$SCRIPTS\02_registry.ps1"
 
-Write-Step "PHASE B.2 - Disable unnecessary services"
+Write-Step "PHASE B.2 - Apply service startup tweaks"
 Invoke-Script "$SCRIPTS\03_services.ps1"
 
 Write-Step "PHASE B.3 - Boot configuration (bcdedit)"

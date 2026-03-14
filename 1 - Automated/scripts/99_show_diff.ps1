@@ -4,6 +4,7 @@
 
 $ROOT      = Split-Path $PSScriptRoot
 $SNAP_FILE = Join-Path $ROOT "backup\snapshot_latest.json"
+$serviceCatalog = & (Join-Path $PSScriptRoot '03_services.ps1') -ExportCatalogOnly
 
 if (-not (Test-Path $SNAP_FILE)) {
     Write-Host "  No snapshot found at: $SNAP_FILE" -ForegroundColor Yellow
@@ -59,17 +60,15 @@ foreach ($data in $snap.Registry) {
 
 # ── Services diff ─────────────────────────────────────────────────────────────
 $svcDesiredMap = @{}
-@('SysMain','DPS','Spooler','TabletInputService','RmSvc','DiagTrack','dmwappushservice',
-  'WSearch','WerSvc','PhoneSvc','SCardSvr','ScDeviceEnum','SEMgrSvc','WpcMonSvc',
-  'lfsvc','MapsBroker','RetailDemo','RemoteRegistry','SharedAccess') |
-    ForEach-Object { $svcDesiredMap[$_] = 'Disabled' }
-# DoSvc: force-disabled via registry + TriggerInfo removal (Set-Service alone is ignored on 25H2)
-$svcDesiredMap['DoSvc'] = 'Disabled'
-# UsoSvc, BITS, WpnService excluded: their state is overridden by 15_windows_update.ps1
-# AssignedAccessManagerSvc excluded: Kiosk service, Disabled is acceptable
-@('CDPSvc','InventorySvc','PcaSvc','StorSvc','camsvc',
-  'edgeupdate','edgeupdatem','WSAIFabricSvc') |
-    ForEach-Object { $svcDesiredMap[$_] = 'Manual' }
+foreach ($svc in $serviceCatalog.Disabled) {
+    $svcDesiredMap[$svc] = 'Disabled'
+}
+# BITS, UsoSvc and wuauserv excluded: their state is overridden by 15_windows_update.ps1
+foreach ($svc in $serviceCatalog.Manual) {
+    if ($svc -notin $serviceCatalog.DiffExcluded) {
+        $svcDesiredMap[$svc] = 'Manual'
+    }
+}
 
 $svcChanged = [System.Collections.Generic.List[object]]::new()
 $svcAlready = 0

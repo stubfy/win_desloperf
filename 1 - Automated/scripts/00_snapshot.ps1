@@ -13,6 +13,8 @@ if (-not (Test-Path $BACKUP_DIR)) {
     New-Item -ItemType Directory -Path $BACKUP_DIR -Force | Out-Null
 }
 
+$serviceCatalog = & (Join-Path $PSScriptRoot '03_services.ps1') -ExportCatalogOnly
+
 function ConvertTo-PSPath([string]$p) {
     return $p `
         -replace '^HKEY_LOCAL_MACHINE\\', 'HKLM:\' `
@@ -100,16 +102,8 @@ $regArray = @($regEntries.Values | ForEach-Object { [PSCustomObject]$_ })
 Write-Host "    Registry : $($regArray.Count) trackable values"
 
 # ── Services snapshot ──────────────────────────────────────────────────────────
-$svcNames = @(
-    'SysMain','DPS','Spooler','TabletInputService','RmSvc','DiagTrack','dmwappushservice',
-    'WSearch','WerSvc','DoSvc','PhoneSvc','SCardSvr','ScDeviceEnum','SEMgrSvc','WpcMonSvc',
-    'lfsvc','MapsBroker','RetailDemo','RemoteRegistry','SharedAccess','CDPSvc','InventorySvc',
-    'PcaSvc','StorSvc','UsoSvc','WpnService','camsvc','edgeupdate','edgeupdatem','BITS',
-    'WSAIFabricSvc','AssignedAccessManagerSvc'
-)
-
 $svcSnap = [ordered]@{}
-foreach ($n in $svcNames) {
+foreach ($n in $serviceCatalog.Tracked) {
     $s = Get-Service -Name $n -ErrorAction SilentlyContinue
     if ($s) { $svcSnap[$n] = $s.StartType.ToString() }
 }

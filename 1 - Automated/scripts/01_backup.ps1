@@ -2,6 +2,7 @@
 
 $BACKUP_DIR = Join-Path (Split-Path $PSScriptRoot) "backup"
 New-Item -ItemType Directory -Force -Path $BACKUP_DIR | Out-Null
+$serviceCatalog = & (Join-Path $PSScriptRoot '03_services.ps1') -ExportCatalogOnly
 
 # System restore point
 Write-Host "    Creating restore point... " -NoNewline
@@ -18,18 +19,8 @@ try {
 }
 
 # Export service states (for precise rollback)
-$services = @(
-    'SysMain','DPS','Spooler','TabletInputService','RmSvc',
-    'DiagTrack','dmwappushservice','WSearch','DoSvc','WerSvc',
-    'PhoneSvc','SCardSvr','ScDeviceEnum','SEMgrSvc','WpcMonSvc',
-    'lfsvc','MapsBroker','RemoteRegistry','SharedAccess',
-    # Added services (source: Chris Titus WinUtil)
-    'CDPSvc','InventorySvc','PcaSvc','StorSvc','UsoSvc',
-    'WpnService','camsvc','edgeupdate','edgeupdatem','BITS',
-    'AssignedAccessManagerSvc','WSAIFabricSvc'
-)
 $serviceState = @{}
-foreach ($svc in $services) {
+foreach ($svc in $serviceCatalog.Tracked) {
     $s = Get-Service $svc -ErrorAction SilentlyContinue
     if ($s) { $serviceState[$svc] = $s.StartType.ToString() }
 }
