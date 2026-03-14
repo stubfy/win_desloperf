@@ -54,10 +54,7 @@ You will be prompted for a few options before anything runs:
 - **Windows Update profile** (Maximum / Security only / Disabled), default: Security only
 - **Uninstall Edge** (optional)
 - **Uninstall OneDrive** (optional)
-
-There is currently **no pre-launch prompt** for Windows Firewall:
-- the automated phase disables the `Domain`, `Private`, and `Public` firewall profiles by default
-- rollback restores the saved firewall profile state
+- **Disable Windows Firewall profiles** (optional), default: Yes
 
 Estimated duration: 5 to 15 minutes. A reboot prompt is shown at the end.
 

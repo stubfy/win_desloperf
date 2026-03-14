@@ -84,6 +84,7 @@ Write-Host ""
 
 $uninstallEdge     = $true
 $uninstallOneDrive = $true
+$disableFirewall   = $true
 $updateProfil      = '2'   # default: security only
 
 Write-Host "  WINDOWS UPDATE PROFILE:" -ForegroundColor White
@@ -119,6 +120,16 @@ if ($ans -ieq 'N') {
     $uninstallOneDrive = $true
     Write-Host "  -> OneDrive will be uninstalled after the main tweaks." -ForegroundColor Yellow
     Write-Log "Option selected: OneDrive uninstall = YES" 'INFO'
+}
+
+$ans = Read-Host "  Disable Windows Firewall profiles? (Y/N) [default: Y]"
+if ($ans -ieq 'N') {
+    $disableFirewall = $false
+    Write-Log "Option selected: Firewall disable = NO" 'INFO'
+} else {
+    $disableFirewall = $true
+    Write-Host "  -> Windows Firewall profiles will be disabled." -ForegroundColor Yellow
+    Write-Log "Option selected: Firewall disable = YES" 'INFO'
 }
 
 Write-Host ""
@@ -173,8 +184,10 @@ Invoke-Script "$SCRIPTS\14_network_tweaks.ps1"
 Write-Step "PHASE B.14 - Windows Update profile: $profilLabel"
 & "$SCRIPTS\15_windows_update.ps1" -Profil $updateProfil
 
-Write-Step "PHASE B.15 - Disable Windows Firewall profiles"
-Invoke-Script "$SCRIPTS\18_firewall.ps1"
+if ($disableFirewall) {
+    Write-Step "PHASE B.15 - Disable Windows Firewall profiles"
+    Invoke-Script "$SCRIPTS\18_firewall.ps1"
+}
 
 Write-Step "PHASE B.16 - UWT equivalent tweaks (appearance, privacy, context menu)"
 Invoke-Script "$SCRIPTS\16_uwt.ps1"
