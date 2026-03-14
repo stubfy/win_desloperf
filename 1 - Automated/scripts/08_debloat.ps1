@@ -45,13 +45,18 @@ $perProvTimeoutSeconds = 120
 function Remove-AppxPackageWithTimeout {
     param(
         [Parameter(Mandatory = $true)][string]$PackageFullName,
-        [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+        [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
+        [switch]$CurrentUserOnly
     )
 
     $job = Start-Job -ScriptBlock {
-        param($pkg)
-        Remove-AppxPackage -Package $pkg -AllUsers -ErrorAction Stop
-    } -ArgumentList $PackageFullName
+        param($pkg, $currentUserOnly)
+        if ($currentUserOnly) {
+            Remove-AppxPackage -Package $pkg -ErrorAction Stop
+        } else {
+            Remove-AppxPackage -Package $pkg -AllUsers -ErrorAction Stop
+        }
+    } -ArgumentList $PackageFullName, $CurrentUserOnly.IsPresent
 
     if (Wait-Job -Job $job -Timeout $TimeoutSeconds) {
         try {
@@ -65,6 +70,29 @@ function Remove-AppxPackageWithTimeout {
     Stop-Job -Job $job -ErrorAction SilentlyContinue | Out-Null
     Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
     throw "timeout after $TimeoutSeconds seconds"
+}
+
+function Get-AppxRemovalTargets {
+    param([Parameter(Mandatory = $true)][string]$AppName)
+
+    $bundleTargets = @(Get-AppxPackage -Name $AppName -AllUsers -PackageTypeFilter Bundle -ErrorAction SilentlyContinue)
+    if ($bundleTargets.Count -gt 0) {
+        return $bundleTargets
+    }
+
+    return @(Get-AppxPackage -Name $AppName -AllUsers -PackageTypeFilter Main -ErrorAction SilentlyContinue)
+}
+
+function Stop-KnownAppProcesses {
+    param([Parameter(Mandatory = $true)][string]$AppName)
+
+    switch ($AppName) {
+        'Microsoft.XboxGamingOverlay' {
+            foreach ($procName in @('GameBar', 'GameBarFTServer', 'GameBarPresenceWriter', 'XboxPcApp')) {
+                Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
 }
 
 function Remove-AppxProvisionedPackageWithTimeout {
@@ -95,7 +123,9 @@ function Remove-AppxProvisionedPackageWithTimeout {
 foreach ($appName in $appsToRemove) {
     Write-Host "    [CHECK]   $appName" -ForegroundColor DarkGray
 
-    $packages = @(Get-AppxPackage -Name $appName -AllUsers -ErrorAction SilentlyContinue)
+    Stop-KnownAppProcesses -AppName $appName
+
+    $packages = @(Get-AppxRemovalTargets -AppName $appName)
     $foundPackage = $packages.Count -gt 0
 
     if ($foundPackage) {
@@ -106,8 +136,33 @@ foreach ($appName in $appsToRemove) {
                 $removedPackages++
                 Write-Host "    [REMOVED] $($pkg.PackageFullName)"
             } catch {
-                $errors++
-                Write-Host "    [ERROR]   $($pkg.PackageFullName) - $($_.Exception.Message)" -ForegroundColor Yellow
+                $fallbackTried = $false
+                $fallbackSucceeded = $false
+
+                if ($appName -eq 'Microsoft.XboxGamingOverlay') {
+                    $currentUserPackages = @(Get-AppxPackage -Name $appName -ErrorAction SilentlyContinue)
+                    foreach ($currentPkg in $currentUserPackages) {
+                        try {
+                            $fallbackTried = $true
+                            Write-Host "    [RETRY]   $($currentPkg.PackageFullName) (current user only)" -ForegroundColor Yellow
+                            Remove-AppxPackageWithTimeout -PackageFullName $currentPkg.PackageFullName -TimeoutSeconds 30 -CurrentUserOnly
+                            $removedPackages++
+                            $fallbackSucceeded = $true
+                            Write-Host "    [REMOVED] $($currentPkg.PackageFullName) (current user only)"
+                        } catch {
+                            Write-Host "    [ERROR]   $($currentPkg.PackageFullName) current user fallback - $($_.Exception.Message)" -ForegroundColor Yellow
+                        }
+                    }
+                }
+
+                if (-not $fallbackSucceeded) {
+                    $errors++
+                    if ($fallbackTried) {
+                        Write-Host "    [ERROR]   $($pkg.PackageFullName) - all-users removal timed out and current-user fallback also failed" -ForegroundColor Yellow
+                    } else {
+                        Write-Host "    [ERROR]   $($pkg.PackageFullName) - $($_.Exception.Message)" -ForegroundColor Yellow
+                    }
+                }
             }
         }
     }
