@@ -40,6 +40,7 @@ $removedProvisioned   = 0
 $errors               = 0
 $notFound             = 0
 $perAppTimeoutSeconds = 90
+$perProvTimeoutSeconds = 120
 
 function Remove-AppxPackageWithTimeout {
     param(
@@ -51,6 +52,31 @@ function Remove-AppxPackageWithTimeout {
         param($pkg)
         Remove-AppxPackage -Package $pkg -AllUsers -ErrorAction Stop
     } -ArgumentList $PackageFullName
+
+    if (Wait-Job -Job $job -Timeout $TimeoutSeconds) {
+        try {
+            Receive-Job -Job $job -ErrorAction Stop | Out-Null
+            return $true
+        } finally {
+            Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Stop-Job -Job $job -ErrorAction SilentlyContinue | Out-Null
+    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    throw "timeout after $TimeoutSeconds seconds"
+}
+
+function Remove-AppxProvisionedPackageWithTimeout {
+    param(
+        [Parameter(Mandatory = $true)][string]$PackageName,
+        [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+    )
+
+    $job = Start-Job -ScriptBlock {
+        param($pkg)
+        Remove-AppxProvisionedPackage -Online -PackageName $pkg -ErrorAction Stop | Out-Null
+    } -ArgumentList $PackageName
 
     if (Wait-Job -Job $job -Timeout $TimeoutSeconds) {
         try {
@@ -93,7 +119,7 @@ foreach ($appName in $appsToRemove) {
         foreach ($prov in $provisioned) {
             try {
                 Write-Host "    [DEPROV]  $($prov.PackageName)"
-                Remove-AppxProvisionedPackage -Online -PackageName $prov.PackageName -ErrorAction Stop | Out-Null
+                Remove-AppxProvisionedPackageWithTimeout -PackageName $prov.PackageName -TimeoutSeconds $perProvTimeoutSeconds
                 $removedProvisioned++
                 Write-Host "    [REMOVED] $($prov.PackageName)"
             } catch {

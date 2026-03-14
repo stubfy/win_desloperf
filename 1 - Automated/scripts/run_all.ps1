@@ -40,20 +40,29 @@ function Invoke-Script {
     $name = Split-Path $Path -Leaf
     Write-Host "    $name ... " -NoNewline
     Write-Log "Start: $name" 'RUN'
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
     try {
-        $output = & $Path *>&1
-        foreach ($line in $output) {
+        & $Path *>&1 | ForEach-Object {
+            $line = $_
             if ($line -is [System.Management.Automation.ErrorRecord]) {
                 Write-Log "  [ERR] $($line.Exception.Message)" 'WARN'
+                Write-Host ""
+                Write-Host "      [ERR] $($line.Exception.Message)" -ForegroundColor Yellow
             } else {
                 Write-Log "  $line" 'OUT'
+                if ($null -ne $line -and "$line".Trim().Length -gt 0) {
+                    Write-Host ""
+                    Write-Host "      $line" -ForegroundColor DarkGray
+                }
             }
         }
+        $sw.Stop()
         Write-Host "[OK]" -ForegroundColor Green
-        Write-Log "End: $name -> OK" 'OK'
+        Write-Log "End: $name -> OK ($([math]::Round($sw.Elapsed.TotalSeconds, 1))s)" 'OK'
     } catch {
+        $sw.Stop()
         Write-Host "[ERROR] $_" -ForegroundColor Red
-        Write-Log "End: $name -> ERROR: $_" 'ERROR'
+        Write-Log "End: $name -> ERROR after $([math]::Round($sw.Elapsed.TotalSeconds, 1))s: $_" 'ERROR'
         Write-Log "  StackTrace: $($_.ScriptStackTrace)" 'ERROR'
     }
 }
