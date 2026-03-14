@@ -1,4 +1,4 @@
-# opt_edge_uninstall.ps1 - Microsoft Edge uninstall (WinUtil-aligned method)
+# opt_edge_uninstall.ps1 - Microsoft Edge uninstall (WinUtil / EdgeRemover-aligned)
 # OPTIONAL - called only if confirmed by the user in run_all.ps1
 
 $edgeRoots = @(
@@ -20,6 +20,7 @@ $edgeUpdateDevKeys = @(
 )
 $policyFile = Join-Path $env:SystemRoot 'System32\IntegratedServicesRegionPolicySet.json'
 $policyBackup = "$policyFile.win_deslopper.bak"
+$edgePolicyGuid = '{1bca2783-0de6-4269-b2b2-4bfdd4e492e5}'
 
 function Test-EdgeInstalled {
     foreach ($root in $edgeRoots) {
@@ -39,8 +40,8 @@ function Test-EdgeInstalled {
     return $false
 }
 
-function Get-EdgeUninstallMetadata {
-    foreach ($key in $edgeClientStateKeys) {
+function Get-EdgeUninstallInfo {
+    foreach ($key in $edgeUninstallKeys) {
         if (-not (Test-Path $key)) { continue }
 
         try {
@@ -50,28 +51,9 @@ function Get-EdgeUninstallMetadata {
         }
 
         if ($props.UninstallString) {
-            $filePath = ([string]$props.UninstallString).Trim('"')
-            if (Test-Path $filePath) {
-                return [PSCustomObject]@{
-                    Key       = $key
-                    FilePath  = $filePath
-                    Arguments = [string]$props.UninstallArguments
-                }
-            }
-        }
-    }
-
-    foreach ($root in $edgeRoots) {
-        if (-not (Test-Path $root)) { continue }
-
-        $setup = Get-ChildItem -Path (Join-Path $root '*\Installer\setup.exe') -ErrorAction SilentlyContinue |
-                 Sort-Object { [version]($_.Directory.Parent.Name) } -Descending |
-                 Select-Object -First 1
-        if ($setup) {
             return [PSCustomObject]@{
-                Key       = $null
-                FilePath  = $setup.FullName
-                Arguments = '--uninstall --msedge --system-level --force-uninstall --delete-profile'
+                Key             = $key
+                UninstallString = [string]$props.UninstallString
             }
         }
     }
@@ -79,7 +61,18 @@ function Get-EdgeUninstallMetadata {
     return $null
 }
 
-function Get-JsonFileAclWritable {
+function Get-EdgeSetupCandidates {
+    $patterns = @(
+        "${env:ProgramFiles(x86)}\Microsoft\Edge*\Application\*\Installer\setup.exe"
+        "$env:ProgramFiles\Microsoft\Edge*\Application\*\Installer\setup.exe"
+        "$env:LOCALAPPDATA\Microsoft\Edge*\Application\*\Installer\setup.exe"
+    )
+
+    return Get-ChildItem -Path $patterns -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Unique
+}
+
+function Grant-AdminWriteAccess {
     param([Parameter(Mandatory = $true)][string]$Path)
 
     $originalAcl = Get-Acl -Path $Path
@@ -94,7 +87,7 @@ function Get-JsonFileAclWritable {
     return $originalAcl
 }
 
-function Restore-JsonFileAcl {
+function Restore-OriginalAcl {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
         [Parameter(Mandatory = $true)]$Acl
@@ -102,6 +95,39 @@ function Restore-JsonFileAcl {
 
     if (Test-Path $Path) {
         Set-Acl -Path $Path -AclObject $Acl -ErrorAction SilentlyContinue
+    }
+}
+
+function Get-PatchedRegionPolicyContent {
+    param([Parameter(Mandatory = $true)][string]$Content)
+
+    $index = $Content.IndexOf($edgePolicyGuid, [System.StringComparison]::OrdinalIgnoreCase)
+    $regex = [regex]::new('"defaultState":"disabled"', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
+    if ($index -lt 0) {
+        return $regex.Replace($Content, '"defaultState":"enabled"', 1)
+    }
+
+    $head = $Content.Substring(0, $index)
+    $tail = $Content.Substring($index)
+    $tail = $regex.Replace($tail, '"defaultState":"enabled"', 1)
+    return $head + $tail
+}
+
+function Uninstall-MsiexecAppByName {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $paths = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+
+    $apps = Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -eq $Name -and $_.UninstallString -match 'MsiExec\.exe' }
+
+    foreach ($app in $apps) {
+        Write-Host "    MSI uninstall : $($app.DisplayName)"
+        Start-Process -FilePath msiexec.exe -ArgumentList "/X$($app.PSChildName) /quiet" -Wait -NoNewWindow -ErrorAction SilentlyContinue
     }
 }
 
@@ -119,6 +145,14 @@ function Remove-EdgeShortcuts {
     }
 }
 
+function Invoke-EdgeUninstallCommand {
+    param([Parameter(Mandatory = $true)][string]$CommandLine)
+
+    Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" `
+        -ArgumentList "/c start /wait `"`" $CommandLine" `
+        -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
+}
+
 Write-Host "    Looking for Microsoft Edge..."
 
 if (-not (Test-EdgeInstalled)) {
@@ -126,15 +160,10 @@ if (-not (Test-EdgeInstalled)) {
     return
 }
 
-$metadata = Get-EdgeUninstallMetadata
-if (-not $metadata) {
-    Write-Host "    Unable to locate Edge uninstall metadata." -ForegroundColor Yellow
-    return
-}
-
-$originalNoRemove = @{}
+$uninstallInfo = Get-EdgeUninstallInfo
 $policyAcl = $null
 $policyPatched = $false
+$msiChecked = $false
 
 try {
     foreach ($procName in @('msedge', 'MicrosoftEdgeUpdate', 'widgets', 'msedgewebview2')) {
@@ -146,21 +175,17 @@ try {
             New-Item -Path $key -Force | Out-Null
         }
 
-        # WinUtil uses an empty string value here, not a DWORD.
         Set-ItemProperty -Path $key -Name AllowUninstall -Value '' -Type String -Force
     }
 
     foreach ($key in $edgeUninstallKeys) {
-        if (-not (Test-Path $key)) { continue }
+        if (Test-Path $key) {
+            Set-ItemProperty -Path $key -Name NoRemove -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+        }
+    }
 
-        try {
-            $props = Get-ItemProperty -Path $key -ErrorAction Stop
-            if ($null -ne $props.NoRemove) {
-                $originalNoRemove[$key] = [int]$props.NoRemove
-            }
-        } catch {}
-
-        Set-ItemProperty -Path $key -Name NoRemove -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+    if ($uninstallInfo) {
+        Remove-ItemProperty -Path $uninstallInfo.Key -Name experiment_control_labels -ErrorAction SilentlyContinue
     }
 
     if (Test-Path $policyBackup) {
@@ -168,60 +193,67 @@ try {
     }
 
     if (Test-Path $policyFile) {
-        $policyAcl = Get-JsonFileAclWritable -Path $policyFile
-        Copy-Item -Path $policyFile -Destination $policyBackup -Force
+        $policyAcl = Grant-AdminWriteAccess -Path $policyFile
+        Rename-Item -Path $policyFile -NewName (Split-Path $policyBackup -Leaf) -Force
 
-        $policyJson = Get-Content -Path $policyFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        foreach ($policy in $policyJson.policies) {
-            if ($policy.guid -eq '{1bca2783-0de6-4269-b2b2-4bfdd4e492e5}') {
-                $policy.defaultState = 'enabled'
-            }
+        $policyContent = Get-Content -Path $policyBackup -Raw -Encoding UTF8
+        $patchedContent = Get-PatchedRegionPolicyContent -Content $policyContent
+        Set-Content -Path $policyFile -Value $patchedContent -Encoding UTF8
+
+        $policyPatched = $true
+        Write-Host "    Policy file   : Edge uninstall gate patched"
+    }
+
+    Uninstall-MsiexecAppByName -Name 'Microsoft Edge'
+    $msiChecked = $true
+
+    if ($uninstallInfo -and (Test-EdgeInstalled)) {
+        $commandLine = $uninstallInfo.UninstallString
+        if ($commandLine -notmatch '(?i)--force-uninstall') {
+            $commandLine += ' --force-uninstall'
+        }
+        if ($commandLine -notmatch '(?i)--delete-profile') {
+            $commandLine += ' --delete-profile'
         }
 
-        $policyJson | ConvertTo-Json -Depth 100 | Set-Content -Path $policyFile -Encoding UTF8
-        $policyPatched = $true
-        Write-Host "    Policy file   : Edge uninstall region gate patched"
+        Write-Host "    Launching Edge uninstall..."
+        $proc = Invoke-EdgeUninstallCommand -CommandLine $commandLine
+        Write-Host "    Exit code      : $($proc.ExitCode)"
     }
 
-    if ($metadata.Key) {
-        Remove-ItemProperty -Path $metadata.Key -Name experiment_control_labels -ErrorAction SilentlyContinue
-    }
+    if (Test-EdgeInstalled) {
+        foreach ($setup in Get-EdgeSetupCandidates) {
+            $scope = if ($setup.FullName -like "$env:LOCALAPPDATA*") { '--user-level' } else { '--system-level' }
+            $commandLine = "`"$($setup.FullName)`" --uninstall --force-uninstall $scope --verbose-logging --delete-profile --msedge --channel=stable"
 
-    $arguments = [string]$metadata.Arguments
-    if ($arguments -notmatch '(?i)--force-uninstall') {
-        $arguments = ($arguments + ' --force-uninstall').Trim()
-    }
-    if ($arguments -notmatch '(?i)--delete-profile') {
-        $arguments = ($arguments + ' --delete-profile').Trim()
-    }
+            Write-Host "    Fallback setup : $($setup.FullName)"
+            $proc = Invoke-EdgeUninstallCommand -CommandLine $commandLine
+            Write-Host "    Exit code      : $($proc.ExitCode)"
 
-    # WinUtil uses cmd /c start /wait so the Edge bootstrapper behaves like an interactive uninstall.
-    $escaped = '"' + $metadata.FilePath.Replace('"', '\"') + '" ' + $arguments
-    Write-Host "    Launching Edge uninstall..."
-    $proc = Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" `
-        -ArgumentList "/c start /wait `"EdgeUninstall`" $escaped" `
-        -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
-    Write-Host "    Exit code      : $($proc.ExitCode)"
+            if (-not (Test-EdgeInstalled)) {
+                break
+            }
+        }
+    }
 } catch {
     Write-Host "    [WARNING] Edge uninstall hit an error: $($_.Exception.Message)" -ForegroundColor Yellow
 } finally {
     if ($policyPatched -and (Test-Path $policyBackup)) {
-        Copy-Item -Path $policyBackup -Destination $policyFile -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path $policyBackup -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $policyFile -Force -ErrorAction SilentlyContinue
+        Rename-Item -Path $policyBackup -NewName (Split-Path $policyFile -Leaf) -Force -ErrorAction SilentlyContinue
     }
 
     if ($policyAcl) {
-        Restore-JsonFileAcl -Path $policyFile -Acl $policyAcl
-    }
-
-    foreach ($key in $originalNoRemove.Keys) {
-        Set-ItemProperty -Path $key -Name NoRemove -Value $originalNoRemove[$key] -Type DWord -Force -ErrorAction SilentlyContinue
+        Restore-OriginalAcl -Path $policyFile -Acl $policyAcl
     }
 }
 
 if (Test-EdgeInstalled) {
-    Write-Host "    [WARNING] Edge is still present after the WinUtil-aligned uninstall flow." -ForegroundColor Yellow
-    Write-Host "              The uninstall gate was opened correctly; retrying from Settings may now work." -ForegroundColor Yellow
+    Write-Host "    [WARNING] Edge is still present after the EdgeRemover-style uninstall flow." -ForegroundColor Yellow
+    if (-not $msiChecked) {
+        Write-Host "              MSI-based uninstall was not attempted." -ForegroundColor Yellow
+    }
+    Write-Host "              Current next step is to inspect the exact uninstall string and package state on the VM." -ForegroundColor Yellow
 } else {
     Remove-EdgeShortcuts
 

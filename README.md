@@ -217,7 +217,7 @@ win_deslopper/
 | | Risk |
 |-|------|
 | **Defender disabled** | No real-time antivirus protection. On 25H2, Tamper Protection may block disabling even in Safe Mode. |
-| **Edge uninstall** | Uses the WinUtil-style flow (temporary EEA region + official uninstaller). If Windows still refuses removal, Edge is left uninstallable from Settings for manual retry. |
+| **Edge uninstall** | Uses a WinUtil / EdgeRemover-style flow (policy-gate patch + official uninstall path). On some builds, Microsoft may still resist removal and require additional inspection. |
 | **VBS/HVCI disabled** | Credential Guard and certain memory protections are off. Significant performance gain, notable security trade-off. |
 | **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB - BSOD risk. |
 | **Interrupt Affinity** | Wrong pinning can increase latency instead of reducing it. Identify the correct PCI bridge before any change. |
