@@ -31,10 +31,6 @@ $webView2ClientKeys = @(
 $webView2BlockPolicyPath = 'HKLM:\SOFTWARE\Policies\Microsoft\EdgeUpdate'
 $webView2InstallPolicy   = "Install$webView2AppGuid"
 $webView2UpdatePolicy    = "Update$webView2AppGuid"
-$webView2UninstallKeys   = @(
-    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView'
-    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView'
-)
 
 function Get-UninstallEntries {
     $paths = @(
@@ -353,21 +349,51 @@ function Remove-WebView2AppxPackage {
     }
 }
 
+function Prepare-WebView2Removal {
+    # Full registry unlock before setup.exe — mirrors AveYo/fox Edge_Removal.bat
+    $allHives = @('HKLM:\SOFTWARE', 'HKLM:\SOFTWARE\WOW6432Node', 'HKCU:\Software')
+    foreach ($sw in $allHives) {
+        # Clear EdgeUpdate install/update policies that block uninstall
+        foreach ($prop in @('DoNotUpdateToEdgeWithChromium',
+                            'UpdaterExperimentationAndConfigurationServiceControl',
+                            'InstallDefault',
+                            "Install$webView2AppGuid",
+                            "EdgePreview$webView2AppGuid",
+                            "Update$webView2AppGuid")) {
+            Remove-ItemProperty -Path "$sw\Microsoft\EdgeUpdate" -Name $prop -Force -ErrorAction SilentlyContinue
+        }
+
+        # Remove experiment labels from all ClientState entries
+        Remove-ItemProperty -Path "$sw\Microsoft\EdgeUpdate\ClientState\*" -Name 'experiment_control_labels' -Force -ErrorAction SilentlyContinue
+
+        # Remove Commands subkey for WebView2 GUID (auto-run triggers)
+        $cmds = "$sw\Microsoft\EdgeUpdate\Clients\$webView2AppGuid\Commands"
+        if (Test-Path $cmds) { Remove-Item -Path $cmds -Recurse -Force -ErrorAction SilentlyContinue }
+
+        # EdgeUpdateDev: AllowUninstall (DWord 1, not String) + CanContinueWithMissingUpdate
+        $devPath = "$sw\Microsoft\EdgeUpdateDev"
+        if (-not (Test-Path $devPath)) { New-Item -Path $devPath -Force | Out-Null }
+        Set-ItemProperty -Path $devPath -Name 'AllowUninstall' -Value 1 -Type DWord -Force
+        Set-ItemProperty -Path $devPath -Name 'CanContinueWithMissingUpdate' -Value 1 -Type DWord -Force
+
+        # Uninstall key: remove NoRemove/NoModify/NoRepair, set ForceRemove + Delete
+        $key = "$sw\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView"
+        if (Test-Path $key) {
+            foreach ($val in 'NoRemove','NoModify','NoRepair') {
+                Remove-ItemProperty -Path $key -Name $val -Force -ErrorAction SilentlyContinue
+            }
+            Set-ItemProperty -Path $key -Name 'ForceRemove' -Value 1 -Type DWord -Force
+            Set-ItemProperty -Path $key -Name 'Delete' -Value 1 -Type DWord -Force
+        }
+    }
+}
+
 function Uninstall-WebView2 {
     # Kill lingering WebView2 and EdgeUpdate processes before attempting
     Get-Process -Name @('msedgewebview2', 'MicrosoftEdgeUpdate') -ErrorAction SilentlyContinue |
         Stop-Process -Force -ErrorAction SilentlyContinue
 
-    # Same registry unlocks as the Edge flow
-    foreach ($key in $edgeUpdateDevKeys) {
-        if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
-        Set-ItemProperty -Path $key -Name AllowUninstall -Value '' -Type String -Force
-    }
-    foreach ($key in $webView2UninstallKeys) {
-        if (Test-Path $key) {
-            Set-ItemProperty -Path $key -Name NoRemove -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
-        }
-    }
+    Prepare-WebView2Removal
 
     try {
         # Step 1: Remove the Win32WebViewHost AppX package via DISM (the actual lock on Windows 11)
@@ -405,11 +431,32 @@ function Uninstall-WebView2 {
                 if (-not (Test-WebView2Installed)) { break }
             }
         }
+
+        # Step 4: Unregister and uninstall EdgeUpdate service (AveYo method)
+        $edgeUpdaters = @(
+            "${env:ProgramFiles(x86)}\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe"
+            "$env:ProgramFiles\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe"
+            "$env:LOCALAPPDATA\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe"
+        )
+        foreach ($updater in $edgeUpdaters) {
+            if (-not (Test-Path $updater)) { continue }
+            Write-Host "    EdgeUpdate     : $updater"
+            Start-Process -FilePath $updater -ArgumentList '/unregsvc' -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+            Start-Process -FilePath $updater -ArgumentList '/uninstall' -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+        }
+        Unregister-ScheduledTask -TaskName 'MicrosoftEdgeUpdate*' -Confirm:$false -ErrorAction SilentlyContinue
     } catch {
         Write-Host "    [WARNING] WebView2 uninstall hit an error: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 
     # Apply reinstall block regardless of whether uninstall succeeded
+    $allHives = @('HKLM:\SOFTWARE', 'HKLM:\SOFTWARE\WOW6432Node', 'HKCU:\Software')
+    foreach ($sw in $allHives) {
+        $euPath = "$sw\Microsoft\EdgeUpdate"
+        if (-not (Test-Path $euPath)) { New-Item -Path $euPath -Force | Out-Null }
+        Set-ItemProperty -Path $euPath -Name "Install$webView2AppGuid" -Value 0 -Type DWord -Force
+        Set-ItemProperty -Path $euPath -Name "Update$webView2AppGuid" -Value 2 -Type DWord -Force
+    }
     if (-not (Test-Path $webView2BlockPolicyPath)) {
         New-Item -Path $webView2BlockPolicyPath -Force | Out-Null
     }
