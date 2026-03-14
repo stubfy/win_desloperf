@@ -79,7 +79,7 @@ Each folder contains a `readme.txt` with detailed instructions.
 | `05_power.ps1` | Ultimate Performance power plan + Bitsum values |
 | `06_dns.ps1` | Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
 | `07_edge.ps1` | Microsoft Edge policies |
-| `08_debloat.ps1` | UWP app removal (Clipchamp, Teams, News, Copilot...) |
+| `08_debloat.ps1` | UWP app removal (Teams, Microsoft 365, Family, Quick Assist, Sticky Notes...) |
 | `09_oosu10.ps1` | O&O ShutUp10++ silent mode (240 tweaks) |
 | `10_timer.ps1` | SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
 | `11_usb.ps1` | USB selective suspend disabled |

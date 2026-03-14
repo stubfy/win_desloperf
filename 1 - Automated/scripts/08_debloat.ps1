@@ -20,6 +20,13 @@ $appsToRemove = @(
     'Microsoft.549981C3F5F10'           # Cortana
     'Microsoft.MicrosoftTeams'
     'MicrosoftTeams'
+    'MSTeams'
+    'Microsoft.MicrosoftOfficeHub'      # Microsoft 365 / Office hub
+    'MicrosoftCorporationII.MicrosoftFamily'
+    'MicrosoftCorporationII.QuickAssist'
+    'Microsoft.WindowsSoundRecorder'
+    'Microsoft.MicrosoftStickyNotes'
+    'Microsoft.WindowsAlarms'           # Clock / Alarms
     'Microsoft.Todos'
     'Microsoft.WindowsMaps'
     'Microsoft.ZuneMusic'               # Groove Music / Media Player legacy
@@ -74,6 +81,8 @@ $knownProcesses = @{
     'Microsoft.GamingApp'                   = @('XboxPcApp')
     'Microsoft.MicrosoftTeams'              = @('ms-teams', 'Teams')
     'MicrosoftTeams'                        = @('ms-teams', 'Teams')
+    'MSTeams'                               = @('ms-teams', 'Teams')
+    'MicrosoftCorporationII.QuickAssist'    = @('QuickAssist')
     'Microsoft.YourPhone'                   = @('YourPhone', 'PhoneExperienceHost')
     'Microsoft.Copilot'                     = @('Copilot')
     'Microsoft.OutlookForWindows'           = @('olk')

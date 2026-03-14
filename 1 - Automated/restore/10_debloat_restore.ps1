@@ -7,9 +7,16 @@ Write-Host ""
 
 $appsInfo = @{
     'Xbox Game Bar'                   = 'Microsoft.XboxGamingOverlay'
-    'Microsoft Teams'                 = 'MicrosoftTeams'
+    'Microsoft Teams (new)'           = 'MSTeams'
+    'Microsoft Teams (legacy)'        = 'MicrosoftTeams'
     'Clipchamp'                       = 'Clipchamp.Clipchamp'
     'Microsoft Solitaire Collection'  = 'Microsoft.MicrosoftSolitaireCollection'
+    'Microsoft 365'                   = 'Microsoft.MicrosoftOfficeHub'
+    'Microsoft Family Safety'         = 'MicrosoftCorporationII.MicrosoftFamily'
+    'Quick Assist'                    = 'MicrosoftCorporationII.QuickAssist'
+    'Sound Recorder'                  = 'Microsoft.WindowsSoundRecorder'
+    'Sticky Notes'                    = 'Microsoft.MicrosoftStickyNotes'
+    'Windows Clock'                   = 'Microsoft.WindowsAlarms'
     'Microsoft Copilot'               = 'Microsoft.Copilot'
     'Cortana'                         = 'Microsoft.549981C3F5F10'
     'MSN Weather'                     = 'Microsoft.BingWeather'
