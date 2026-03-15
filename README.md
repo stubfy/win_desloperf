@@ -154,7 +154,7 @@ All executions are logged to:
 
 The log includes: pack version, timestamp, OS info, machine name, full output of each script, detailed errors with stack traces.
 
-If the Microsoft Visual C++ x64 runtime required by `SetTimerResolution.exe` is missing, `10_timer.ps1` downloads the official Microsoft redistributable and installs it silently before enabling the timer tool.
+If the Microsoft Visual C++ x64 runtime required by `SetTimerResolution.exe` and `MeasureSleep.exe` is missing, `10_timer.ps1` downloads the official Microsoft redistributable and installs it silently before enabling the timer tool.
 
 ---
 
@@ -218,8 +218,7 @@ win_deslopper/
 │   ├── tools/                        Third-party tools
 │   │   ├── OOSU10.exe
 │   │   ├── ooshutup10.cfg
-│   │   ├── SetTimerResolution.exe
-│   │   └── MeasureSleep.exe
+│   │   └── SetTimerResolution.exe
 │   └── backup/                       Created at first run (gitignored)
 │
 ├── 2 - Windows Defender/
@@ -234,6 +233,7 @@ win_deslopper/
 ├── 6 - Interrupt Affinity/
 ├── 7 - Network WIP/
 └── Tools/
+    └── MeasureSleep.exe
 ```
 
 ---
@@ -252,7 +252,7 @@ win_deslopper/
 | **Service startup tweaks** | Services touched by `03_services.ps1` are aligned to the reference main PC. The noisiest services are disabled again, most secondary ones stay manual, and `BITS` / `UsoSvc` / `wuauserv` can still be adjusted later by the chosen Windows Update profile. |
 | **WU Disabled profile** | No security patches, only use on isolated gaming machines. |
 | **Firewall disabled** | No Windows firewall filtering. Use only if another firewall or isolated setup covers the machine. |
-| **SetTimerResolution** | After enabling `SetTimerResolution`, verify with `MeasureSleep.exe` that the timer resolution is `5200`. If it is not `5200`, another program is forcing it to `5000`, and you need to find that process manually. Known culprits include VoiceMeeter Macro Buttons below v1.1.3.1, which forces 0.50 ms via `NtSetTimerResolution`; update it to v1.1.3.1+ (available on the VB-Audio Discord). Recent VoiceMeeter builds themselves should no longer force the timer resolution, so a registry fix is normally not needed. If VoiceMeeter still appears to be involved on your system, a known fallback fix exists: set `TimerResolution=1` (DWORD) at `HKCU\VB-Audio\VoiceMeeter`. OpenRGB is another known conflict because it holds a 0.50 ms timer resolution request for as long as it is running; close it after configuring your LED profiles. |
+| **SetTimerResolution** | After enabling `SetTimerResolution`, verify with `Tools/MeasureSleep.exe` run as administrator that the timer resolution is `5200`. If it is not `5200`, another program is forcing it to `5000`, and you need to find that process manually. Known culprits include VoiceMeeter Macro Buttons below v1.1.3.1, which forces 0.50 ms via `NtSetTimerResolution`; update it to v1.1.3.1+ (available on the VB-Audio Discord). Recent VoiceMeeter builds themselves should no longer force the timer resolution, so a registry fix is normally not needed. If VoiceMeeter still appears to be involved on your system, a known fallback fix exists: set `TimerResolution=1` (DWORD) at `HKCU\VB-Audio\VoiceMeeter`. OpenRGB is another known conflict because it holds a 0.50 ms timer resolution request for as long as it is running; close it after configuring your LED profiles. |
 
 ---
 

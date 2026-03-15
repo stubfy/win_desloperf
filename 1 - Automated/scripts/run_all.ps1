@@ -270,7 +270,7 @@ Write-Host "  4. NVIDIA Profile Inspector - per-game       (4 - NVInspector/)"
 Write-Host "  5. Device Manager - disable USB power saving (5 - Gestionnaire/)"
 Write-Host "  6. Interrupt Affinity - pin GPU IRQ to core  (6 - Interrupt Affinity/)"
 Write-Host "  7. NIC settings - disable offloads, buffers  (7 - Network WIP/)"
-Write-Host "  8. Verify timer: run MeasureSleep.exe        (1 - Automated/tools/)"
+Write-Host "  8. Verify timer: run MeasureSleep.exe as admin (Tools/)"
 Write-Host ""
 Write-Host "To undo all tweaks: .\restore_all.ps1" -ForegroundColor Gray
 Write-Host ""

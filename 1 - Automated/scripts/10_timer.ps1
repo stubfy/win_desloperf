@@ -14,23 +14,27 @@
 # SetTimerResolution.exe by ValleyOfDoom calls NtSetTimerResolution internally.
 #   --resolution 5200 : requests 5200 x 100 ns = 520 µs = 0.52 ms.
 #   The unit used by NtSetTimerResolution (and SetTimerResolution.exe) is 100-nanosecond intervals.
-#   Use MeasureSleep.exe to verify the actual achieved resolution post-reboot.
+#   Use Tools\MeasureSleep.exe to verify the actual achieved resolution post-reboot.
 #   Values in the 5000-5500 range are well-tested; lower values may not be honored
 #   by all hardware/driver combinations.
 #
-# VC++ runtime: SetTimerResolution.exe requires the Visual C++ 2015-2022 x64
-#   redistributable (vcruntime140_1.dll). The script checks for its presence and
-#   attempts a silent download/install if missing.
+# VC++ runtime: SetTimerResolution.exe and MeasureSleep.exe require the
+#   Visual C++ 2015-2022 x64 redistributable. The script checks for the core
+#   runtime DLLs and attempts a silent download/install if missing.
 #
 # Rollback: restore\06_timer.ps1 deletes the startup shortcut and terminates the process.
 
 $ROOT     = Split-Path $PSScriptRoot
 $timerSrc = Join-Path $ROOT "tools\SetTimerResolution.exe"
-$vcRuntimeDll = Join-Path $env:SystemRoot 'System32\vcruntime140_1.dll'
+$vcRuntimeDlls = @(
+    (Join-Path $env:SystemRoot 'System32\vcruntime140.dll'),
+    (Join-Path $env:SystemRoot 'System32\vcruntime140_1.dll'),
+    (Join-Path $env:SystemRoot 'System32\msvcp140.dll')
+)
 $vcRedistUrl  = 'https://aka.ms/vc14/vc_redist.x64.exe'
 
-function Ensure-VcRuntimeForSetTimerResolution {
-    if (Test-Path $vcRuntimeDll) {
+function Ensure-VcRuntimeForTimerTools {
+    if (($vcRuntimeDlls | Where-Object { -not (Test-Path $_) }).Count -eq 0) {
         return $true
     }
 
@@ -82,8 +86,8 @@ try {
     # Best effort: some environments do not expose a zone identifier stream.
 }
 
-if (-not (Ensure-VcRuntimeForSetTimerResolution)) {
-    Write-Host "    SetTimerResolution requires the Microsoft Visual C++ x64 runtime." -ForegroundColor Yellow
+if (-not (Ensure-VcRuntimeForTimerTools)) {
+    Write-Host "    SetTimerResolution and MeasureSleep require the Microsoft Visual C++ x64 runtime." -ForegroundColor Yellow
     Write-Host "    Timer startup integration skipped until the runtime is available." -ForegroundColor Yellow
     return
 }
@@ -137,5 +141,5 @@ try {
     Write-Host "    Launch skipped : $($_.Exception.Message)" -ForegroundColor Yellow
     Write-Host "                     Startup shortcut is still installed; it will retry at next sign-in." -ForegroundColor Yellow
 }
-Write-Host "    Tip            : use MeasureSleep.exe to verify the actual resolution"
+Write-Host "    Tip            : use Tools\MeasureSleep.exe as administrator to verify the actual resolution"
 Write-Host "                     (adjust value if needed: 5000, 5100, 5200...)"
