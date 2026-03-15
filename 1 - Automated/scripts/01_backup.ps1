@@ -4,6 +4,25 @@ $BACKUP_DIR = Join-Path (Split-Path $PSScriptRoot) "backup"
 New-Item -ItemType Directory -Force -Path $BACKUP_DIR | Out-Null
 $serviceCatalog = & (Join-Path $PSScriptRoot '03_services.ps1') -ExportCatalogOnly
 
+function Get-ExactServiceStartupType {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+    try {
+        $props = Get-ItemProperty -Path $serviceKey -ErrorAction Stop
+    } catch {
+        return $null
+    }
+
+    $delayedAutoStart = ($props.PSObject.Properties.Name -contains 'DelayedAutoStart' -and $props.DelayedAutoStart -eq 1)
+    switch ([int]$props.Start) {
+        2 { if ($delayedAutoStart) { return 'AutomaticDelayedStart' } else { return 'Automatic' } }
+        3 { return 'Manual' }
+        4 { return 'Disabled' }
+        default { return $null }
+    }
+}
+
 # System restore point
 Write-Host "    Creating restore point... " -NoNewline
 try {
@@ -21,8 +40,8 @@ try {
 # Export service states (for precise rollback)
 $serviceState = @{}
 foreach ($svc in $serviceCatalog.Tracked) {
-    $s = Get-Service $svc -ErrorAction SilentlyContinue
-    if ($s) { $serviceState[$svc] = $s.StartType.ToString() }
+    $startupType = Get-ExactServiceStartupType -Name $svc
+    if ($startupType) { $serviceState[$svc] = $startupType }
 }
 $serviceState | ConvertTo-Json | Set-Content "$BACKUP_DIR\services_state.json" -Encoding UTF8
 Write-Host "    Service states saved -> backup\services_state.json"

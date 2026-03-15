@@ -2,66 +2,103 @@ param(
     [switch]$ExportCatalogOnly
 )
 
-# 03_services.ps1 - Apply service startup tweaks for gaming
+# 03_services.ps1 - Align service startup types to the reference main PC
+
+function Set-ServiceDwordValue {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][int]$Value
+    )
+
+    New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
+}
 
 function Get-ServiceStartupCatalog {
     $disabled = @(
-        'DoSvc'
+        'AssignedAccessManagerSvc'
+        'DiagTrack'
+        'dmwappushservice'
+        'DPS'
+        'lfsvc'
+        'MapsBroker'
+        'PhoneSvc'
+        'RemoteRegistry'
+        'RetailDemo'
+        'RmSvc'
+        'SCardSvr'
+        'ScDeviceEnum'
+        'SEMgrSvc'
+        'SharedAccess'
+        'Spooler'
+        'SysMain'
+        'WerSvc'
+        'WpcMonSvc'
+        'WSearch'
     )
 
     $manual = @(
-        'SysMain'
-        'DPS'
-        'Spooler'
-        'TabletInputService'
-        'DiagTrack'
-        'WSearch'
-        'MapsBroker'
-        'RemoteRegistry'
         'ALG'
+        'Appinfo'
         'AppMgmt'
         'AppReadiness'
-        'Appinfo'
+        'autotimesvc'
         'AxInstSV'
         'BDESVC'
+        'BITS'
         'BTAGService'
+        'bthserv'
+        'camsvc'
         'CDPSvc'
-        'COMSysApp'
         'CertPropSvc'
+        'cloudidsvc'
+        'COMSysApp'
         'CscService'
-        'DevQueryBroker'
-        'DeviceAssociationService'
+        'dcsvc'
+        'defragsvc'
         'DeviceInstall'
+        'DevQueryBroker'
+        'diagsvc'
         'DisplayEnhancementService'
-        'EFS'
+        'DoSvc'
+        'dot3svc'
         'EapHost'
+        'edgeupdate'
+        'edgeupdatem'
+        'EFS'
+        'fdPHost'
         'FDResPub'
+        'fhsvc'
         'FrameServer'
         'FrameServerMonitor'
         'GraphicsPerfSvc'
+        'hidserv'
         'HvHost'
-        'IKEEXT'
-        'InstallService'
+        'icssvc'
         'InventorySvc'
         'IpxlatCfgSvc'
         'KtmRm'
         'LicenseManager'
+        'lltdsvc'
+        'lmhosts'
         'LxpSvc'
-        'MSDTC'
-        'MSiSCSI'
         'McpManagementService'
         'MicrosoftEdgeElevationService'
+        'MSDTC'
+        'MSiSCSI'
         'NaturalAuthentication'
         'NcaSvc'
         'NcbService'
         'NcdAutoSetup'
-        'NetSetupSvc'
         'Netman'
+        'netprofm'
+        'NetSetupSvc'
         'NlaSvc'
         'PcaSvc'
         'PeerDistSvc'
+        'perceptionsimulation'
         'PerfHost'
-        'PhoneSvc'
+        'pla'
         'PlugPlay'
         'PolicyAgent'
         'PrintNotify'
@@ -69,84 +106,28 @@ function Get-ServiceStartupCatalog {
         'QWAVE'
         'RasAuto'
         'RasMan'
-        'RetailDemo'
-        'RmSvc'
         'RpcLocator'
         'SCPolicySvc'
-        'SCardSvr'
         'SDRSVC'
-        'SEMgrSvc'
-        'SNMPTRAP'
-        'SNMPTrap'
-        'SSDPSRV'
-        'ScDeviceEnum'
+        'seclogon'
         'SensorDataService'
         'SensorService'
         'SensrSvc'
         'SessionEnv'
-        'SharedAccess'
+        'smphost'
         'SmsRouter'
+        'SNMPTrap'
+        'SSDPSRV'
         'SstpSvc'
-        'StiSvc'
         'StorSvc'
+        'svsvc'
+        'swprv'
         'TapiSrv'
-        'TermService'
         'TieringEngineService'
         'TokenBroker'
         'TroubleshootingSvc'
         'TrustedInstaller'
         'UmRdpService'
-        'UsoSvc'
-        'VSS'
-        'VaultSvc'
-        'W32Time'
-        'WEPHOSTSVC'
-        'WFDSConMgrSvc'
-        'WMPNetworkSvc'
-        'WManSvc'
-        'WPDBusEnum'
-        'WSAIFabricSvc'
-        'WalletService'
-        'WarpJITSvc'
-        'WbioSrvc'
-        'WdiServiceHost'
-        'WdiSystemHost'
-        'WebClient'
-        'Wecsvc'
-        'WerSvc'
-        'WiaRpc'
-        'WinRM'
-        'WpcMonSvc'
-        'WpnService'
-        'XblAuthManager'
-        'XblGameSave'
-        'XboxGipSvc'
-        'XboxNetApiSvc'
-        'autotimesvc'
-        'bthserv'
-        'camsvc'
-        'cloudidsvc'
-        'dcsvc'
-        'defragsvc'
-        'diagsvc'
-        'dmwappushservice'
-        'dot3svc'
-        'edgeupdate'
-        'edgeupdatem'
-        'fdPHost'
-        'fhsvc'
-        'hidserv'
-        'icssvc'
-        'lfsvc'
-        'lltdsvc'
-        'lmhosts'
-        'netprofm'
-        'perceptionsimulation'
-        'pla'
-        'seclogon'
-        'smphost'
-        'svsvc'
-        'swprv'
         'upnphost'
         'vds'
         'vmicguestinterface'
@@ -157,41 +138,92 @@ function Get-ServiceStartupCatalog {
         'vmictimesync'
         'vmicvmsession'
         'vmicvss'
+        'VSS'
+        'WalletService'
+        'WarpJITSvc'
         'wbengine'
+        'WbioSrvc'
         'wcncsvc'
+        'WdiServiceHost'
+        'WdiSystemHost'
+        'WebClient'
         'webthreatdefsvc'
+        'Wecsvc'
+        'WEPHOSTSVC'
         'wercplsupport'
+        'WFDSConMgrSvc'
+        'WiaRpc'
+        'WinRM'
         'wisvc'
         'wlidsvc'
         'wlpasvc'
+        'WManSvc'
         'wmiApSrv'
+        'WMPNetworkSvc'
         'workfolderssvc'
+        'WPDBusEnum'
+        'WpnService'
+        'WSAIFabricSvc'
+        'XblAuthManager'
+        'XblGameSave'
+        'XboxGipSvc'
+        'XboxNetApiSvc'
+    )
+
+    $automatic = @(
+        'DeviceAssociationService'
+        'IKEEXT'
+        'InstallService'
+        'StiSvc'
+        'TermService'
+        'VaultSvc'
+        'W32Time'
         'wuauserv'
-        'AssignedAccessManagerSvc'
-        'BITS'
+    )
+
+    $automaticDelayedStart = @(
+        'UsoSvc'
     )
 
     $defaults = [ordered]@{
-        'SysMain'                   = 'Automatic'
-        'DPS'                       = 'Automatic'
-        'Spooler'                   = 'Automatic'
-        'TabletInputService'        = 'Manual'
-        'DiagTrack'                 = 'Automatic'
-        'WSearch'                   = 'Automatic'
-        'MapsBroker'                = 'Automatic'
-        'RemoteRegistry'            = 'Disabled'
-        'CDPSvc'                    = 'Automatic'
-        'InventorySvc'              = 'Automatic'
-        'PcaSvc'                    = 'Automatic'
-        'StorSvc'                   = 'Automatic'
-        'UsoSvc'                    = 'Automatic'
-        'WpnService'                = 'Automatic'
-        'camsvc'                    = 'Automatic'
-        'edgeupdate'                = 'Automatic'
-        'BITS'                      = 'Automatic'
-        'WSAIFabricSvc'             = 'Automatic'
-        'DoSvc'                     = 'Automatic'
-        'AssignedAccessManagerSvc'  = 'Manual'
+        'AssignedAccessManagerSvc'      = 'Manual'
+        'BITS'                          = 'Automatic'
+        'CDPSvc'                        = 'Automatic'
+        'DeviceAssociationService'      = 'Manual'
+        'DiagTrack'                     = 'Automatic'
+        'dmwappushservice'              = 'Manual'
+        'DoSvc'                         = 'Automatic'
+        'DPS'                           = 'Automatic'
+        'IKEEXT'                        = 'Manual'
+        'InstallService'                = 'Manual'
+        'InventorySvc'                  = 'Automatic'
+        'lfsvc'                         = 'Manual'
+        'MapsBroker'                    = 'Automatic'
+        'PhoneSvc'                      = 'Manual'
+        'PcaSvc'                        = 'Automatic'
+        'RemoteRegistry'                = 'Disabled'
+        'RetailDemo'                    = 'Manual'
+        'RmSvc'                         = 'Manual'
+        'SCardSvr'                      = 'Manual'
+        'ScDeviceEnum'                  = 'Manual'
+        'SEMgrSvc'                      = 'Manual'
+        'SharedAccess'                  = 'Manual'
+        'Spooler'                       = 'Automatic'
+        'StiSvc'                        = 'Manual'
+        'StorSvc'                       = 'Automatic'
+        'SysMain'                       = 'Automatic'
+        'TermService'                   = 'Manual'
+        'UsoSvc'                        = 'Automatic'
+        'VaultSvc'                      = 'Manual'
+        'W32Time'                       = 'Manual'
+        'WerSvc'                        = 'Manual'
+        'WpcMonSvc'                     = 'Manual'
+        'WpnService'                    = 'Automatic'
+        'WSearch'                       = 'Automatic'
+        'WSAIFabricSvc'                 = 'Automatic'
+        'wuauserv'                      = 'Manual'
+        'camsvc'                        = 'Automatic'
+        'edgeupdate'                    = 'Automatic'
     }
 
     foreach ($svc in $manual) {
@@ -200,13 +232,63 @@ function Get-ServiceStartupCatalog {
         }
     }
 
-    return @{
-        Disabled     = $disabled
-        Manual       = $manual
-        Defaults     = $defaults
-        Tracked      = @($manual + $disabled)
-        DiffExcluded = @('BITS', 'UsoSvc', 'wuauserv')
+    foreach ($svc in $automatic) {
+        if (-not $defaults.Contains($svc)) {
+            $defaults[$svc] = 'Manual'
+        }
     }
+
+    return @{
+        Disabled               = $disabled
+        Manual                 = $manual
+        Automatic              = $automatic
+        AutomaticDelayedStart  = $automaticDelayedStart
+        TriggerlessManual      = @('DoSvc')
+        Defaults               = $defaults
+        Tracked                = @($disabled + $manual + $automatic + $automaticDelayedStart)
+        DiffExcluded           = @('BITS', 'UsoSvc', 'wuauserv')
+    }
+}
+
+function Set-ServiceStartupTypeExact {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$StartupType
+    )
+
+    $service = Get-Service -Name $Name -ErrorAction SilentlyContinue
+    if (-not $service) { return $false }
+
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+
+    switch ($StartupType) {
+        'Disabled' {
+            Stop-Service $Name -Force -ErrorAction SilentlyContinue
+            Set-Service $Name -StartupType Disabled -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 4
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'Manual' {
+            Set-Service $Name -StartupType Manual -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 3
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'Automatic' {
+            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'AutomaticDelayedStart' {
+            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 1
+        }
+        default {
+            throw "Unsupported startup type: $StartupType"
+        }
+    }
+
+    return $true
 }
 
 if ($ExportCatalogOnly) {
@@ -215,28 +297,49 @@ if ($ExportCatalogOnly) {
 
 $serviceCatalog = Get-ServiceStartupCatalog
 
+foreach ($svc in $serviceCatalog.Disabled) {
+    if (Set-ServiceStartupTypeExact -Name $svc -StartupType 'Disabled') {
+        Write-Host "    [DISABLED]   $svc"
+    } else {
+        Write-Host "    [NOT FOUND]  $svc" -ForegroundColor Gray
+    }
+}
+
 foreach ($svc in $serviceCatalog.Manual) {
-    $s = Get-Service $svc -ErrorAction SilentlyContinue
-    if ($s) {
-        Set-Service $svc -StartupType Manual -ErrorAction SilentlyContinue
+    if ($svc -in $serviceCatalog.TriggerlessManual) { continue }
+
+    if (Set-ServiceStartupTypeExact -Name $svc -StartupType 'Manual') {
         Write-Host "    [MANUAL]     $svc"
     } else {
         Write-Host "    [NOT FOUND]  $svc" -ForegroundColor Gray
     }
 }
 
-# --- DoSvc (Delivery Optimization) — force-disable via registry + remove triggers ---
-# Set-Service is silently ignored by Windows 11 25H2 because the service has triggers
-# that relaunch it automatically. Direct registry write + TriggerInfo removal is required.
+foreach ($svc in $serviceCatalog.Automatic) {
+    if (Set-ServiceStartupTypeExact -Name $svc -StartupType 'Automatic') {
+        Write-Host "    [AUTO]       $svc"
+    } else {
+        Write-Host "    [NOT FOUND]  $svc" -ForegroundColor Gray
+    }
+}
+
+foreach ($svc in $serviceCatalog.AutomaticDelayedStart) {
+    if (Set-ServiceStartupTypeExact -Name $svc -StartupType 'AutomaticDelayedStart') {
+        Write-Host "    [AUTO-DELAY] $svc"
+    } else {
+        Write-Host "    [NOT FOUND]  $svc" -ForegroundColor Gray
+    }
+}
+
+# Align DoSvc to the reference main PC: Manual startup with TriggerInfo removed.
 $doSvc = Get-Service 'DoSvc' -ErrorAction SilentlyContinue
 if ($doSvc) {
-    Stop-Service 'DoSvc' -Force -ErrorAction SilentlyContinue
-    Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc' -Name Start -Value 4 -ErrorAction SilentlyContinue
+    Set-ServiceStartupTypeExact -Name 'DoSvc' -StartupType 'Manual' | Out-Null
     $triggerPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc\TriggerInfo'
     if (Test-Path $triggerPath) {
         Remove-Item $triggerPath -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Write-Host "    [DISABLED]   DoSvc (registry + TriggerInfo removed)"
+    Write-Host "    [MANUAL]     DoSvc (TriggerInfo removed)"
 } else {
     Write-Host "    [NOT FOUND]  DoSvc" -ForegroundColor Gray
 }

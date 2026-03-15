@@ -6,6 +6,25 @@ $ROOT      = Split-Path $PSScriptRoot
 $SNAP_FILE = Join-Path $ROOT "backup\snapshot_latest.json"
 $serviceCatalog = & (Join-Path $PSScriptRoot '03_services.ps1') -ExportCatalogOnly
 
+function Get-ExactServiceStartupType {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+    try {
+        $props = Get-ItemProperty -Path $serviceKey -ErrorAction Stop
+    } catch {
+        return $null
+    }
+
+    $delayedAutoStart = ($props.PSObject.Properties.Name -contains 'DelayedAutoStart' -and $props.DelayedAutoStart -eq 1)
+    switch ([int]$props.Start) {
+        2 { if ($delayedAutoStart) { return 'AutomaticDelayedStart' } else { return 'Automatic' } }
+        3 { return 'Manual' }
+        4 { return 'Disabled' }
+        default { return $null }
+    }
+}
+
 if (-not (Test-Path $SNAP_FILE)) {
     Write-Host "  No snapshot found at: $SNAP_FILE" -ForegroundColor Yellow
     Write-Host "  Run the pack once first to create a baseline." -ForegroundColor DarkGray
@@ -69,6 +88,16 @@ foreach ($svc in $serviceCatalog.Manual) {
         $svcDesiredMap[$svc] = 'Manual'
     }
 }
+foreach ($svc in $serviceCatalog.Automatic) {
+    if ($svc -notin $serviceCatalog.DiffExcluded) {
+        $svcDesiredMap[$svc] = 'Automatic'
+    }
+}
+foreach ($svc in $serviceCatalog.AutomaticDelayedStart) {
+    if ($svc -notin $serviceCatalog.DiffExcluded) {
+        $svcDesiredMap[$svc] = 'AutomaticDelayedStart'
+    }
+}
 
 $svcChanged = [System.Collections.Generic.List[object]]::new()
 $svcAlready = 0
@@ -80,9 +109,8 @@ foreach ($prop in $snap.Services.PSObject.Properties) {
     $desired = $svcDesiredMap[$svcName]
     if (-not $desired) { continue }
 
-    $s = Get-Service -Name $svcName -ErrorAction SilentlyContinue
-    if (-not $s) { continue }
-    $current = $s.StartType.ToString()
+    $current = Get-ExactServiceStartupType -Name $svcName
+    if (-not $current) { continue }
 
     if ($current -eq $desired) {
         if ($before -eq $desired) { $svcAlready++ }

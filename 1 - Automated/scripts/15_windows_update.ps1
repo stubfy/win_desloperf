@@ -50,6 +50,48 @@ function Set-RegValue {
     Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force
 }
 
+function Set-ServiceDwordValue {
+    param([string]$Path, [string]$Name, [int]$Value)
+    New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
+}
+
+function Set-ServiceStartupTypeExact {
+    param([string]$Name, [string]$StartupType)
+
+    $s = Get-Service $Name -ErrorAction SilentlyContinue
+    if (-not $s) { return $false }
+
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+    switch ($StartupType) {
+        'Disabled' {
+            Stop-Service $Name -Force -ErrorAction SilentlyContinue
+            Set-Service $Name -StartupType Disabled -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 4
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'Manual' {
+            Set-Service $Name -StartupType Manual -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 3
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'Automatic' {
+            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'AutomaticDelayedStart' {
+            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 1
+        }
+        default {
+            throw "Unsupported startup type: $StartupType"
+        }
+    }
+
+    return $true
+}
+
 function Remove-WUPolicies {
     # Remove all restrictive WU policies
     Remove-Item -Path $WU_PATH    -Recurse -Force -ErrorAction SilentlyContinue
@@ -58,12 +100,16 @@ function Remove-WUPolicies {
 }
 
 function Enable-WUServices {
-    foreach ($svc in @('wuauserv','UsoSvc','BITS')) {
-        $s = Get-Service $svc -ErrorAction SilentlyContinue
-        if ($s) {
-            Set-Service  $svc -StartupType Automatic -ErrorAction SilentlyContinue
-            Start-Service $svc -ErrorAction SilentlyContinue
-            Write-Host "    [SERVICE] $svc -> Automatic"
+    foreach ($item in @(
+        @{ Name = 'wuauserv'; StartupType = 'Automatic'; StartNow = $true }
+        @{ Name = 'UsoSvc';   StartupType = 'AutomaticDelayedStart'; StartNow = $true }
+        @{ Name = 'BITS';     StartupType = 'Manual'; StartNow = $false }
+    )) {
+        if (Set-ServiceStartupTypeExact -Name $item.Name -StartupType $item.StartupType) {
+            if ($item.StartNow) {
+                Start-Service $item.Name -ErrorAction SilentlyContinue
+            }
+            Write-Host "    [SERVICE] $($item.Name) -> $($item.StartupType)"
         }
     }
 }
@@ -84,7 +130,7 @@ switch ($Profil) {
 
     '1' {
         Write-Host ""
-        Write-Host "  Profile [1] Maximum - restoring Windows defaults" -ForegroundColor Green
+        Write-Host "  Profile [1] Maximum - restoring Windows Update baseline" -ForegroundColor Green
         Write-Host ""
 
         Remove-WUPolicies

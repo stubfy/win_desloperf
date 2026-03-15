@@ -31,6 +31,7 @@ Windows Registry Editor Version 5.00
 ; --- Arret et reponse bureau plus rapides ---
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control]
 "WaitToKillServiceTimeout"="2000"
+"SvcHostSplitThresholdInKB"=dword:02000000
 
 [HKEY_CURRENT_USER\Control Panel\Desktop]
 "AutoEndTasks"="1"

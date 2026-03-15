@@ -4,7 +4,58 @@ $BACKUP_DIR = Join-Path (Split-Path $PSScriptRoot) "backup"
 $stateFile  = Join-Path $BACKUP_DIR "services_state.json"
 $serviceCatalog = & (Join-Path (Join-Path (Split-Path $PSScriptRoot) 'scripts') '03_services.ps1') -ExportCatalogOnly
 
-# Windows default values if no backup available
+function Set-ServiceDwordValue {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][int]$Value
+    )
+
+    New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
+}
+
+function Set-ServiceStartupTypeExact {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$StartupType
+    )
+
+    $service = Get-Service -Name $Name -ErrorAction SilentlyContinue
+    if (-not $service) { return $false }
+
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+
+    switch ($StartupType) {
+        'Disabled' {
+            Stop-Service $Name -Force -ErrorAction SilentlyContinue
+            Set-Service $Name -StartupType Disabled -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 4
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'Manual' {
+            Set-Service $Name -StartupType Manual -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 3
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'Automatic' {
+            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+        }
+        'AutomaticDelayedStart' {
+            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 1
+        }
+        default {
+            throw "Unsupported startup type: $StartupType"
+        }
+    }
+
+    return $true
+}
+
+# Reference fallback values if no backup is available
 $defaults = [ordered]@{}
 foreach ($svc in $serviceCatalog.Defaults.Keys) {
     $defaults[$svc] = $serviceCatalog.Defaults[$svc]
@@ -22,35 +73,21 @@ if (Test-Path $stateFile) {
 }
 
 foreach ($svc in $defaults.Keys) {
-    $s = Get-Service $svc -ErrorAction SilentlyContinue
-    if ($s) {
-        $startupType = $defaults[$svc]
-        Set-Service $svc -StartupType $startupType -ErrorAction SilentlyContinue
-        if ($startupType -in @('Automatic', 'AutomaticDelayedStart')) {
+    $startupType = $defaults[$svc]
+    if (Set-ServiceStartupTypeExact -Name $svc -StartupType $startupType) {
+        if ($startupType -eq 'Automatic') {
             Start-Service $svc -ErrorAction SilentlyContinue
         }
-        Write-Host "    [RESTORED]  $svc -> $($defaults[$svc])"
+        Write-Host "    [RESTORED]  $svc -> $startupType"
     } else {
         Write-Host "    [NOT FOUND] $svc" -ForegroundColor Gray
     }
 }
 
-# --- DoSvc — restore registry Start value after TriggerInfo removal ---
-$doSvc = Get-Service 'DoSvc' -ErrorAction SilentlyContinue
-if ($doSvc -and $defaults.Contains('DoSvc')) {
-    $desired = $defaults['DoSvc']
-    $startValueMap = @{
-        'Automatic'              = 2
-        'AutomaticDelayedStart'  = 2
-        'Manual'                 = 3
-        'Disabled'               = 4
-    }
-
-    if ($startValueMap.ContainsKey($desired)) {
-        Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc' -Name Start -Value $startValueMap[$desired] -ErrorAction SilentlyContinue
-        if ($desired -in @('Automatic', 'AutomaticDelayedStart')) {
-            Start-Service 'DoSvc' -ErrorAction SilentlyContinue
-        }
-        Write-Host "    [RESTORED]  DoSvc -> $desired"
+# DoSvc can be restored to its startup type, but TriggerInfo is not recreated here.
+if ($defaults.Contains('DoSvc') -and $defaults['DoSvc'] -in @('Manual', 'Disabled')) {
+    $triggerPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc\TriggerInfo'
+    if (Test-Path $triggerPath) {
+        Remove-Item $triggerPath -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

@@ -74,7 +74,7 @@ Each folder contains a `readme.txt` with detailed instructions.
 |--------|---------|
 | `01_backup.ps1` | Windows restore point + service/registry state export |
 | `02_registry.ps1` | Consolidated, deduplicated registry tweaks |
-| `03_services.ps1` | Service startup tweaks (Manual only) |
+| `03_services.ps1` | Service startup alignment (reference main PC) |
 | `04_bcdedit.ps1` | Boot configuration (dynamictick, legacy menu) |
 | `05_power.ps1` | Ultimate Performance power plan + Bitsum values |
 | `06_dns.ps1` | Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
@@ -110,6 +110,7 @@ Each folder contains a `readme.txt` with detailed instructions.
 - Network throttling disabled (`NetworkThrottlingIndex=0xFFFFFFFF`, `SystemResponsiveness=0`)
 - VBS/HVCI disabled (`EnableVirtualizationBasedSecurity=0`)
 - Global timer resolution (`GlobalTimerResolutionRequests=1`)
+- `SvcHostSplitThresholdInKB=33554432` to reduce `svchost` splitting
 - WaitToKillServiceTimeout reduced (2000 ms)
 - Prefetch disabled
 - File extensions visible
@@ -122,9 +123,11 @@ Each folder contains a `readme.txt` with detailed instructions.
 
 ### Service startup tweaks
 
-`03_services.ps1` moves the tracked services to `Manual` startup, with one exception: `DoSvc` is still force-disabled because it ignores a normal `Set-Service` flow on current Windows builds.
+`03_services.ps1` now aligns startup types to the reference main PC instead of forcing an almost-all-`Manual` policy.
 
-The `Manual` set includes the previous pack targets (`SysMain`, `DPS`, `Spooler`, `TabletInputService`, `DiagTrack`, `WSearch`, `MapsBroker`, `RemoteRegistry`) plus the wider WinUtil-aligned list such as `CDPSvc`, `RmSvc`, `dmwappushservice`, `WerSvc`, `PhoneSvc`, `UsoSvc`, `WpnService`, `camsvc`, `edgeupdate`, `wuauserv`, Xbox services, and Hyper-V helper services.
+In practice, a noisy core is forced back to `Disabled` (`SysMain`, `DPS`, `Spooler`, `DiagTrack`, `WSearch`, `RmSvc`, `WerSvc`, `PhoneSvc`, `SharedAccess`, `MapsBroker`, `RemoteRegistry`, smart card services, etc.), most secondary services stay `Manual`, some services remain `Automatic` on purpose (`wuauserv`, `W32Time`, `TermService`, `DeviceAssociationService`, `IKEEXT`, `InstallService`, `StiSvc`, `VaultSvc`), and `UsoSvc` is set to `AutomaticDelayedStart`.
+
+`DoSvc` is aligned to the main PC as `Manual` with `TriggerInfo` removed.
 
 ### Logging
 
@@ -226,7 +229,7 @@ win_deslopper/
 | **VBS/HVCI disabled** | Credential Guard and certain memory protections are off. Significant performance gain, notable security trade-off. |
 | **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB - BSOD risk. |
 | **Interrupt Affinity** | Wrong pinning can increase latency instead of reducing it. Identify the correct PCI bridge before any change. |
-| **Service startup tweaks** | Services touched by `03_services.ps1` are mostly moved to `Manual`. `DoSvc` remains force-disabled. `BITS`, `UsoSvc` and `wuauserv` can still be overridden later by the chosen Windows Update profile. |
+| **Service startup tweaks** | Services touched by `03_services.ps1` are aligned to the reference main PC. The noisiest services are disabled again, most secondary ones stay manual, and `BITS` / `UsoSvc` / `wuauserv` can still be adjusted later by the chosen Windows Update profile. |
 | **WU Disabled profile** | No security patches, only use on isolated gaming machines. |
 | **Firewall disabled** | No Windows firewall filtering. Use only if another firewall or isolated setup covers the machine. |
 

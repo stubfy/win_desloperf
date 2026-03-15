@@ -23,6 +23,25 @@ function ConvertTo-PSPath([string]$p) {
         -replace '^HKEY_USERS\\',         'HKU:\'
 }
 
+function Get-ExactServiceStartupType {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+    try {
+        $props = Get-ItemProperty -Path $serviceKey -ErrorAction Stop
+    } catch {
+        return $null
+    }
+
+    $delayedAutoStart = ($props.PSObject.Properties.Name -contains 'DelayedAutoStart' -and $props.DelayedAutoStart -eq 1)
+    switch ([int]$props.Start) {
+        2 { if ($delayedAutoStart) { return 'AutomaticDelayedStart' } else { return 'Automatic' } }
+        3 { return 'Manual' }
+        4 { return 'Disabled' }
+        default { return $null }
+    }
+}
+
 # ── Parse reg tweak sources ───────────────────────────────────────────────────
 $regEntries = [ordered]@{}
 foreach ($regFile in $REG_FILES) {
@@ -104,8 +123,8 @@ Write-Host "    Registry : $($regArray.Count) trackable values"
 # ── Services snapshot ──────────────────────────────────────────────────────────
 $svcSnap = [ordered]@{}
 foreach ($n in $serviceCatalog.Tracked) {
-    $s = Get-Service -Name $n -ErrorAction SilentlyContinue
-    if ($s) { $svcSnap[$n] = $s.StartType.ToString() }
+    $startupType = Get-ExactServiceStartupType -Name $n
+    if ($startupType) { $svcSnap[$n] = $startupType }
 }
 Write-Host "    Services : $($svcSnap.Count) services"
 
