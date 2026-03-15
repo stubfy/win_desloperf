@@ -41,7 +41,7 @@
         a. Sets safeboot=minimal in BCD.
         b. Creates a helper .bat on the Desktop that disables Defender and
            removes the safeboot flag before rebooting to normal Windows.
-      This automates the Safe Mode Defender disable step (2 - Windows Defender/).
+      This automates the Safe Mode Defender disable step (1 - Automated/scripts/Windows Defender/).
 
 .NOTES
     Manual steps after execution: see README.md at the pack root
@@ -262,7 +262,7 @@ Write-Host "================================================" -ForegroundColor G
 Write-Host ""
 Write-Host "REMAINING MANUAL STEPS (see README.md at the pack root):" -ForegroundColor Cyan
 Write-Host "  1. Reboot the PC"
-Write-Host "  2. [Safe Mode] Disable Windows Defender      (2 - Windows Defender/)"
+Write-Host "  2. [Safe Mode] Disable Windows Defender      (1 - Automated/scripts/Windows Defender/)"
 Write-Host "  3. MSI Utils - enable MSI on GPU/NIC/NVMe   (3 - MSI Utils/)"
 Write-Host "  4. NVIDIA Profile Inspector - per-game       (4 - NVInspector/)"
 Write-Host "  5. Device Manager - disable USB power saving (5 - Gestionnaire/)"
@@ -287,13 +287,24 @@ $restart = Read-Host "Restart now? (S/Y/N) [default: N]"
 if ($restart -eq '') { $restart = 'N' }
 if ($restart -ieq 'S') {
     Write-Log "Safe Mode reboot requested by user." 'INFO'
-    bcdedit /set '{current}' safeboot minimal | Out-Null
 
     # Create an explicit Safe Mode helper on the Desktop
     $batDest        = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Disable Defender and Return to Normal Mode.bat'
-    $defenderScript = Join-Path $ROOT '2 - Windows Defender\1 - DisableDefender.ps1'
+    $defenderScript = Join-Path $SCRIPTS 'Windows Defender\1 - DisableDefender.ps1'
+    if (-not (Test-Path $defenderScript)) {
+        Write-Host ""
+        Write-Host "  ERROR: Defender script not found." -ForegroundColor Red
+        Write-Host "    Expected: $defenderScript" -ForegroundColor White
+        Write-Host "  Safe Mode was not enabled." -ForegroundColor Yellow
+        Write-Log "Safe Mode helper creation failed: missing Defender script at $defenderScript" 'ERROR'
+        return
+    }
+
+    bcdedit /set '{current}' safeboot minimal | Out-Null
+
     @"
 @echo off
+set "DEFENDER_SCRIPT=$defenderScript"
 echo.
 echo  =========================================================
 echo   win_deslopper -- Disable Defender and Return to Normal Mode
@@ -304,8 +315,23 @@ echo    1. Disable Windows Defender (6 services set to Start=4)
 echo    2. Remove Safe Boot flag
 echo    3. Reboot to normal Windows
 echo.
+if not exist "%DEFENDER_SCRIPT%" (
+echo  ERROR: missing Defender script:
+echo    %DEFENDER_SCRIPT%
+echo.
 pause
-PowerShell -ExecutionPolicy Bypass -File "$defenderScript"
+exit /b 1
+)
+pause
+PowerShell -NoProfile -ExecutionPolicy Bypass -File "%DEFENDER_SCRIPT%"
+if errorlevel 1 (
+echo.
+echo  Defender script failed. Safe Boot was kept enabled.
+echo  Review the PowerShell error, then run this helper again.
+echo.
+pause
+exit /b 1
+)
 bcdedit /deletevalue {current} safeboot
 shutdown /r /t 0
 "@ | Set-Content -Path $batDest -Encoding ASCII

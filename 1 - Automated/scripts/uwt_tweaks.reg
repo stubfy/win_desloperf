@@ -187,7 +187,8 @@ Windows Registry Editor Version 5.00
 "Disabled"=dword:00000001
 
 ; DisableAntiSpyware=1: Disables Windows Defender via Group Policy. This
-; complements the "2 - Windows Defender" manual step which disables the six
+; complements the manual Windows Defender step in
+; "1 - Automated/scripts/Windows Defender", which disables the six
 ; Defender services in Safe Mode (required because Tamper Protection blocks
 ; service changes in normal mode on Windows 11 25H2).
 ; The policy key alone is insufficient on 25H2 when Tamper Protection is active;
@@ -358,7 +359,8 @@ Windows Registry Editor Version 5.00
 ; Restore Previous Versions (directories): Same as above, for folders.
 "{3742D782-BC80-4488-9B6E-9AD4E9AAC76C}"=""
 ; Scan with Windows Defender: Triggers an on-demand Defender scan. Blocked
-; because Defender is disabled in step 2; the entry would fail silently anyway.
+; because Defender is disabled in the manual Safe Mode step; the entry would
+; fail silently anyway.
 "{09A47860-11B0-4DA5-AFA5-26D86198A780}"=""
 
 ; Remove "Edit with Paint 3D" from image context menus.

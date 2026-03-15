@@ -1,6 +1,15 @@
-2 - WINDOWS DEFENDER
-Disabling the real-time antivirus engine
-=========================================
+WINDOWS DEFENDER
+Safe Mode disable helper inside 1 - Automated/scripts
+======================================================
+
+QUICK PATH FROM RUN_ALL.BAT
+---------------------------
+1. Finish `1 - Automated/run_all.bat`
+2. At the final reboot prompt, choose `[S]`
+3. In Safe Mode, run `Disable Defender and Return to Normal Mode.bat` from the Desktop
+
+The Desktop helper runs `1 - DisableDefender.ps1` from this folder, removes the Safe Boot
+flag, and reboots back to normal Windows automatically.
 
 PROCEDURE
 ---------
@@ -9,7 +18,7 @@ PROCEDURE
 3. Reboot -- Windows starts in Safe Mode
 4. Open PowerShell as administrator
 5. Run : Set-ExecutionPolicy Bypass -Scope Process
-6. Run the script : .\DisableDefender.ps1
+6. Run the script : .\1 - DisableDefender.ps1
 7. Reopen msconfig > uncheck "Safe boot" > OK
 8. Reboot normally
 
@@ -29,8 +38,8 @@ To re-enable Defender, restore the default values :
   WdNisSvc   : Start = 3
   WdBoot     : Start = 0
 
-Or use the restore file provided in this folder (same Safe Mode procedure
-required).
+Then manually restore these default values with the same Safe Mode
+procedure if needed.
 
 
 WHAT IT DOES

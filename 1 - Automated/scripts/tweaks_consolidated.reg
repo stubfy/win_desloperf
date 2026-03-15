@@ -342,7 +342,8 @@ Windows Registry Editor Version 5.00
 ; SECURITY CENTER NOTIFICATIONS
 ; ---------------------------------------------------------------------------
 ; Disables Windows Security Center toast notifications and hides the Security
-; Center tray icon. On a PC where Defender is deliberately disabled (step 2)
+; Center tray icon. On a PC where Defender is deliberately disabled in the
+; manual Safe Mode step
 ; these notifications are constant false alarms. Additional tray icon suppression
 ; is in uwt_tweaks.reg (HideSystray).
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance]

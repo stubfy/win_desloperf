@@ -57,10 +57,11 @@ You will be prompted for a few options before anything runs:
 - **Disable Windows Firewall profiles** (optional), default: Yes
 
 Estimated duration: 5 to 15 minutes. A reboot prompt is shown at the end.
+If you choose `[S]` there, the pack configures Safe Mode and creates `Disable Defender and Return to Normal Mode.bat` on the Desktop for the Defender step.
 
 **2. Reboot**
 
-**3. Follow the manual steps in order (folders 2 to 7, then `Tools/`)**
+**3. Follow the manual steps in order (`1 - Automated/scripts/Windows Defender/`, then folders 3 to 7, then `Tools/`)**
 
 Each folder contains a `readme.txt` with detailed instructions.
 
@@ -145,17 +146,17 @@ If the Microsoft Visual C++ x64 runtime required by `SetTimerResolution.exe` is 
 
 ## Manual phase
 
-To be done in order after rebooting. Each folder contains a `readme.txt` with full instructions.
+To be done in order after rebooting. `Windows Defender` now lives inside `1 - Automated/scripts/`; the other manual folders stay at the pack root.
 
-| # | Folder | Why manual | Risk level |
-|---|--------|-----------|------------|
-| 2 | **Windows Defender** | Requires Safe Mode - services protected by PPL in normal mode | High |
-| 3 | **MSI Utils** | Manual identification of compatible devices required | Moderate |
-| 4 | **NVInspector** | Per-game NVIDIA driver profiles, user-specific | Low |
-| 5 | **Device Manager** | USB power saving per device node, not cleanly scriptable | Low |
-| 6 | **Interrupt Affinity** | GPU PCI bridge identification required | Moderate |
-| 7 | **Network WIP** | NIC settings depend on adapter model | Moderate |
-| 8 | **Tools** | Complementary tools (Autoruns, temp folders) | Low |
+| Step | Folder | Why manual | Risk level |
+|------|--------|-----------|------------|
+| 1 | **1 - Automated/scripts/Windows Defender** | Requires Safe Mode - services protected by PPL in normal mode | High |
+| 2 | **3 - MSI Utils** | Manual identification of compatible devices required | Moderate |
+| 3 | **4 - NVInspector** | Per-game NVIDIA driver profiles, user-specific | Low |
+| 4 | **5 - Device Manager** | USB power saving per device node, not cleanly scriptable | Low |
+| 5 | **6 - Interrupt Affinity** | GPU PCI bridge identification required | Moderate |
+| 6 | **7 - Network WIP** | NIC settings depend on adapter model | Moderate |
+| 7 | **Tools** | Complementary tools (Autoruns, temp folders) | Low |
 
 ---
 
@@ -198,7 +199,10 @@ win_deslopper/
 │   │   ├── run_all.ps1               Main PowerShell launcher
 │   │   ├── restore_all.ps1           Full rollback launcher
 │   │   ├── 01_backup.ps1 ... 18_*   Scripts by category
-│   │   └── opt_*.ps1                 Optional (Edge/WebView2, OneDrive removal)
+│   │   ├── opt_*.ps1                 Optional (Edge/WebView2, OneDrive removal)
+│   │   └── Windows Defender/         Safe Mode Defender disable helper
+│   │       ├── 1 - DisableDefender.ps1
+│   │       └── readme.txt
 │   ├── restore/                      Symmetric rollback scripts
 │   ├── tools/                        Third-party tools
 │   │   ├── OOSU10.exe
@@ -207,7 +211,6 @@ win_deslopper/
 │   │   └── MeasureSleep.exe
 │   └── backup/                       Created at first run (gitignored)
 │
-├── 2 - Windows Defender/
 ├── 3 - MSI Utils/
 ├── 4 - NVInspector/
 ├── 5 - Gestionnaire/
