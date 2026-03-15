@@ -36,6 +36,7 @@ win_deslopper applies a set of system tweaks to improve performance on Windows 1
 - **Boot**: dynamic tick disabled, legacy boot menu
 - **Network**: Cloudflare DNS, network throttling disabled, NIC offloads
 - **Windows Update**: configurable profile: Maximum / Security only / Disabled
+- **Personal shell/UI**: a dedicated script groups subjective theme/taskbar/Explorer preferences separately
 
 Everything scriptable is automated in a single pass. The remaining manual folders are guided by their local `readme.txt` files.
 
@@ -100,9 +101,10 @@ The manual folders still contain a `readme.txt` with detailed instructions.
 | `13_telemetry_tasks.ps1` | Telemetry scheduled tasks + PS7 + Brave |
 | `14_network_tweaks.ps1` | Teredo disabled |
 | `15_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
-| `16_uwt.ps1` | UWT-equivalent tweaks (appearance, privacy, context menu) |
-| `17_mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
 | `18_firewall.ps1` | Windows Firewall profiles disabled |
+| `16_uwt.ps1` | UWT-equivalent tweaks (privacy, context menu, visual effects) |
+| `20_personal_settings.ps1` | Personal shell/theme preferences (dark mode, accents, taskbar clock seconds, Explorer presentation) |
+| `17_mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
 
 The Defender step is manual again and lives in `2 - Windows Defender/`. If you choose `[S]` at the final reboot prompt, `run_all.ps1` simply prepares that manual step for you by configuring Safe Mode and creating the Desktop helper automatically.
 
@@ -135,6 +137,7 @@ The Defender step is manual again and lives in `2 - Windows Defender/`. If you c
 - HDCP disabled (NVIDIA)
 - Classic context menu (Windows 11)
 - Widgets / News disabled
+- Personal shell/theme tweaks are applied separately in `20_personal_settings.ps1` (dark mode, black accent, taskbar seconds, classic Alt+Tab, Explorer presentation)
 
 ### Service startup tweaks
 
@@ -193,6 +196,7 @@ Restores in order:
 - AI/Recall keys (deleted)
 - Windows Update (restored to Maximum / Windows default)
 - Windows Firewall profiles (restored to saved state or Windows default)
+- Personal shell/theme settings (restored to Windows defaults)
 - Optional reinstall prompt for Microsoft Edge + WebView2 Runtime / OneDrive
 
 > **Limitation** : Removed UWP apps are not restored automatically. The `10_debloat_restore.ps1` script provides Store reinstall commands.
@@ -212,7 +216,7 @@ win_deslopper/
 │   ├── scripts/
 │   │   ├── run_all.ps1               Main PowerShell launcher
 │   │   ├── restore_all.ps1           Full rollback launcher
-│   │   ├── 01_backup.ps1 ... 18_*   Scripts by category
+│   │   ├── 01_backup.ps1 ... 20_*   Scripts by category
 │   │   ├── opt_*.ps1                 Optional (Edge/WebView2, OneDrive removal)
 │   ├── restore/                      Symmetric rollback scripts
 │   ├── tools/                        Third-party tools

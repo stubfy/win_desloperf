@@ -8,7 +8,8 @@
 #   - Which values were changed by the pack (applied)
 #   - Which values failed to apply (failed)
 #
-# Registry parsing: the script reads tweaks_consolidated.reg and uwt_tweaks.reg
+# Registry parsing: the script reads tweaks_consolidated.reg, uwt_tweaks.reg
+# and personal_settings.reg
 # line-by-line and extracts every DWORD and string value. For each value it
 # records the BEFORE (current system value) and DESIRED (value the pack will set).
 # Hex continuation lines (lines ending in \) are joined before parsing.
@@ -30,6 +31,7 @@ $BACKUP_DIR = Join-Path $ROOT "backup"
 $REG_FILES  = @(
     (Join-Path $PSScriptRoot "tweaks_consolidated.reg")
     (Join-Path $PSScriptRoot "uwt_tweaks.reg")
+    (Join-Path $PSScriptRoot "personal_settings.reg")
 )
 $SNAP_FILE  = Join-Path $BACKUP_DIR "snapshot_latest.json"
 

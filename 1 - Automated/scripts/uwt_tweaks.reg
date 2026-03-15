@@ -8,25 +8,8 @@ Windows Registry Editor Version 5.00
 ; ===========================================================================
 
 ; ---------------------------------------------------------------------------
-; EXPLORER / APPEARANCE
+; EXPLORER / SYSTEM DEFAULTS
 ; ---------------------------------------------------------------------------
-
-; EnableAutoTray=0: Always show all system tray icons. Default behavior hides
-; infrequently used icons behind an up-arrow chevron, making it harder to
-; monitor background processes.
-; ShowFrequent/ShowRecent=0: Removes "Frequent folders" and "Recent files"
-; sections from the Quick Access section of Explorer. Cleaner navigation pane;
-; also avoids Explorer spending I/O cycles building the frequency index.
-; link=hex:00,00,00,00: Suppresses the " - Shortcut" suffix when creating
-; new shortcuts (purely cosmetic, no functional effect).
-; AltTabSettings=1: Forces the classic Alt+Tab menu (small thumbnails, no
-; Fluent animations). Faster to render and easier to read at a glance.
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]
-"EnableAutoTray"=dword:00000000
-"ShowFrequent"=dword:00000000
-"ShowRecent"=dword:00000000
-"link"=hex:00,00,00,00
-"AltTabSettings"=dword:00000001
 
 ; NoLowDiskSpaceChecks=1: Suppresses the "Low disk space on drive X" balloon
 ; notification. On a gaming PC with large game libraries the drive may run close
@@ -39,61 +22,6 @@ Windows Registry Editor Version 5.00
 ; policy disables that redirect and falls back to the classic "Open with..." dialog.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
 "NoUseStoreOpenWith"=dword:00000001
-
-; HideNewAppNotification=1: Suppresses "A new app was installed" toast banners.
-; ShowSecondsInSystemClock=1: Adds seconds to the taskbar clock (HH:MM:SS).
-;   Useful for monitoring without opening Task Manager.
-; TaskbarAnimations=0: Disables taskbar button fade animations on open/close.
-;   Minor rendering work saved per window transition.
-; ListviewAlphaSelect=1: Alpha-blend the file selection rectangle in Explorer
-;   (visual clarity, no performance impact on modern hardware).
-; ListviewShadow=1: Drop shadow under icon labels in list view.
-;   Cosmetic; kept for legibility on dark wallpapers.
-; IconsOnly=0: Show icon thumbnails (not icons-only mode). Thumbnails aid
-;   visual identification of files.
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
-"HideNewAppNotification"=dword:00000001
-"ShowSecondsInSystemClock"=dword:00000001
-"TaskbarAnimations"=dword:00000000
-"ListviewAlphaSelect"=dword:00000001
-"ListviewShadow"=dword:00000001
-"IconsOnly"=dword:00000000
-
-; ColorPrevalence=1: Uses the accent color on title bars and window borders.
-;   Visual preference; makes the active window immediately distinguishable.
-; ColorizationColor=0xc4000000: Pure black accent (alpha=0xC4, RGB=0x000000).
-; EnableAeroPeek=0: Disables the "Show desktop" hover effect on the far-right
-;   taskbar button. Prevents accidental transparent-window previews.
-; AlwaysHibernateThumbnails=0: Taskbar thumbnail previews are generated
-;   live, not from saved hibernate state. No practical effect when hibernation
-;   is disabled (see tweaks_consolidated.reg HibernateEnabled=0).
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
-"ColorPrevalence"=dword:00000001
-"ColorizationColor"=dword:c4000000
-"EnableAeroPeek"=dword:00000000
-"AlwaysHibernateThumbnails"=dword:00000000
-
-; AppsUseLightTheme=0 / SystemUsesLightTheme=0: Full dark mode for both app
-;   chrome and the Windows shell (Start, taskbar, Settings). Dark mode reduces
-;   display brightness on OLED/AMOLED and is visually easier on prolonged sessions.
-; ColorPrevalence=0: No accent color on taskbar/Start (accent is on title bars
-;   only, controlled by the DWM key above).
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
-"AppsUseLightTheme"=dword:00000000
-"SystemUsesLightTheme"=dword:00000000
-"ColorPrevalence"=dword:00000000
-
-; EnableTransparency=0: Disables Fluent Design transparency / blur effects on
-; the taskbar and Start menu. DWM no longer needs to blur the desktop content
-; behind these surfaces, saving a small amount of GPU composition work per frame.
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
-"EnableTransparency"=dword:00000000
-
-; Forces a pure black accent tone for the shell/UI color surfaces (Start, taskbar).
-; Purely cosmetic; consistent with the dark+black aesthetic.
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent]
-"StartColorMenu"=dword:ff000000
-"AccentColorMenu"=dword:ff000000
 
 ; PrintScreenKeyForSnippingEnabled=1: The Print Screen key opens Snipping Tool
 ; instead of writing to the clipboard. More ergonomic for selective screenshots.

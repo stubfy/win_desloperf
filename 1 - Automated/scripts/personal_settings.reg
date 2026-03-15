@@ -1,0 +1,61 @@
+Windows Registry Editor Version 5.00
+
+; ===========================================================================
+; WIN_DESLOPPER - Personal Settings
+; Windows 11 25H2 - Subjective shell/theme preferences
+; Applied by  : scripts\20_personal_settings.ps1
+; Rollback    : restore\20_personal_settings.ps1 + restore\personal_settings_defaults.reg
+; ===========================================================================
+
+; ---------------------------------------------------------------------------
+; EXPLORER / SHELL PREFERENCES
+; ---------------------------------------------------------------------------
+
+; EnableAutoTray=0: Always show all system tray icons.
+; ShowFrequent/ShowRecent=0: Hide "Frequent" and "Recent" from Quick Access.
+; link=hex:00,00,00,00: Remove the " - Shortcut" suffix from new shortcuts.
+; AltTabSettings=1: Use the classic Alt+Tab switcher.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]
+"EnableAutoTray"=dword:00000000
+"ShowFrequent"=dword:00000000
+"ShowRecent"=dword:00000000
+"link"=hex:00,00,00,00
+"AltTabSettings"=dword:00000001
+
+; HideNewAppNotification=1: Hide "a new app was installed" toasts.
+; ShowSecondsInSystemClock=1: Add seconds to the taskbar clock.
+; TaskbarAnimations=0: Disable taskbar button fade animations.
+; ListviewAlphaSelect=1: Keep translucent file selection rectangles.
+; ListviewShadow=1: Keep label shadows in Explorer icon/list views.
+; IconsOnly=0: Keep thumbnails enabled instead of icon-only mode.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+"HideNewAppNotification"=dword:00000001
+"ShowSecondsInSystemClock"=dword:00000001
+"TaskbarAnimations"=dword:00000000
+"ListviewAlphaSelect"=dword:00000001
+"ListviewShadow"=dword:00000001
+"IconsOnly"=dword:00000000
+
+; ColorPrevalence=1: Use the accent color on title bars/window borders.
+; ColorizationColor=0xc4000000: Black accent tone.
+; EnableAeroPeek=0: Disable accidental "Show desktop" peek on the taskbar edge.
+; AlwaysHibernateThumbnails=0: Keep live taskbar thumbnails.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
+"ColorPrevalence"=dword:00000001
+"ColorizationColor"=dword:c4000000
+"EnableAeroPeek"=dword:00000000
+"AlwaysHibernateThumbnails"=dword:00000000
+
+; AppsUseLightTheme=0 / SystemUsesLightTheme=0: Full dark mode.
+; ColorPrevalence=0: No accent color on Start/taskbar surfaces.
+; EnableTransparency=0: Disable transparency/blur on shell surfaces.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
+"AppsUseLightTheme"=dword:00000000
+"SystemUsesLightTheme"=dword:00000000
+"ColorPrevalence"=dword:00000000
+"EnableTransparency"=dword:00000000
+
+; Forces a pure black accent tone for Start/taskbar surfaces.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent]
+"StartColorMenu"=dword:ff000000
+"AccentColorMenu"=dword:ff000000

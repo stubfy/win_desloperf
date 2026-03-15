@@ -28,6 +28,7 @@
         15 windows_update -> WU profile (user choice)
         18 firewall       -> Firewall disable (user choice)
         16 uwt            -> UWT equivalent tweaks + SPI visual effects
+        20 personal       -> Subjective shell/theme preferences
         17 mouse_accel    -> MarkC mouse fix (DPI-aware)
       Options - Edge uninstall, OneDrive uninstall (user choice)
       Phase C - Diff report (99_show_diff)
@@ -235,10 +236,13 @@ if ($disableFirewall) {
     Invoke-Script "$SCRIPTS\18_firewall.ps1"
 }
 
-Write-Step "PHASE B.16 - UWT equivalent tweaks (appearance, privacy, context menu)"
+Write-Step "PHASE B.16 - UWT equivalent tweaks (privacy, context menu, visual effects)"
 Invoke-Script "$SCRIPTS\16_uwt.ps1"
 
-Write-Step "PHASE B.17 - MarkC mouse acceleration fix (1:1 scaling)"
+Write-Step "PHASE B.17 - Personal shell settings (theme, colors, taskbar)"
+Invoke-Script "$SCRIPTS\20_personal_settings.ps1"
+
+Write-Step "PHASE B.18 - MarkC mouse acceleration fix (1:1 scaling)"
 Invoke-Script "$SCRIPTS\17_mouse_accel.ps1"
 
 # ── OPTIONS: physical uninstalls ──────────────────────────────────────────────

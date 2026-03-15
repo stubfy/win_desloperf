@@ -7,45 +7,14 @@ Windows Registry Editor Version 5.00
 ; ===========================================================================
 
 ; ---------------------------------------------------------------------------
-; EXPLORER / APPEARANCE
+; EXPLORER / SYSTEM DEFAULTS
 ; ---------------------------------------------------------------------------
-
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]
-"EnableAutoTray"=dword:00000001
-"ShowFrequent"=dword:00000001
-"ShowRecent"=dword:00000001
-"link"=hex:1e,00,00,00
-"AltTabSettings"=-
 
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer]
 "NoLowDiskSpaceChecks"=-
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
 "NoUseStoreOpenWith"=-
-
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
-"HideNewAppNotification"=dword:00000000
-"ShowSecondsInSystemClock"=dword:00000000
-"TaskbarAnimations"=dword:00000001
-"ListviewAlphaSelect"=dword:00000001
-"ListviewShadow"=dword:00000001
-"IconsOnly"=dword:00000000
-
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
-"ColorPrevalence"=dword:00000000
-"ColorizationColor"=-
-"EnableAeroPeek"=dword:00000001
-"AlwaysHibernateThumbnails"=dword:00000001
-
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
-"AppsUseLightTheme"=dword:00000001
-"SystemUsesLightTheme"=dword:00000001
-"ColorPrevalence"=dword:00000000
-"EnableTransparency"=dword:00000001
-
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent]
-"StartColorMenu"=-
-"AccentColorMenu"=-
 
 [HKEY_CURRENT_USER\Control Panel\Keyboard]
 "PrintScreenKeyForSnippingEnabled"=-

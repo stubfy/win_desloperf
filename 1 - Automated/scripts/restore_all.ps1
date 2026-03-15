@@ -23,9 +23,10 @@
       10_debloat_restore  - Provides guidance for reinstalling removed UWP apps
       14_network_tweaks   - Re-enables Teredo (netsh teredo set state default)
       15_windows_update   - Restores full WU (Profile 1 = Maximum)
-      18_firewall.ps1     - Restores firewall profiles from backup\firewall_state.json
-      16_uwt.ps1          - Imports uwt_defaults.reg + resets SPI visual effects
-      17_mouse_accel.ps1  - Imports Windows default mouse acceleration curves
+      18_firewall.ps1          - Restores firewall profiles from backup\firewall_state.json
+      16_uwt.ps1               - Imports uwt_defaults.reg + resets SPI visual effects
+      20_personal_settings.ps1 - Imports personal_settings_defaults.reg
+      17_mouse_accel.ps1       - Imports Windows default mouse acceleration curves
 
     Known limitations (not automatically restored):
       - UWP apps removed by 08_debloat.ps1 must be reinstalled manually from the Store.
@@ -111,6 +112,9 @@ Invoke-Script "$RESTORE\18_firewall.ps1"
 
 Write-Step "Restore UWT equivalent tweaks"
 Invoke-Script "$RESTORE\16_uwt.ps1"
+
+Write-Step "Restore personal shell/theme settings"
+Invoke-Script "$RESTORE\20_personal_settings.ps1"
 
 Write-Step "Restore mouse acceleration curves (Windows default)"
 Invoke-Script "$RESTORE\17_mouse_accel.ps1"

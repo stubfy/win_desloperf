@@ -1,5 +1,6 @@
 # 16_uwt.ps1 - Registry tweaks equivalent to Ultimate Windows Tweaker 5 (settings_v2.ini)
-# Covers: Explorer appearance, performance, UAC, privacy, context menu cleanup
+# Covers: privacy, context menu cleanup, security/UI defaults, visual effects preset
+# Purely subjective shell/theme preferences live in 20_personal_settings.ps1.
 # Also applies the remaining deterministic Control Panel user settings.
 #
 # Two-layer approach for visual effects:
