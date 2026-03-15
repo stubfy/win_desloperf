@@ -46,9 +46,9 @@ if (-not $CalledFromRunAll) {
     Write-Host "  removes Safe Boot, and reboots back to normal Windows." -ForegroundColor DarkGray
     Write-Host ""
 
-    $answer = Read-Host "Continue? (Y/N) [default: N]"
+    $answer = Read-Host "Continue? (Y/N) [default: Y]"
     if ($answer -eq '') {
-        $answer = 'N'
+        $answer = 'Y'
     }
 
     if ($answer -notin @('Y', 'y')) {
@@ -115,3 +115,4 @@ Write-Host ""
 Read-Host "  Press Enter to reboot into Safe Mode"
 Write-DefenderLog "Rebooting into Safe Mode for Defender step." 'INFO'
 Restart-Computer -Force
+
