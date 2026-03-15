@@ -47,8 +47,8 @@ Quick visual example on a fresh Windows 11 25H2 install, using Task Manager at i
 
 | Before | After |
 |--------|-------|
-| ![Fresh Windows 11 install before win_deslopper](assets/readme/fresh-install-before.png) | ![Fresh Windows 11 install after win_deslopper](assets/readme/fresh-install-after.png) |
-| Stock fresh install: around 133 processes, with visible background disk activity. | After `win_deslopper`: around 65 processes, with much lighter background activity. |
+| ![Fresh Windows 11 install before the tweaks](assets/readme/fresh-install-before.png) | ![Fresh Windows 11 install after the tweaks](assets/readme/fresh-install-after.png) |
+| Stock fresh install: around 133 processes, with visible background disk activity. | After the tweaks: around 65 processes, with much lighter background activity. |
 
 ---
 
