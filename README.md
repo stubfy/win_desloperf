@@ -14,6 +14,7 @@
 ## Table of Contents
 
 - [What it does](#what-it-does)
+- [Fresh install example](#fresh-install-example)
 - [Quick start](#quick-start)
 - [Automated phase](#automated-phase)
 - [Manual phase](#manual-phase)
@@ -37,6 +38,17 @@ win_deslopper applies a set of system tweaks to improve performance on Windows 1
 - **Windows Update**: configurable profile: Maximum / Security only / Disabled
 
 Everything scriptable is automated in a single pass. The remaining manual folders are guided by their local `readme.txt` files.
+
+---
+
+## Fresh install example
+
+Quick visual example on a fresh Windows 11 25H2 install, using Task Manager at idle. This is meant as an illustration of background cleanup, not a benchmark.
+
+| Before | After |
+|--------|-------|
+| ![Fresh Windows 11 install before win_deslopper](assets/readme/fresh-install-before.png) | ![Fresh Windows 11 install after win_deslopper](assets/readme/fresh-install-after.png) |
+| Stock fresh install: around 133 processes, with visible background disk activity. | After `win_deslopper`: around 65 processes, with much lighter background activity. |
 
 ---
 
