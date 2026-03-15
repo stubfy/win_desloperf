@@ -232,8 +232,7 @@ win_deslopper/
 | **Service startup tweaks** | Services touched by `03_services.ps1` are aligned to the reference main PC. The noisiest services are disabled again, most secondary ones stay manual, and `BITS` / `UsoSvc` / `wuauserv` can still be adjusted later by the chosen Windows Update profile. |
 | **WU Disabled profile** | No security patches, only use on isolated gaming machines. |
 | **Firewall disabled** | No Windows firewall filtering. Use only if another firewall or isolated setup covers the machine. |
-| **SetTimerResolution** | After enabling `SetTimerResolution`, verify with `MeasureSleep.exe` that the timer resolution is `5200`. If it is not `5200`, another program is forcing it to `5000`, and you need to find that process manually. One known culprit is VoiceMeeter Macro Buttons below v1.1.3.1, which forces 0.50 ms via `NtSetTimerResolution`. Update it to v1.1.3.1+ (available on the VB-Audio Discord). The VoiceMeeter Potato main process has a separate fix: set `TimerResolution=1` (DWORD) at `HKCU\VB-Audio\VoiceMeeter` in the registry. |
-| **OpenRGB** | OpenRGB holds a 0.50 ms timer resolution request for as long as it is running. Close it after configuring your LED profiles to avoid timer conflicts. |
+| **SetTimerResolution** | After enabling `SetTimerResolution`, verify with `MeasureSleep.exe` that the timer resolution is `5200`. If it is not `5200`, another program is forcing it to `5000`, and you need to find that process manually. Known culprits include VoiceMeeter Macro Buttons below v1.1.3.1, which forces 0.50 ms via `NtSetTimerResolution`; update it to v1.1.3.1+ (available on the VB-Audio Discord). The VoiceMeeter Potato main process has a separate fix: set `TimerResolution=1` (DWORD) at `HKCU\VB-Audio\VoiceMeeter` in the registry. OpenRGB is another known conflict because it holds a 0.50 ms timer resolution request for as long as it is running; close it after configuring your LED profiles. |
 
 ---
 
