@@ -1,4 +1,36 @@
 # 01_backup.ps1 - System state backup before tweaks
+#
+# Creates multiple backup layers to support rollback:
+#
+#   1. System Restore Point (Checkpoint-Computer):
+#      Creates a "MODIFY_SETTINGS" restore point via Volume Shadow Copy Service.
+#      This is the safest rollback method as it snapshots the full system state.
+#      Windows may refuse to create a restore point if one was created within the
+#      last 24 hours on some builds; the error is non-fatal and logged as a warning.
+#      The system drive must have System Protection enabled (ComputerRestore -Drive C:\).
+#
+#   2. Service state export (backup\services_state.json):
+#      Records the pre-tweak startup type of every service tracked by 03_services.ps1.
+#      restore\02_services.ps1 reads this file to restore each service precisely to
+#      its original startup type, including the DelayedAutoStart distinction.
+#
+#   3. Firewall profile state export (backup\firewall_state.json):
+#      Records the Enabled/Disabled state of each firewall profile (Domain, Private,
+#      Public) before 18_firewall.ps1 disables them. restore\18_firewall.ps1 uses
+#      this to restore the exact original state rather than blindly re-enabling all
+#      profiles (which would be wrong if a profile was already disabled before the pack ran).
+#
+#   4. Registry key exports (backup\backup_*.reg):
+#      Exports the full registry subtrees that tweaks_consolidated.reg modifies.
+#      Provides a human-readable fallback for manual recovery.
+#      Exported subtrees: HKLM\Control, HKCU\Desktop, HKCU\Mouse, HKCU\Keyboard,
+#      HKLM\SystemProfile (MMCSS), HKLM\GraphicsDrivers (HAGS),
+#      HKLM\DeviceGuard (VBS), HKLM\PrefetchParameters (Prefetcher).
+#
+#   5. Automatic daily registry backup (EnablePeriodicBackup=1, BackupCount=2):
+#      Instructs the Configuration Manager to save a copy of the registry hives
+#      to RegBack every 24 hours, retaining the last 2 copies. Provides an
+#      additional safety net independent of VSS.
 
 $BACKUP_DIR = Join-Path (Split-Path $PSScriptRoot) "backup"
 New-Item -ItemType Directory -Force -Path $BACKUP_DIR | Out-Null

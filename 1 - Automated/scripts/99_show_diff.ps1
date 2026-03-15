@@ -1,6 +1,25 @@
 # 99_show_diff.ps1 - Compare current system state to pre-tweak snapshot
 # Shows what actually changed vs what was already correct.
 # Can be run standalone anytime to detect Windows Update regressions.
+#
+# Reads backup\snapshot_latest.json (written by 00_snapshot.ps1 before tweaks ran)
+# and compares each tracked value against the current system state.
+#
+# Output categories:
+#   "already OK"  - The value was already at the desired target before the pack ran.
+#                   (System was partially or fully configured before this run.)
+#   "applied"     - The value was different before and is now at the target. Changed by the pack.
+#   "failed"      - The value is still not at the desired target after the pack ran.
+#                   Investigate: protected key, unsupported OS version, requires reboot.
+#
+# DiffExcluded services (BITS, UsoSvc, wuauserv): These services are managed by
+# 15_windows_update.ps1 with user-chosen profiles. Their desired final state depends
+# on the chosen profile and cannot be statically predicted, so they are excluded from
+# the diff to avoid misleading "failed" entries.
+#
+# Standalone use: Run this script after a Windows Update or major upgrade to check
+# whether the update has reset any of the pack's tweaks back to defaults. Any "failed"
+# entries in that context are regressions introduced by the update.
 
 $ROOT      = Split-Path $PSScriptRoot
 $SNAP_FILE = Join-Path $ROOT "backup\snapshot_latest.json"

@@ -7,15 +7,43 @@ Windows Registry Editor Version 5.00
 ; Rollback   : restore_all.ps1 > restore\tweaks_defaults.reg
 ; ===========================================================================
 
-; --- Desactiver HDCP (GPU NVIDIA) ---
+; ---------------------------------------------------------------------------
+; GPU - HDCP
+; ---------------------------------------------------------------------------
+; Disables HDCP (High-bandwidth Digital Content Protection) at the NVIDIA driver level.
+; HDCP adds an authentication handshake on the display output path; some titles
+; trigger it even when no DRM content is playing, adding latency to the display pipeline.
+; RMHdcpKeyglobZero=1 zeros out the HDCP key material on the adapter, bypassing the
+; overhead entirely. Only affects output encryption -- has no impact on rendering.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000]
 "RMHdcpKeyglobZero"=dword:00000001
 
-; --- Desactiver Prefetch (SSD) ---
+; ---------------------------------------------------------------------------
+; PREFETCH
+; ---------------------------------------------------------------------------
+; Windows Prefetcher pre-loads frequently used executables and DLLs into RAM during
+; boot and on first launch. Value meanings:
+;   0 = disabled entirely
+;   1 = application prefetch only
+;   2 = boot prefetch only
+;   3 = both (OS default)
+;
+; Setting this to 0 was historically recommended for HDDs (reduced seek thrashing)
+; and early SSDs. On NVMe drives (random read ~500k IOPS) the prefetch overhead is
+; negligible and disabling it can noticeably slow cold application launches.
+; Restored to 3 (OS default) -- no performance benefit from disabling on modern storage.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters]
-"EnablePrefetcher"=dword:00000000
+"EnablePrefetcher"=dword:00000003
 
-; --- Desactiver GameDVR / GameBar (stuttering + latence) ---
+; ---------------------------------------------------------------------------
+; GAME DVR / GAME BAR
+; ---------------------------------------------------------------------------
+; Game DVR is the background screen-capture runtime; Game Bar is the Xbox overlay.
+; Both inject hooks into every DirectX application to enable recording, screenshots
+; and presence detection. This injection happens even when the user never uses them,
+; consuming GPU scheduler time and adding latency on the render path.
+; All four keys are required: policy key, per-user DVR store, MDM policy, and the
+; AppCapture toggle. Any single key missing can silently re-enable the feature.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR]
 "value"="00000000"
 
@@ -28,26 +56,68 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\GameDVR]
 "AppCaptureEnabled"=dword:00000000
 
-; --- Arret et reponse bureau plus rapides ---
+; ---------------------------------------------------------------------------
+; SHUTDOWN / DESKTOP RESPONSIVENESS
+; ---------------------------------------------------------------------------
+; WaitToKillServiceTimeout: How long (ms) Windows waits before force-killing a
+; service during shutdown. Default 5000 ms, reduced to 2000 ms for faster shutdown.
+;
+; SvcHostSplitThresholdInKB: Windows collapses multiple services into shared svchost
+; processes when total RAM is below this threshold. Default ~380000 KB (374 MB) --
+; almost every machine triggers consolidation. Setting this to 0x02000000 (32 GB)
+; places the threshold above any consumer system's RAM, forcing every service into
+; its own dedicated svchost process. This matches the behavior on server SKUs and
+; makes process isolation, profiling and debugging significantly easier. Minor RAM
+; overhead (~few MB) is acceptable on a gaming PC.
+; NOTE: this key is unrelated to the svchost split done by 03_services.ps1 which
+; controls startup types, not process grouping.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control]
 "WaitToKillServiceTimeout"="2000"
 "SvcHostSplitThresholdInKB"=dword:02000000
 
+; AutoEndTasks: Forces Windows to terminate hung applications automatically instead
+; of showing a "not responding" wait dialog during logoff/shutdown.
+; HungAppTimeout: How long (ms) before a non-responding app is declared hung (default 5000).
+; MenuShowDelay: Delay before cascading menus open (default 400 ms). Set to 0 for instant.
+; WaitToKillAppTimeout: How long (ms) Windows waits before force-killing a hung app
+; at shutdown (default 5000 ms, reduced to 2000 ms).
+; RISK: AutoEndTasks can cause data loss if an application is unresponsive but has
+; unsaved data. This is an intentional trade-off for faster shutdown on gaming PCs.
 [HKEY_CURRENT_USER\Control Panel\Desktop]
 "AutoEndTasks"="1"
 "HungAppTimeout"="1000"
 "MenuShowDelay"="0"
 "WaitToKillAppTimeout"="2000"
 
-; --- Afficher les extensions de fichiers ---
+; ---------------------------------------------------------------------------
+; EXPLORER - SHOW FILE EXTENSIONS
+; ---------------------------------------------------------------------------
+; HideFileExt=0 shows full filenames including extensions in Explorer.
+; The default (1) hides extensions and is a common phishing vector since attackers
+; name files "document.pdf.exe". Always visible extensions are a security baseline.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "HideFileExt"=dword:00000000
 
-; --- Empecher la recherche automatique de drivers via Windows Update ---
+; ---------------------------------------------------------------------------
+; DRIVER SEARCH VIA WINDOWS UPDATE
+; ---------------------------------------------------------------------------
+; SearchOrderConfig=0 prevents Windows from sending hardware IDs to Microsoft to
+; locate driver packages via Windows Update. Automatic driver installs can downgrade
+; a manually installed gaming driver or install a generic inbox driver that performs
+; worse. On a curated gaming PC, driver updates should be done manually via DDU + OEM.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching]
 "SearchOrderConfig"=dword:00000000
 
-; --- Desactiver les applications en arriere plan ---
+; ---------------------------------------------------------------------------
+; BACKGROUND APPLICATIONS
+; ---------------------------------------------------------------------------
+; Three layers of background app suppression:
+; - GlobalUserDisabled=1: Suspends all UWP background tasks globally (user-level switch).
+; - BackgroundAppGlobalToggle=0: Disables Search/Cortana background processing toggle.
+; - LetAppsRunInBackground=2: Policy-level force-deny (2=ForceOff) for all store apps.
+;   The three accompanying values remove any per-app overrides to the policy.
+; Combined effect: UWP processes no longer run background tasks, reducing spurious
+; CPU wake-ups and disk I/O during gaming sessions.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications]
 "GlobalUserDisabled"=dword:00000001
 
@@ -60,12 +130,30 @@ Windows Registry Editor Version 5.00
 "LetAppsRunInBackground_ForceAllowTheseApps"=-
 "LetAppsRunInBackground_ForceDenyTheseApps"=-
 
-; --- Desactiver la maintenance automatique ---
+; ---------------------------------------------------------------------------
+; AUTOMATIC MAINTENANCE
+; ---------------------------------------------------------------------------
+; Automatic Maintenance runs disk defrag, Windows Defender full scans, compatibility
+; checks and Windows Update staging in the background. The scheduler tries to run
+; during idle periods but does not always respect active gaming sessions, causing
+; frametime spikes. Setting MaintenanceDisabled=1 stops the scheduler entirely.
+; Manual alternative: Task Scheduler > Microsoft > Windows > TaskScheduler > Maintenance.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance]
 "MaintenanceDisabled"=dword:00000001
 
-; --- Fix acceleration souris 1:1 (MarkC - echelle 100%) ---
-; Source : http://donewmouseaccel.blogspot.com/2010/03/markc-windows-7-mouse-acceleration-fix.html
+; ---------------------------------------------------------------------------
+; MOUSE - 1:1 SCALING (MarkC fix, 100% DPI scale)
+; ---------------------------------------------------------------------------
+; Windows "Enhanced Pointer Precision" (pointer ballistics) applies a non-linear
+; transfer function to raw HID counts. At low speeds the cursor moves less than
+; 1:1; at high speeds it overshoots. This produces inconsistent muscle memory.
+; The MarkC fix overrides SmoothMouseXCurve and SmoothMouseYCurve with a perfectly
+; linear mapping: 1 raw HID count = exactly 1 pixel, regardless of movement speed.
+; Different DPI scaling percentages require different curve values; 17_mouse_accel.ps1
+; auto-detects the active scaling and imports the matching .reg from mouse_fix/.
+; The values below are for 100% DPI (LogPixels=96). The .DEFAULT hive values
+; disable the legacy ballistics thresholds (MouseSpeed/Threshold1/Threshold2).
+; Source: http://donewmouseaccel.blogspot.com/2010/03/markc-windows-7-mouse-acceleration-fix.html
 [HKEY_CURRENT_USER\Control Panel\Mouse]
 "MouseSensitivity"="10"
 "SmoothMouseXCurve"=hex:\
@@ -86,7 +174,22 @@ Windows Registry Editor Version 5.00
 "MouseThreshold1"="0"
 "MouseThreshold2"="0"
 
-; --- Priorite MMCSS pour les jeux (GPU priority, scheduling) ---
+; ---------------------------------------------------------------------------
+; MMCSS - GAME THREAD SCHEDULING
+; ---------------------------------------------------------------------------
+; MMCSS (Multimedia Class Scheduler Service) allows threads to register under a
+; named task category to receive elevated scheduling priority. Game engines register
+; their render/physics threads under "Games".
+; GPU Priority (0-31, default 1): Raises priority in the GPU scheduler queue.
+;   Value 8 is the maximum practical value used by WinUtil/community guides.
+; Priority (1-8): CPU scheduler priority for this task class. Value 6 = high.
+; Scheduling Category "High": MMCSS elevates threads above normal background tasks.
+; SFIO Priority "High": Elevated storage I/O priority for game file reads.
+; Affinity=0: No CPU core pinning -- let the OS schedule freely.
+; Clock Rate=10000: Minimum clock rate hint in 100ns units (1ms). Keeps MMCSS
+;   from backing off its timer granularity during game execution.
+; Effect: More consistent CPU/GPU time slices for game threads, reducing frametime
+; variance under background load.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games]
 "Affinity"=dword:00000000
 "Background Only"="False"
@@ -96,116 +199,291 @@ Windows Registry Editor Version 5.00
 "Scheduling Category"="High"
 "SFIO Priority"="High"
 
-; --- Desactiver le throttling CPU (PowerThrottling) ---
+; ---------------------------------------------------------------------------
+; CPU POWER THROTTLING (EcoQoS)
+; ---------------------------------------------------------------------------
+; Windows EcoQoS / Power Throttling classifies threads into "efficiency" and
+; "performance" categories. Background and out-of-focus threads may be downclocked.
+; On gaming PCs this can throttle threads that are briefly out of focus (launcher
+; overlays, audio engines, etc.) even when the game is active.
+; PowerThrottlingOff=1 disables the mechanism system-wide.
+; Note: This is a SYSTEM\CurrentControlSet\Control\Power key distinct from the
+; power plan managed by 05_power.ps1.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling]
 "PowerThrottlingOff"=dword:00000001
 
-; --- Desactiver le throttling reseau / maximiser reactivite systeme ---
+; ---------------------------------------------------------------------------
+; NETWORK THROTTLING + SYSTEM RESPONSIVENESS (MMCSS)
+; ---------------------------------------------------------------------------
+; NetworkThrottlingIndex: Originally designed to prevent multimedia apps from being
+; starved of CPU during high network activity. Setting to 0xFFFFFFFF effectively
+; disables the throttle -- the multimedia scheduler is never rate-limited by network
+; I/O. Default is 10 (packets/ms threshold).
+;
+; SystemResponsiveness: MMCSS reserves a percentage of CPU for non-multimedia tasks
+; to prevent starvation. Default is 20 (20%). Setting to 0 gives 100% of available
+; CPU to game/multimedia thread classes when they are active.
+; Note: Both values work as a pair; setting only one has diminished effect.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile]
 "NetworkThrottlingIndex"=dword:ffffffff
 "SystemResponsiveness"=dword:00000000
 
-; --- Masquer l'option veille / desactiver hibernation ---
+; ---------------------------------------------------------------------------
+; SLEEP / HIBERNATION
+; ---------------------------------------------------------------------------
+; ShowSleepOption=0: Removes Sleep from the Start > Power menu (cosmetic, avoids
+; accidental sleep on a desktop gaming PC that should stay on).
+; HibernateEnabled=0: Disables hibernation, which removes hiberfil.sys from the
+; system drive. On a 32 GB system this frees 32+ GB of SSD space. Also eliminates
+; hybrid sleep overhead. 05_power.ps1 calls 'powercfg -h off' which is the
+; complementary runtime command -- both together ensure full removal.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings]
 "ShowSleepOption"=dword:00000000
 
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power]
 "HibernateEnabled"=dword:00000000
 
-; --- Menu contextuel classique Windows 11 ---
+; ---------------------------------------------------------------------------
+; CLASSIC CONTEXT MENU (Windows 11)
+; ---------------------------------------------------------------------------
+; Windows 11 replaced the full right-click menu with a truncated one requiring
+; "Show more options" to reach shell extensions. Creating an empty InprocServer32
+; default value under this specific CLSID restores the legacy menu immediately.
+; This is a well-documented CLSID tweak, not a registry hack -- it overrides the
+; Windows 11 host class for the new context menu with an empty (legacy) handler.
 [HKEY_CURRENT_USER\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32]
 @=""
 
-; --- Desactiver Widgets Windows 11 ---
+; ---------------------------------------------------------------------------
+; WIDGETS / NEWS AND INTERESTS
+; ---------------------------------------------------------------------------
+; AllowNewsAndInterests=0 disables the Widgets panel via Group Policy.
+; 08_debloat.ps1 also removes the MicrosoftWindows.Client.WebExperience and
+; Microsoft.WidgetsPlatformRuntime UWP packages. Both layers are needed:
+; the policy prevents re-enablement even if the packages survive or are reinstalled.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Dsh]
 "AllowNewsAndInterests"=dword:00000000
 
-; --- Vitesse clavier maximale ---
+; ---------------------------------------------------------------------------
+; KEYBOARD RESPONSE
+; ---------------------------------------------------------------------------
+; KeyboardDelay: Initial delay before key repeat starts (0=250ms, 1=500ms, 2=750ms, 3=1000ms).
+;   Set to 0 for minimum delay (250 ms).
+; KeyboardSpeed: Key repeat rate (0=slowest ~2/s, 31=fastest ~30/s). Set to 31 (max).
+; These are cosmetic preferences with no impact on raw input latency in games
+; (games read raw HID directly, not WM_KEYDOWN repeat messages).
 [HKEY_CURRENT_USER\Control Panel\Keyboard]
 "KeyboardDelay"="0"
 "KeyboardSpeed"="31"
 
-; --- Desactiver VBS / HVCI (gain de performances, securite reduite) ---
+; ---------------------------------------------------------------------------
+; VBS / HVCI (Virtualization Based Security)
+; ---------------------------------------------------------------------------
+; VBS uses Hyper-V to isolate kernel memory in a separate "Virtual Secure Mode"
+; hypervisor partition. HVCI (Hypervisor Protected Code Integrity) enforces that
+; all kernel code is signed and prevents unsigned driver injection into the kernel.
+; Performance impact: VBS adds a VM-exit/VM-enter on every ring0 context switch.
+; Published benchmarks show 5-15% FPS loss in DX12/Vulkan titles on affected CPUs.
+; Risk: Disabling VBS reduces credential isolation (LSA runs unprotected) and
+; weakens exploit mitigations against kernel-level attacks. Acceptable trade-off
+; on a dedicated gaming PC that is not used for corporate credential management.
+; Note: On 25H2 this key may require a reboot to take effect; Secure Boot / TPM
+; state can cause Windows to re-enable VBS independently of this value.
 [HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\DeviceGuard]
 "EnableVirtualizationBasedSecurity"=dword:00000000
 
-; --- Autoriser les requetes de resolution timer globale (requis pour SetTimerResolution) ---
+; ---------------------------------------------------------------------------
+; GLOBAL TIMER RESOLUTION REQUESTS
+; ---------------------------------------------------------------------------
+; Starting with Windows 10 2004, Microsoft changed the behavior of timeBeginPeriod:
+; a process requesting a high-resolution timer no longer raises the system-wide
+; clock interrupt rate -- the effect is scoped to the requesting process only.
+; SetTimerResolution.exe (installed by 10_timer.ps1) calls NtSetTimerResolution
+; to request ~5200 µs. Without GlobalTimerResolutionRequests=1, only the
+; SetTimerResolution process benefits -- game threads still run at the default
+; ~15.6 ms clock rate. This key restores the legacy global scope so that the
+; requested resolution applies to all threads on the system.
+; Source: https://randomascii.wordpress.com/2020/10/04/windows-timer-resolution-the-great-rule-change/
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel]
 "GlobalTimerResolutionRequests"=dword:00000001
 
-; --- Reduire taille files d'attente souris/clavier (latence input) ---
+; ---------------------------------------------------------------------------
+; HID INPUT QUEUE SIZES
+; ---------------------------------------------------------------------------
+; MouseDataQueueSize / KeyboardDataQueueSize: Size of the kernel-mode input packet
+; queue for the mouse and keyboard class drivers (in packets, not bytes).
+; Default is 100. Value 20 (0x14) reduces the maximum buffering depth.
+; Rationale: A shorter queue means input events are processed more promptly;
+; there is less opportunity for packets to sit in the buffer before being consumed
+; by the DPC/ISR chain.
+; RISK: On systems with unusually high HID interrupt rates (very high polling USB
+; hubs, complex HID descriptor trees) a small queue could theoretically overflow
+; and silently drop inputs. On a typical gaming PC with a single gaming mouse and
+; keyboard this queue depth is never approached. Value is intentional.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\mouclass\Parameters]
 "MouseDataQueueSize"=dword:00000014
 
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters]
 "KeyboardDataQueueSize"=dword:00000014
 
-; --- Planification graphique acceleree par le GPU (RTX/Radeon 5000+) ---
+; ---------------------------------------------------------------------------
+; HARDWARE ACCELERATED GPU SCHEDULING (HAGS)
+; ---------------------------------------------------------------------------
+; HwSchMode=2 enables HAGS, which moves the GPU work scheduler from a CPU software
+; component into the GPU firmware itself (WDDM 2.7+ feature, Windows 10 2004+).
+; Effect: Reduces CPU overhead for frame scheduling; can improve 1% lows and reduce
+; input latency on compatible hardware.
+; Requirements: RTX 20xx / Radeon RX 5xxx or newer, driver with WDDM 2.7+ support.
+; On unsupported hardware this key is silently ignored by the driver.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers]
 "HwSchMode"=dword:00000002
 
-; --- Supprimer les notifications Centre de securite ---
+; ---------------------------------------------------------------------------
+; SECURITY CENTER NOTIFICATIONS
+; ---------------------------------------------------------------------------
+; Disables Windows Security Center toast notifications and hides the Security
+; Center tray icon. On a PC where Defender is deliberately disabled (step 2)
+; these notifications are constant false alarms. Additional tray icon suppression
+; is in uwt_tweaks.reg (HideSystray).
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance]
 "Enabled"=dword:00000000
 
 [HKEY_LOCAL_MACHINE\Software\Microsoft\Windows Defender Security Center\Notifications]
 "DisableNotifications"=dword:00000001
 
-; --- Telemetrie Windows - niveau minimal (politique) ---
+; ---------------------------------------------------------------------------
+; TELEMETRY - DATA COLLECTION LEVEL
+; ---------------------------------------------------------------------------
+; AllowTelemetry=0: Sets the diagnostic data level to "Security only" (minimum).
+; This is a Group Policy equivalent key. In practice Windows enforces a floor of
+; 1 (Basic) on Home/Pro SKUs, but the policy key still reduces the volume of
+; data sent. Additional telemetry tasks are disabled in 13_telemetry_tasks.ps1.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection]
 "AllowTelemetry"=dword:00000000
 
-; --- Historique d'activites Windows (Timeline) ---
+; ---------------------------------------------------------------------------
+; WINDOWS TIMELINE / ACTIVITY FEED
+; ---------------------------------------------------------------------------
+; Windows Timeline logs every document/app/URL interaction and can upload it to
+; Microsoft for cross-device resume. EnableActivityFeed + PublishUserActivities
+; + UploadUserActivities together fully disable the local logging and cloud sync.
+; Note: CDP (Cross-Device Platform) is also disabled in 12_ai_disable.ps1.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System]
 "EnableActivityFeed"=dword:00000000
 "PublishUserActivities"=dword:00000000
 "UploadUserActivities"=dword:00000000
 
-; --- Empecher l'installation automatique d'apps suggerees apres OOBE ---
+; ---------------------------------------------------------------------------
+; OOBE / SUGGESTED APPS (Consumer Features)
+; ---------------------------------------------------------------------------
+; DisableWindowsConsumerFeatures=1: Prevents Microsoft from silently installing
+; "suggested apps" (Candy Crush, TikTok, Disney+, etc.) after OOBE or major
+; feature updates. These get pushed as provisioned packages in the user's AppX store.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent]
 "DisableWindowsConsumerFeatures"=dword:00000001
 
-; --- Desactiver la geolocalisation (politique) ---
+; ---------------------------------------------------------------------------
+; LOCATION PRIVACY
+; ---------------------------------------------------------------------------
+; DisableLocation + DisableLocationScripting: Policy-level block on location
+; provider access. Prevents apps and scripts from reading GPS/Wi-Fi location data.
+; Complementary to per-app location policy in uwt_tweaks.reg.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors]
 "DisableLocation"=dword:00000001
 "DisableLocationScripting"=dword:00000001
 
-; --- Preferer IPv4 sur IPv6 (DisabledComponents=32=0x20) ---
+; ---------------------------------------------------------------------------
+; IPv6 ADDRESS PREFERENCE
+; ---------------------------------------------------------------------------
+; DisabledComponents=0x20: Sets bit 5 (PrefixPolicies) in the IPv6 disabled
+; components mask. This makes the TCP/IP stack prefer IPv4 destination addresses
+; over IPv6 when both are available in DNS results (affects address selection,
+; not connectivity). Does NOT disable IPv6 entirely -- tunneled traffic and
+; link-local addresses still function. Reduces cases where a dual-stack connection
+; routes through a slower IPv6 path than the available IPv4 path.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters]
 "DisabledComponents"=dword:00000020
 
-; --- Supprimer "Accueil" du panneau de navigation Explorateur (Windows 11) ---
+; ---------------------------------------------------------------------------
+; EXPLORER NAVIGATION PANE CLEANUP
+; ---------------------------------------------------------------------------
+; Removes "Home" and "Gallery" from the Explorer left panel. These are Windows 11
+; namespace extensions registered in HKLM. Deleting the keys (prefix '-') removes
+; them from all users. Classic navigation pane: This PC, Quick Access, network, etc.
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}]
 
-; --- Supprimer "Galerie" du panneau de navigation Explorateur (Windows 11) ---
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}]
 
-; --- Activer "Fin de tache" dans le clic droit barre des taches ---
+; ---------------------------------------------------------------------------
+; TASKBAR "END TASK" (Windows 11 24H2+)
+; ---------------------------------------------------------------------------
+; Preference=2 enables the "End task" entry in the taskbar right-click context menu.
+; This is a Task Manager preference flag introduced in Windows 11 24H2 to surface
+; the force-kill option without opening Task Manager. Harmless on earlier builds.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\TaskManager]
 "Preference"=dword:00000002
 
-; --- Desactiver la detection automatique du type de dossier (lag Explorateur) ---
+; ---------------------------------------------------------------------------
+; FOLDER TYPE DETECTION
+; ---------------------------------------------------------------------------
+; Explorer auto-detects folder content type (Pictures, Videos, Music, Documents)
+; by scanning files and applying a matching view template. On folders with hundreds
+; of media files this triggers I/O and causes visible lag when opening them.
+; FolderType=NotSpecified forces Explorer to always use the generic "Documents"
+; template without content scanning. Affects all shell bags (AllFolders).
 [HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\AllFolders\Shell]
 "FolderType"="NotSpecified"
 
-; --- Desactiver Storage Sense (pas de nettoyage auto en arriere-plan) ---
+; ---------------------------------------------------------------------------
+; STORAGE SENSE
+; ---------------------------------------------------------------------------
+; Storage Sense runs automatic disk cleanup in the background (temp files, old
+; Downloads, Recycle Bin, previous Windows versions). Keys 01/04/08 control
+; the main switch, Downloads cleanup, and OneDrive file cleanup respectively.
+; Disable to prevent unexpected file deletion and avoid background I/O spikes.
 [HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy]
 "01"=dword:00000000
 "04"=dword:00000000
 "08"=dword:00000000
 
-; --- Desactiver Multiplane Overlay (MPO) - reduit stutters/flickering GPU ---
+; ---------------------------------------------------------------------------
+; MULTIPLANE OVERLAY (MPO)
+; ---------------------------------------------------------------------------
+; MPO allows the display hardware to composite multiple image planes without
+; going through the DWM composition pipeline, saving GPU work on dedicated
+; display controllers. In practice, on many GPU/driver/monitor combinations,
+; MPO causes stutters, screen flickering, partial black frames, or incorrect
+; HDR tone-mapping. OverlayTestMode=5 disables MPO by failing the overlay
+; capability test at DWM initialization, forcing single-plane composition.
+; Effect: DWM composites everything in a single pass; more GPU work but no MPO
+; artifacts. Widely recommended by NVIDIA and community for gaming stability.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Dwm]
 "OverlayTestMode"=dword:00000005
 
-; --- Desactiver WPBT (injection logiciel constructeur via firmware UEFI) ---
+; ---------------------------------------------------------------------------
+; WPBT (Windows Platform Binary Table)
+; ---------------------------------------------------------------------------
+; WPBT is an ACPI table in UEFI firmware that lets OEMs inject an executable
+; that Windows runs at every boot, before any user session exists. Originally
+; designed for anti-theft software (e.g., LoJack), it creates a persistent
+; execution path that survives OS reinstalls. DisableWpbt=1 prevents the OS
+; from processing this table. Most gaming PCs have no legitimate WPBT payload.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager]
 "DisableWpbt"=dword:00000001
 
-; --- BSoD detaille (plus d'informations en cas de crash) ---
+; ---------------------------------------------------------------------------
+; BSOD VERBOSE PARAMETERS
+; ---------------------------------------------------------------------------
+; DisplayParameters=1 shows additional stop code parameters on the BSOD screen
+; alongside the QR code. The four parameters (P1-P4) are critical for diagnosing
+; crash causes without waiting for a minidump analysis.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CrashControl]
 "DisplayParameters"=dword:00000001
 
-; --- NumLock active au demarrage ---
+; ---------------------------------------------------------------------------
+; NUMLOCK AT LOGON
+; ---------------------------------------------------------------------------
+; InitialKeyboardIndicators=2: Enables NumLock at the Windows logon screen and
+; for new user sessions. Cosmetic preference; no performance impact.
 [HKEY_CURRENT_USER\Control Panel\Keyboard]
 "InitialKeyboardIndicators"="2"

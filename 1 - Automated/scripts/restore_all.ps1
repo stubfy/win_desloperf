@@ -6,8 +6,32 @@
 
 .DESCRIPTION
     Restores the system to its original state.
-    Uses the restore point created at launch (recommended method)
-    or applies the default values for each tweak.
+    Recommended primary method: use the system restore point created by 01_backup.ps1
+    (Control Panel > Recovery > Open System Restore) for a complete state revert.
+
+    This script applies symmetric rollback scripts from restore\ as a programmatic
+    alternative. Each restore script undoes one category of tweaks:
+      01_registry.ps1     - Imports tweaks_defaults.reg (stock Windows values)
+      02_services.ps1     - Reads backup\services_state.json and restores each service
+      03_bcdedit.ps1      - Removes disabledynamictick and bootmenupolicy BCD entries
+      04_dns.ps1          - Restores DHCP-assigned DNS on all interfaces
+      05_edge.ps1         - Removes HKLM\...\Policies\Microsoft\Edge policy key
+      06_timer.ps1        - Deletes startup shortcut, terminates SetTimerResolution
+      07_power.ps1        - Removes the duplicated Ultimate Performance plan
+      08_usb.ps1          - Re-enables USB selective suspend
+      09_ai_restore.ps1   - Removes Recall/Copilot/AI policy keys
+      10_debloat_restore  - Provides guidance for reinstalling removed UWP apps
+      14_network_tweaks   - Re-enables Teredo (netsh teredo set state default)
+      15_windows_update   - Restores full WU (Profile 1 = Maximum)
+      18_firewall.ps1     - Restores firewall profiles from backup\firewall_state.json
+      16_uwt.ps1          - Imports uwt_defaults.reg + resets SPI visual effects
+      17_mouse_accel.ps1  - Imports Windows default mouse acceleration curves
+
+    Known limitations (not automatically restored):
+      - UWP apps removed by 08_debloat.ps1 must be reinstalled manually from the Store.
+      - Telemetry scheduled tasks disabled by 13_telemetry_tasks.ps1 must be re-enabled
+        via Task Scheduler (Microsoft\Windows\Customer Experience Improvement Program etc.)
+      - OOSU10 settings applied by 09_oosu10.ps1 are not individually rolled back.
 #>
 
 $ErrorActionPreference = 'Continue'

@@ -9,8 +9,42 @@
     Creates a backup before any modification.
     To undo: .\restore_all.ps1
 
+    Execution order:
+      Phase A - Snapshot + Backup (00_snapshot, 01_backup)
+      Phase B - Tweaks in dependency order:
+        02 registry       -> consolidated reg file (performance, privacy, QoL)
+        03 services       -> startup type alignment
+        04 bcdedit        -> timer tick + boot menu
+        05 power          -> Ultimate Performance plan
+        06 dns            -> Cloudflare DNS
+        07 edge           -> Edge policies
+        08 debloat        -> UWP app removal
+        09 oosu10         -> O&O ShutUp10++ privacy config
+        10 timer          -> SetTimerResolution startup
+        11 usb            -> USB selective suspend
+        12 ai_disable     -> Recall/Copilot/AI policies
+        13 telemetry      -> Scheduled tasks + PS7 + Brave
+        14 network        -> Teredo disable
+        15 windows_update -> WU profile (user choice)
+        18 firewall       -> Firewall disable (user choice)
+        16 uwt            -> UWT equivalent tweaks + SPI visual effects
+        17 mouse_accel    -> MarkC mouse fix (DPI-aware)
+      Options - Edge uninstall, OneDrive uninstall (user choice)
+      Phase C - Diff report (99_show_diff)
+
+    Logging: all output is written to %APPDATA%\win_deslopper\logs\win_deslopper.log
+    Format: [HH:mm:ss] [LEVEL] message
+    Levels: INFO, STEP, RUN, OUT, OK, WARN, ERROR
+
+    Safe Mode reboot path:
+      If the user chooses [S] at the reboot prompt, the script:
+        a. Sets safeboot=minimal in BCD.
+        b. Creates a helper .bat on the Desktop that disables Defender and
+           removes the safeboot flag before rebooting to normal Windows.
+      This automates the Safe Mode Defender disable step (2 - Windows Defender/).
+
 .NOTES
-    Manual steps after execution: see readme.txt at the pack root
+    Manual steps after execution: see README.md at the pack root
 #>
 
 $ErrorActionPreference = 'Continue'

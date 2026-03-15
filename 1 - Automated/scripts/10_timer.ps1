@@ -1,4 +1,28 @@
 # 10_timer.ps1 - Install SetTimerResolution to AppData and add to Windows startup
+#
+# Background:
+#   The Windows timer resolution controls how frequently the OS clock interrupt fires.
+#   The default is ~15.6 ms (64 Hz). Setting it to 520 µs (~1923 Hz) means the OS
+#   wakes up to service timers up to ~1923 times per second instead of 64.
+#   Effect: sleep() calls in games, audio drivers and input polling loops are
+#   satisfied much more promptly, reducing frame pacing jitter and input latency.
+#
+# GlobalTimerResolutionRequests=1 (set in tweaks_consolidated.reg via 02_registry.ps1)
+#   is required for this to benefit game threads system-wide. Without it, Windows
+#   10 2004+ scopes the resolution to the requesting process only.
+#
+# SetTimerResolution.exe by ValleyOfDoom calls NtSetTimerResolution internally.
+#   --resolution 5200 : requests 5200 x 100 ns = 520 µs = 0.52 ms.
+#   The unit used by NtSetTimerResolution (and SetTimerResolution.exe) is 100-nanosecond intervals.
+#   Use MeasureSleep.exe to verify the actual achieved resolution post-reboot.
+#   Values in the 5000-5500 range are well-tested; lower values may not be honored
+#   by all hardware/driver combinations.
+#
+# VC++ runtime: SetTimerResolution.exe requires the Visual C++ 2015-2022 x64
+#   redistributable (vcruntime140_1.dll). The script checks for its presence and
+#   attempts a silent download/install if missing.
+#
+# Rollback: restore\06_timer.ps1 deletes the startup shortcut and terminates the process.
 
 $ROOT     = Split-Path $PSScriptRoot
 $timerSrc = Join-Path $ROOT "tools\SetTimerResolution.exe"
@@ -64,7 +88,8 @@ if (-not (Ensure-VcRuntimeForSetTimerResolution)) {
     return
 }
 
-# Install to %APPDATA%\win_deslopper\
+# Install to %APPDATA%\win_deslopper\ so the binary persists across pack updates
+# without requiring admin rights to the original pack directory at runtime.
 $installDir = Join-Path $env:APPDATA "win_deslopper"
 if (-not (Test-Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
@@ -87,6 +112,8 @@ try {
     # Best effort: if the file is already unblocked or streams are unavailable, continue.
 }
 
+# Create a startup shortcut in the user's Startup folder so SetTimerResolution
+# launches automatically at each sign-in and maintains the requested resolution.
 $startupDir   = [System.Environment]::GetFolderPath('Startup')
 $shortcutPath = Join-Path $startupDir "SetTimerResolution.lnk"
 
@@ -101,7 +128,8 @@ $shortcut.Save()
 Write-Host "    Shortcut created: $shortcutPath"
 Write-Host "    Arguments      : --resolution 5200 --no-console"
 
-# Launch immediately so the resolution is active without a reboot
+# Launch immediately so the resolution is active without requiring a reboot.
+# The --no-console flag suppresses the terminal window.
 try {
     Start-Process -FilePath $timerExe -ArgumentList "--resolution 5200 --no-console" -WindowStyle Hidden -ErrorAction Stop
     Write-Host "    Launched       : SetTimerResolution is now active"

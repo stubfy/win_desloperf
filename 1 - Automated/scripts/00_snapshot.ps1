@@ -1,5 +1,29 @@
 # 00_snapshot.ps1 - Snapshot system state before tweaks
 # Saved to backup/snapshot_latest.json, used by 99_show_diff.ps1
+#
+# Captures a point-in-time baseline of registry values, service startup types and
+# BCD boot settings BEFORE any tweaks are applied. 99_show_diff.ps1 reads this
+# snapshot after all tweaks have run and computes a diff showing:
+#   - Which values were already at the desired state (already OK)
+#   - Which values were changed by the pack (applied)
+#   - Which values failed to apply (failed)
+#
+# Registry parsing: the script reads tweaks_consolidated.reg and uwt_tweaks.reg
+# line-by-line and extracts every DWORD and string value. For each value it
+# records the BEFORE (current system value) and DESIRED (value the pack will set).
+# Hex continuation lines (lines ending in \) are joined before parsing.
+# Keys that delete values (Name=-) and hex binary values are skipped since they
+# cannot be reliably compared numerically.
+#
+# Service snapshot: reads the startup type of every service in the catalog from
+# the HKLM\...\Services\<name> registry key directly (not via Get-Service API)
+# so that DelayedAutoStart is correctly detected.
+#
+# BCD snapshot: runs bcdedit /enum {current} and extracts disabledynamictick
+# and bootmenupolicy values for the diff.
+#
+# This script is a development/diagnostic tool. It has no effect on the tweaks
+# themselves and can be re-run at any time to refresh the snapshot.
 
 $ROOT       = Split-Path $PSScriptRoot
 $BACKUP_DIR = Join-Path $ROOT "backup"

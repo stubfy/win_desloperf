@@ -1,5 +1,28 @@
 # opt_onedrive_uninstall.ps1 - Complete OneDrive uninstallation (Win32)
 # OPTIONAL - called only if confirmed by the user in run_all.ps1
+#
+# OneDrive is a Win32 application (not UWP), so it cannot be removed with
+# Remove-AppxPackage. The uninstaller is OneDriveSetup.exe /uninstall, found
+# in SysWOW64, System32, or the user's AppData depending on the installation type.
+#
+# Steps performed:
+#   1. Kill the OneDrive process to release file locks.
+#   2. Run OneDriveSetup.exe /uninstall (or winget as fallback if not found).
+#   3. Remove residual folders (OneDrive, AppData\Microsoft\OneDrive, ProgramData,
+#      and the temp folder used during setup).
+#   4. Delete OneDrive registry keys (HKCU and HKLM).
+#   5. Remove the OneDrive startup entry from HKCU\Run.
+#   6. Remove the OneDrive namespace extension from the Explorer navigation pane
+#      by setting System.IsPinnedToNameSpaceTree=0 for the OneDrive CLSID.
+#   7. Apply DisableFileSyncNGSC=1 policy to block reinstallation by Windows.
+#      Note: this policy is also set in uwt_tweaks.reg as a baseline.
+#
+# FILE SAFETY: Local OneDrive files (if sync was active) are preserved in
+# %USERPROFILE%\OneDrive and are NOT deleted. Only the application and its
+# configuration data are removed.
+#
+# Rollback: restore\opt_onedrive_restore.ps1 provides reinstallation guidance.
+# OneDrive can be reinstalled from Microsoft's official download page at any time.
 
 Write-Host "    Stopping OneDrive process..."
 Stop-Process -Name OneDrive -Force -ErrorAction SilentlyContinue

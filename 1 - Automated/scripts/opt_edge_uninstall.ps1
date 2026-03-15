@@ -1,5 +1,40 @@
 # opt_edge_uninstall.ps1 - Microsoft Edge + WebView2 Runtime uninstall
 # OPTIONAL - called only if confirmed by the user in run_all.ps1
+#
+# Uninstall strategy (WinUtil method, Jan 2026+):
+#   Microsoft protects Chromium Edge from being uninstalled by its own setup.exe
+#   using two mechanisms:
+#     1. The uninstall registry key has a NoRemove=1 flag.
+#     2. The setup.exe checks for the presence of the legacy UWP Edge binary
+#        (C:\Windows\SystemApps\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\MicrosoftEdge.exe)
+#        before allowing itself to proceed.
+#
+#   This script:
+#     a. Clears NoRemove and experiment_control_labels flags from the uninstall key.
+#     b. Creates AllowUninstall='' in EdgeUpdateDev registry keys to unlock removal.
+#     c. Creates a zero-byte dummy file at the legacy UWP Edge path -- Edge's
+#        Chromium installer interprets this as "legacy UWP Edge is present" and
+#        allows itself to be uninstalled. The dummy file is intentionally left in
+#        place after removal (same behavior as WinUtil); opt_edge_restore.ps1 deletes
+#        it during rollback.
+#     d. Attempts MSI-based uninstall, then setup.exe --force-uninstall, then
+#        enumerates all setup.exe candidates as a fallback.
+#
+# WebView2 Runtime removal strategy:
+#   WebView2 is distributed both as a Win32 package (setup.exe) and as an AppX
+#   package (Win32WebViewHost). This script:
+#     a. Uses DISM to mark Win32WebViewHost as removable (clears non-removable flag).
+#     b. Directly deletes the WebView2 file tree using takeown + icacls to override
+#        any access restrictions.
+#     c. Cleans up EdgeUpdate client registry keys and uninstall entries.
+#     d. Applies a reinstall block (EdgeUpdate policy values Install=0, Update=0).
+#
+# Reinstall note: Windows 11 and many apps (Teams, Office, some games) depend on
+# WebView2. The reinstall block is best-effort; a Microsoft Store update or an
+# app installer can restore WebView2 at any time.
+#
+# Rollback: restore\opt_edge_restore.ps1 opens the browser download page for
+# reinstallation; there is no automated rollback for Edge/WebView2 uninstall.
 
 $edgeRoots = @(
     "${env:ProgramFiles(x86)}\Microsoft\Edge\Application"

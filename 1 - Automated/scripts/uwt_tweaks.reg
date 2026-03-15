@@ -11,9 +11,16 @@ Windows Registry Editor Version 5.00
 ; EXPLORER / APPEARANCE
 ; ---------------------------------------------------------------------------
 
-; --- Always show all tray icons (removes up-arrow button) ---
-; --- No "- Shortcut" suffix on newly created shortcuts ---
-; --- Classic Alt+Tab menu (small thumbnails, no animations) ---
+; EnableAutoTray=0: Always show all system tray icons. Default behavior hides
+; infrequently used icons behind an up-arrow chevron, making it harder to
+; monitor background processes.
+; ShowFrequent/ShowRecent=0: Removes "Frequent folders" and "Recent files"
+; sections from the Quick Access section of Explorer. Cleaner navigation pane;
+; also avoids Explorer spending I/O cycles building the frequency index.
+; link=hex:00,00,00,00: Suppresses the " - Shortcut" suffix when creating
+; new shortcuts (purely cosmetic, no functional effect).
+; AltTabSettings=1: Forces the classic Alt+Tab menu (small thumbnails, no
+; Fluent animations). Faster to render and easier to read at a glance.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]
 "EnableAutoTray"=dword:00000000
 "ShowFrequent"=dword:00000000
@@ -21,15 +28,29 @@ Windows Registry Editor Version 5.00
 "link"=hex:00,00,00,00
 "AltTabSettings"=dword:00000001
 
-; --- Suppress low disk space warning balloons ---
+; NoLowDiskSpaceChecks=1: Suppresses the "Low disk space on drive X" balloon
+; notification. On a gaming PC with large game libraries the drive may run close
+; to capacity intentionally; the repeated warnings serve no purpose.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer]
 "NoLowDiskSpaceChecks"=dword:00000001
 
-; --- Don't suggest Store when opening unknown file type ---
+; NoUseStoreOpenWith=1: When double-clicking an unregistered file type, Windows
+; normally offers to search the Microsoft Store for an appropriate app. This
+; policy disables that redirect and falls back to the classic "Open with..." dialog.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
 "NoUseStoreOpenWith"=dword:00000001
 
-; --- Suppress "New apps installed" toast notification ---
+; HideNewAppNotification=1: Suppresses "A new app was installed" toast banners.
+; ShowSecondsInSystemClock=1: Adds seconds to the taskbar clock (HH:MM:SS).
+;   Useful for monitoring without opening Task Manager.
+; TaskbarAnimations=0: Disables taskbar button fade animations on open/close.
+;   Minor rendering work saved per window transition.
+; ListviewAlphaSelect=1: Alpha-blend the file selection rectangle in Explorer
+;   (visual clarity, no performance impact on modern hardware).
+; ListviewShadow=1: Drop shadow under icon labels in list view.
+;   Cosmetic; kept for legibility on dark wallpapers.
+; IconsOnly=0: Show icon thumbnails (not icons-only mode). Thumbnails aid
+;   visual identification of files.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "HideNewAppNotification"=dword:00000001
 "ShowSecondsInSystemClock"=dword:00000001
@@ -38,37 +59,57 @@ Windows Registry Editor Version 5.00
 "ListviewShadow"=dword:00000001
 "IconsOnly"=dword:00000000
 
-; --- Accent color on title bars and window borders ---
+; ColorPrevalence=1: Uses the accent color on title bars and window borders.
+;   Visual preference; makes the active window immediately distinguishable.
+; ColorizationColor=0xc4000000: Pure black accent (alpha=0xC4, RGB=0x000000).
+; EnableAeroPeek=0: Disables the "Show desktop" hover effect on the far-right
+;   taskbar button. Prevents accidental transparent-window previews.
+; AlwaysHibernateThumbnails=0: Taskbar thumbnail previews are generated
+;   live, not from saved hibernate state. No practical effect when hibernation
+;   is disabled (see tweaks_consolidated.reg HibernateEnabled=0).
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
 "ColorPrevalence"=dword:00000001
 "ColorizationColor"=dword:c4000000
 "EnableAeroPeek"=dword:00000000
 "AlwaysHibernateThumbnails"=dword:00000000
 
-; --- Dark mode + no accent on taskbar/start ---
+; AppsUseLightTheme=0 / SystemUsesLightTheme=0: Full dark mode for both app
+;   chrome and the Windows shell (Start, taskbar, Settings). Dark mode reduces
+;   display brightness on OLED/AMOLED and is visually easier on prolonged sessions.
+; ColorPrevalence=0: No accent color on taskbar/Start (accent is on title bars
+;   only, controlled by the DWM key above).
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
 "AppsUseLightTheme"=dword:00000000
 "SystemUsesLightTheme"=dword:00000000
 "ColorPrevalence"=dword:00000000
 
-; --- Disable transparency effects ---
+; EnableTransparency=0: Disables Fluent Design transparency / blur effects on
+; the taskbar and Start menu. DWM no longer needs to blur the desktop content
+; behind these surfaces, saving a small amount of GPU composition work per frame.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
 "EnableTransparency"=dword:00000000
 
-; --- Force a black accent tone for shell/UI surfaces ---
+; Forces a pure black accent tone for the shell/UI color surfaces (Start, taskbar).
+; Purely cosmetic; consistent with the dark+black aesthetic.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent]
 "StartColorMenu"=dword:ff000000
 "AccentColorMenu"=dword:ff000000
 
-; --- Print Screen opens Snipping Tool ---
+; PrintScreenKeyForSnippingEnabled=1: The Print Screen key opens Snipping Tool
+; instead of writing to the clipboard. More ergonomic for selective screenshots.
 [HKEY_CURRENT_USER\Control Panel\Keyboard]
 "PrintScreenKeyForSnippingEnabled"=dword:00000001
 
-; --- Magnifier off ---
+; RunningState=0: Ensures the Windows Magnifier accessibility tool is not
+; running at startup. Kept off by default; users who need it can enable manually.
 [HKEY_CURRENT_USER\Software\Microsoft\ScreenMagnifier]
 "RunningState"=dword:00000000
 
-; --- Visual Effects preset marker ---
+; VisualFXSetting=3: Tells Windows that the user has manually customized the
+; visual effects preset (3=Custom). This prevents Windows from overriding the
+; individual effect settings below when the power plan changes.
+; DragFullWindows=1: Show window contents while dragging (not just the outline).
+; FontSmoothing=2: ClearType subpixel antialiasing (required for readability).
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects]
 "VisualFXSetting"=dword:00000003
 
@@ -76,19 +117,30 @@ Windows Registry Editor Version 5.00
 "DragFullWindows"="1"
 "FontSmoothing"="2"
 
+; MinAnimate=0: Disables the minimize/maximize window animation (the collapsing
+; effect to/from the taskbar button). Eliminated via registry to complement the
+; SPI_SETANIMATION call in 16_uwt.ps1. Both are needed because the SPI call
+; updates the live session while the reg key persists across logons.
 [HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]
 "MinAnimate"="0"
 
-; --- Hide Windows Defender Security Center tray icon ---
-; (different from DisableNotifications already in tweaks_consolidated.reg)
+; HideSystray=1: Hides the Windows Security (Defender) shield icon from the
+; system tray. Distinct from DisableNotifications in tweaks_consolidated.reg
+; which suppresses the toasts -- this hides the permanent tray icon.
+; Both together prevent the tray from being cluttered with Defender alerts on
+; a PC where Defender is intentionally disabled.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender Security Center\Systray]
 "HideSystray"=dword:00000001
 
-; --- Disable Windows Ink Workspace ---
+; AllowWindowsInkWorkspace=0: Disables Windows Ink Workspace (pen/stylus tools).
+; On a gaming PC without a stylus this feature is unused; disabling removes the
+; associated background process (InkWorkspaceHosted).
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsInkWorkspace]
 "AllowWindowsInkWorkspace"=dword:00000000
 
-; --- Auto-restart Explorer if it crashes ---
+; AutoRestartShell=1: Instructs Windows to automatically restart Explorer.exe
+; if it crashes, instead of leaving the user with a blank desktop. This is the
+; OS default on most builds; set explicitly to ensure it is not disabled.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]
 "AutoRestartShell"=dword:00000001
 
@@ -96,8 +148,17 @@ Windows Registry Editor Version 5.00
 ; PERFORMANCE
 ; ---------------------------------------------------------------------------
 
-; --- Maximum foreground app priority (0x26 = 38 decimal) ---
-; short quantum / variable / max foreground boost: foreground threads get 2x longer CPU slices
+; Win32PrioritySeparation controls how the Windows CPU scheduler distributes
+; time between foreground and background threads. The value is a 6-bit field:
+;   Bits [1:0] quantum length : 0=short, 2=long
+;   Bits [3:2] quantum type   : 0=variable, 2=fixed
+;   Bits [5:4] foreground boost: 0=none, 1=2x, 2=3x
+; 0x26 = 0b100110 => short quantums, variable, maximum foreground boost (3x).
+; This means foreground threads get 3x longer CPU slices than background threads,
+; improving UI responsiveness and game loop consistency.
+; NOTE: This value is a safety net for responsiveness; it does NOT directly cause
+; or undo the svchost service-per-process split from SvcHostSplitThresholdInKB
+; in tweaks_consolidated.reg. Both settings exist independently.
 [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl]
 "Win32PrioritySeparation"=dword:00000026
 
@@ -106,66 +167,109 @@ Windows Registry Editor Version 5.00
 ; ---------------------------------------------------------------------------
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System]
-; --- Hide Fast User Switching button in Start menu ---
+; HideFastUserSwitching=1: Removes the "Switch user" button from the Start menu.
+; On a single-user gaming PC this option is irrelevant and wastes space.
 "HideFastUserSwitching"=dword:00000001
-; --- Keep UAC enabled (required by StartAllBack and COM elevation) ---
+; EnableLUA=1: Keeps UAC (User Account Control) enabled. Required by StartAllBack,
+; most security software, and COM elevation dialogs. Do NOT set to 0 even if
+; running as admin -- many applications check this flag before requesting elevation.
 "EnableLUA"=dword:00000001
 
 ; ---------------------------------------------------------------------------
 ; PRIVACY / TELEMETRY
 ; ---------------------------------------------------------------------------
 
-; --- Windows Error Reporting registry disable (WerSvc also disabled via 03_services.ps1) ---
+; Disabled=1: Disables Windows Error Reporting via registry. WER collects crash
+; dumps and sends them to Microsoft. The WerSvc service is also disabled in
+; 03_services.ps1 for full effect (both layers needed: the registry key blocks
+; the API, the service stop prevents the WER host process from starting).
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Windows Error Reporting]
 "Disabled"=dword:00000001
 
-; --- Disable Windows Defender via policy (complements 2 - Windows Defender step) ---
+; DisableAntiSpyware=1: Disables Windows Defender via Group Policy. This
+; complements the "2 - Windows Defender" manual step which disables the six
+; Defender services in Safe Mode (required because Tamper Protection blocks
+; service changes in normal mode on Windows 11 25H2).
+; The policy key alone is insufficient on 25H2 when Tamper Protection is active;
+; the manual Safe Mode step is still required for full deactivation.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender]
 "DisableAntiSpyware"=dword:00000001
 
-; --- Disable OneDrive via policy (independent of the optional uninstall) ---
+; DisableFileSyncNGSC=1: Disables OneDrive file sync via policy. Independent
+; of the opt_onedrive_uninstall.ps1 optional uninstall -- this policy prevents
+; OneDrive from syncing even if the executable is still present. Useful as a
+; fallback if the user chose not to uninstall OneDrive at setup time.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\OneDrive]
 "DisableFileSyncNGSC"=dword:00000001
 
-; --- App Compatibility: disable telemetry, inventory collector, steps recorder ---
+; App Compatibility telemetry controls:
+; AITEnable=0: Disables the Application Impact Telemetry service which tracks
+;   application compatibility data for Microsoft.
+; DisableInventory=1: Stops the Inventory Collector (CompatTel) from cataloguing
+;   installed applications and hardware for Windows compatibility reporting.
+; DisableUAR=1: Disables the User Activity Reporter (Steps Recorder backend)
+;   which logs user interaction patterns for compatibility analysis.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat]
 "AITEnable"=dword:00000000
 "DisableInventory"=dword:00000001
 "DisableUAR"=dword:00000001
 
-; --- Disable Windows Hello biometrics ---
+; Enabled=0: Disables Windows Hello biometric authentication (fingerprint, face).
+; On a desktop gaming PC with no biometric hardware this policy has no effect;
+; set proactively for laptops or systems where a fingerprint reader is present.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Biometrics]
 "Enabled"=dword:00000000
 
-; --- Disable feedback notifications (DataCollection key exists from tweaks_consolidated.reg) ---
+; DoNotShowFeedbackNotifications=1: Suppresses "How satisfied are you with
+; Windows?" periodic feedback prompts from the Windows Feedback Hub / SIUF system.
+; AllowTelemetry=0 is already set in tweaks_consolidated.reg; this key prevents
+; the notification UI from appearing regardless of telemetry level.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection]
 "DoNotShowFeedbackNotifications"=dword:00000001
 
-; --- Notifications page: keep global notifications, but disable Do Not Disturb / Focus activation paths ---
+; Enable=1 under QuietHours policy: Keeps the global notification system active
+; (notifications are ON) while preventing the OS from auto-activating Focus Assist /
+; Do Not Disturb modes through usage-pattern detection. The user remains in control
+; of when DND is toggled manually.
 [HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\QuietHours]
 "Enable"=dword:00000001
 
-; --- Additional settings: stop "finish setting up this device" nudges ---
+; ScoobeSystemSettingEnabled=0: Suppresses the "Let's finish setting up your PC"
+; prompts that Windows shows post-OOBE to push OneDrive sign-in, Microsoft account
+; linking, Office trial activation, etc.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement]
 "ScoobeSystemSettingEnabled"=dword:00000000
 
-; --- Additional settings: stop tips and suggestions while using Windows ---
+; SoftLandingEnabled=0: Disables "Tips and suggestions" cards that appear while
+; using Windows (e.g., "Did you know you can do X?").
+; SubscribedContent-338389Enabled=0: Disables "Get tips, tricks, and suggestions
+; as you use Windows" (Settings > Notifications setting backing store).
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager]
 "SoftLandingEnabled"=dword:00000000
 "SubscribedContent-338389Enabled"=dword:00000000
 
-; --- Disable Advertising ID ---
+; Advertising ID: Windows assigns each device a unique advertising identifier
+; (similar to a mobile ad ID) used to track cross-app ad targeting.
+; Enabled=0 + DisabledByGroupPolicy=1: Both user-level and policy-level disables
+; are applied to prevent the ID from being re-enabled by app updates.
 [HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo]
 "Enabled"=dword:00000000
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo]
 "DisabledByGroupPolicy"=dword:00000001
 
-; --- Hide password reveal button in credential dialogs ---
+; DisablePasswordReveal=1: Hides the eye-icon "reveal password" button in
+; credential dialogs (login screens, UAC prompts). Prevents shoulder-surfing
+; of passwords when typing in semi-public environments.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CredUI]
 "DisablePasswordReveal"=dword:00000001
 
-; --- Disable inking/handwriting personalization data collection ---
+; RestrictImplicitInkCollection=1: Prevents Windows from learning handwriting
+;   patterns from ink input to improve the handwriting recognizer.
+; RestrictImplicitTextCollection=1: Same for keyboard/typed text.
+; HarvestContacts=0: Prevents the input personalisation subsystem from reading
+;   the user's contacts to build a word-prediction model.
+; Combined these stop the personalization telemetry pipeline entirely.
 [HKEY_CURRENT_USER\SOFTWARE\Microsoft\InputPersonalization]
 "RestrictImplicitInkCollection"=dword:00000001
 "RestrictImplicitTextCollection"=dword:00000001
@@ -173,7 +277,12 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore]
 "HarvestContacts"=dword:00000000
 
-; --- Disable web search in taskbar (Bing results in Start/Search) ---
+; DisableWebSearch=1: Policy-level block of Bing web results in Start/Search.
+; BingSearchEnabled=0: User-level toggle for the same feature.
+; DisableSearchBoxSuggestions=1: Prevents the Search box from sending typed
+;   characters to Bing for real-time suggestion lookups.
+; All three are needed: the policy key blocks the feature, the user key turns off
+; the toggle, and the suggestion key prevents network calls during typing.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Search]
 "DisableWebSearch"=dword:00000001
 
@@ -183,14 +292,21 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Explorer]
 "DisableSearchBoxSuggestions"=dword:00000001
 
-; --- Disable WiFi Sense (auto-connect to shared/hotspot networks) ---
+; Wi-Fi Sense: Automatically connects to Wi-Fi networks shared by contacts and
+; open hotspots listed by Microsoft. Both policies required to fully disable:
+; AllowWiFiHotSpotReporting=0: Stops anonymous hotspot usage data upload.
+; AllowAutoConnectToWiFiSenseHotspots=0: Prevents auto-joining shared networks.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting]
 "value"=dword:00000000
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots]
 "value"=dword:00000000
 
-; --- Disable Settings Sync (themes, passwords, preferences via Microsoft account) ---
+; Settings Sync: When signed in with a Microsoft account, Windows can sync themes,
+; passwords, language preferences and other settings across devices via the cloud.
+; SyncPolicy=5: Disables sync at the user level.
+; DisableSettingSync=2 + DisableSettingSyncUserOverride=1: Policy-level block
+; that prevents the user from re-enabling sync in Settings.
 [HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync]
 "SyncPolicy"=dword:00000005
 
@@ -198,8 +314,14 @@ Windows Registry Editor Version 5.00
 "DisableSettingSync"=dword:00000002
 "DisableSettingSyncUserOverride"=dword:00000001
 
-; --- Block app access: calendar, camera, microphone, messages, account info ---
-; (AppPrivacy key already has LetAppsRunInBackground from tweaks_consolidated.reg)
+; App Privacy - forced-deny for sensitive permission categories.
+; Value 2 = ForceOff (policy denies access regardless of per-app user toggle).
+; Note: LetAppsRunInBackground is already handled in tweaks_consolidated.reg.
+; LetAppsAccessMicrophone=0 (not 2): Microphone access is kept at user discretion
+;   rather than globally blocked, to avoid breaking legitimate audio input apps.
+; LetAppsAccessCalendar/Camera/Messaging/AccountInfo=2: Fully blocked via policy.
+; These privacy blocks prevent background UWP apps from silently accessing
+; the camera, calendar, contact list or SMS through WinRT APIs.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy]
 "LetAppsAccessCalendar"=dword:00000002
 "LetAppsAccessCamera"=dword:00000002
@@ -211,24 +333,37 @@ Windows Registry Editor Version 5.00
 ; CONTEXT MENU - REMOVALS (Shell Extensions Blocked)
 ; ---------------------------------------------------------------------------
 
-; (key already contains the Copilot CLSID from 12_ai_disable.ps1)
+; Shell Extensions\Blocked: Any CLSID listed here is prevented from loading
+; into Explorer's context menu handler pipeline. More reliable than deleting
+; the handler keys (which Windows Update can restore); the block persists even
+; if the extension is re-registered.
+; (The Copilot CLSID added by 12_ai_disable.ps1 also lives in this key.)
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked]
-; Cast to Device
+; Cast to Device: Streams media to DLNA/Miracast devices. Rarely used; adds
+; latency to context menu loading by probing for compatible devices on open.
 "{7AD84985-87B4-4a16-BE58-8B72A5B390F7}"=""
-; Share (modern share sheet)
+; Share (modern share sheet): Opens the Windows 11 share panel. Blocked because
+; the full context menu is already restored in tweaks_consolidated.reg; the
+; Share entry is redundant and slow to populate.
 "{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}"=""
-; Give Access To (network sharing wizard)
+; Give Access To (network sharing wizard): Sets up shared folder permissions via
+; a multi-step wizard. Only useful on home networks; removed to keep menu clean.
 "{f81e9010-6ea4-11ce-a7ff-00aa003ca9f6}"=""
-; Include in Library
+; Include in Library: Adds the selected folder to a Windows Library. Libraries
+; are a legacy feature not used on most modern setups.
 "{289AF617-1CC3-42A6-926C-E6A863F0E3BA}"=""
-; Restore Previous Versions (files)
+; Restore Previous Versions (files): File History / shadow copy integration.
+; Slow to load (queries VSS) and irrelevant if shadow copies are not enabled.
 "{596AB062-B4D2-4215-9F74-E9109B0A8153}"=""
-; Restore Previous Versions (directories)
+; Restore Previous Versions (directories): Same as above, for folders.
 "{3742D782-BC80-4488-9B6E-9AD4E9AAC76C}"=""
-; Scan with Windows Defender
+; Scan with Windows Defender: Triggers an on-demand Defender scan. Blocked
+; because Defender is disabled in step 2; the entry would fail silently anyway.
 "{09A47860-11B0-4DA5-AFA5-26D86198A780}"=""
 
-; --- Remove "Edit with Paint 3D" from image context menus ---
+; Remove "Edit with Paint 3D" from image context menus.
+; Paint 3D is not installed on clean 25H2 builds but these Shell handler keys
+; can persist from upgrades. Deleting them cleans up image context menus.
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.bmp\Shell\3D Edit]
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpeg\Shell\3D Edit]
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpg\Shell\3D Edit]
@@ -239,7 +374,9 @@ Windows Registry Editor Version 5.00
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.ico\Shell\3D Edit]
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.dib\Shell\3D Edit]
 
-; --- Remove "3D Print with 3D Builder" from file context menus ---
+; Remove "3D Print with 3D Builder" from file context menus.
+; 3D Builder is a UWP app removed by 08_debloat.ps1; these shell association
+; keys may survive the package removal and leave broken context menu entries.
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.3mf\Shell\3D Print]
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.bmp\Shell\3D Print]
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpg\Shell\3D Print]
@@ -250,7 +387,11 @@ Windows Registry Editor Version 5.00
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.fbx\Shell\3D Print]
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.obj\Shell\3D Print]
 
-; --- "Open Command Prompt here" on folders ---
+; "Open Command Prompt here" on folders, folder backgrounds and drives.
+; Adds a shell verb that opens cmd.exe in the selected directory. Uses
+; 'cmd.exe /s /k pushd "%V"' so the path is set correctly including UNC paths.
+; The "Admin" variant is intentionally not added here -- running an elevated CMD
+; from every folder is a privilege escalation risk; use the standard one instead.
 [HKEY_CLASSES_ROOT\Directory\shell\OpenCMDHere]
 @="Open Command Prompt here"
 "Icon"="cmd.exe"
@@ -258,7 +399,6 @@ Windows Registry Editor Version 5.00
 [HKEY_CLASSES_ROOT\Directory\shell\OpenCMDHere\command]
 @="cmd.exe /s /k pushd \"%V\""
 
-; --- "Open Command Prompt here" on folder background ---
 [HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDHere]
 @="Open Command Prompt here"
 "Icon"="cmd.exe"
@@ -266,7 +406,6 @@ Windows Registry Editor Version 5.00
 [HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDHere\command]
 @="cmd.exe /s /k pushd \"%V\""
 
-; --- "Open Command Prompt here" on drives ---
 [HKEY_CLASSES_ROOT\Drive\shell\OpenCMDHere]
 @="Open Command Prompt here"
 "Icon"="cmd.exe"
@@ -274,7 +413,9 @@ Windows Registry Editor Version 5.00
 [HKEY_CLASSES_ROOT\Drive\shell\OpenCMDHere\command]
 @="cmd.exe /s /k pushd \"%V\""
 
-; --- Remove "Open Command Prompt as Admin here" (not needed, regular CMD here is sufficient) ---
+; Remove any previously registered "Open Command Prompt as Admin here" entries.
+; Elevated CMD-from-context-menu is a convenience shortcut that bypasses the
+; intentional friction of UAC, making accidental privilege escalation easier.
 [-HKEY_CLASSES_ROOT\Directory\shell\OpenCMDAdminHere]
 [-HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDAdminHere]
 [-HKEY_CLASSES_ROOT\Drive\shell\OpenCMDAdminHere]
