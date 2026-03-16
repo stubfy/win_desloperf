@@ -162,7 +162,8 @@ After reboot, verify with `Tools/MeasureSleep.exe` (as admin). The requested tim
 | Not global | Global, clean | Global, noisier |
 |-----------|---------------|-----------------|
 | ![Timer request not applied globally yet](assets/readme/timer-not-global.png) | ![Clean global timer resolution result](assets/readme/timer-global-clean.png) | ![Global timer resolution result with more jitter](assets/readme/timer-global-noisy.png) |
-| `GlobalTimerResolutionRequests=0`: timer request active but `Sleep(1)` still at ~15.6 ms. | `GlobalTimerResolutionRequests=1`, timer active globally, `Sleep(1)` near `1.01-1.02 ms`. | Same key, valid, but `Sleep(1)` drifts to `1.1-1.5 ms` with more jitter. |
+
+Left: `GlobalTimerResolutionRequests=0`, `Sleep(1)` still at ~15.6 ms. Middle: `=1`, timer active globally, `Sleep(1)` near `1.01-1.02 ms`. Right: same key, valid, but more jitter.
 
 ### GPU interrupt affinity
 
