@@ -27,7 +27,7 @@
 
 ## What it does
 
-win_deslopper applies a set of system tweaks to improve performance on Windows 11 25H2. The pack covers:
+Tweaks for better gaming performance on Windows 11 25H2. The pack covers:
 
 - **Input latency**: timer resolution (~0.5 ms, via optional SetTimerResolution or Process Lasso), MSI interrupts, GPU IRQ affinity, mouse acceleration fix
 - **System fluidity**: power throttling disabled, MMCSS high priority, USB selective suspend disabled
@@ -38,18 +38,18 @@ win_deslopper applies a set of system tweaks to improve performance on Windows 1
 - **Windows Update**: configurable profile: Maximum / Security only / Disabled
 - **Personal shell/UI**: a dedicated script groups subjective theme/taskbar/Explorer preferences separately
 
-Everything scriptable is automated in a single pass. The remaining manual folders are guided by their local `readme.txt` files.
+Whatever can be scripted runs in one pass. The rest is manual, each folder has its own `readme.txt`.
 
 ---
 
 ## Fresh install example
 
-Quick visual example on a fresh Windows 11 25H2 install, using Task Manager at idle. This is meant as an illustration of background cleanup, not a benchmark.
+Task Manager at idle on a fresh Windows 11 25H2 install, before and after.
 
 | Before | After |
 |--------|-------|
 | ![Fresh Windows 11 install before the tweaks](assets/readme/fresh-install-before.png) | ![Fresh Windows 11 install after the tweaks](assets/readme/fresh-install-after.png) |
-| Stock fresh install: around 133 processes, with visible background disk activity. | After the tweaks: around 65 processes, with much lighter background activity. |
+| Fresh install, ~133 processes. | After tweaks, ~65 processes. |
 
 ---
 
@@ -71,7 +71,7 @@ You will be prompted for a few options before anything runs:
 - **Enable SetTimerResolution at startup** (optional), default: Yes. If you already use Process Lasso, you can skip it.
 
 Estimated duration: 5 to 15 minutes. A reboot prompt is shown at the end.
-If you choose `[S]` there, the pack triggers the same flow as `2 - Windows Defender/run_defender.bat`: Safe Mode is configured and `Disable Defender and Return to Normal Mode.bat` is created on the Desktop for the Defender step.
+If you pick `[S]`, Safe Mode gets configured and a `Disable Defender and Return to Normal Mode.bat` shortcut lands on the Desktop, same thing as running `2 - Windows Defender/run_defender.bat` yourself.
 
 **2. Reboot**
 
@@ -83,7 +83,7 @@ The manual folders still contain a `readme.txt` with detailed instructions.
 
 ## Automated phase
 
-`run_all.bat` self-elevates via UAC and calls `scripts/run_all.ps1`, which runs the following scripts in sequence:
+`run_all.bat` elevates itself (UAC) then runs `scripts/run_all.ps1`. Scripts executed in order:
 
 | Script | Purpose |
 |--------|---------|
@@ -107,7 +107,7 @@ The manual folders still contain a `readme.txt` with detailed instructions.
 | `20_personal_settings.ps1` | Personal shell/theme preferences (dark mode, accents, taskbar clock seconds, Explorer presentation) |
 | `17_mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
 
-The Defender step is manual again and lives in `2 - Windows Defender/`. If you choose `[S]` at the final reboot prompt, `run_all.ps1` simply prepares that manual step for you by configuring Safe Mode and creating the Desktop helper automatically.
+Defender is handled manually from `2 - Windows Defender/`. Picking `[S]` at the reboot prompt just sets up Safe Mode and drops the helper `.bat` on your Desktop so you're ready after reboot.
 
 ### Windows Update profiles
 
@@ -179,11 +179,9 @@ About `delta`:
 
 ### Service startup tweaks
 
-`03_services.ps1` now aligns startup types to the reference main PC instead of forcing an almost-all-`Manual` policy.
-
-In practice, a noisy core is forced back to `Disabled` (`SysMain`, `DPS`, `Spooler`, `DiagTrack`, `WSearch`, `RmSvc`, `WerSvc`, `PhoneSvc`, `SharedAccess`, `MapsBroker`, `RemoteRegistry`, smart card services, etc.), most secondary services stay `Manual`, some services remain `Automatic` on purpose (`wuauserv`, `W32Time`, `TermService`, `DeviceAssociationService`, `IKEEXT`, `InstallService`, `StiSvc`, `VaultSvc`), and `UsoSvc` is set to `AutomaticDelayedStart`.
-
-`DoSvc` is aligned to the main PC as `Manual` with `TriggerInfo` removed.
+`03_services.ps1` matches the startup types from the reference main PC.
+Noisy stuff like `SysMain`, `DPS`, `DiagTrack`, `WSearch` gets disabled. Most secondary services stay `Manual`. A few stay `Automatic` on purpose (`wuauserv`, `W32Time`, `TermService`, etc.). `UsoSvc` is `AutomaticDelayedStart`.
+`DoSvc` is set to `Manual` with its `TriggerInfo` removed.
 
 ### Logging
 
@@ -195,7 +193,7 @@ All executions are logged to:
 
 The log includes: pack version, timestamp, OS info, machine name, full output of each script, detailed errors with stack traces.
 
-If the Microsoft Visual C++ x64 runtime required by `SetTimerResolution.exe` and `MeasureSleep.exe` is missing, `10_timer.ps1` downloads the official Microsoft redistributable and installs it silently before enabling the timer tool.
+`10_timer.ps1` will grab and install the VC++ x64 runtime if it's missing (needed by `SetTimerResolution.exe` and `MeasureSleep.exe`).
 
 ---
 
@@ -282,29 +280,29 @@ win_deslopper/
 
 ## Warnings
 
-> This pack makes deep system-level changes. Using it on a production or primary machine carries risks. A full backup is created before any modification.
+> This touches a lot of system settings. Back up your machine first. The scripts create a restore point, but have your own backup too.
 
 | | Risk |
 |-|------|
 | **Defender disabled** | No real-time antivirus protection. On 25H2, Tamper Protection may block disabling even in Safe Mode. |
 | **Edge / WebView2 uninstall** | Uses the current WinUtil-style dummy-file flow for Edge, then tries to remove the WebView2 Runtime. On Windows 11 or with apps that depend on WebView2, the runtime can come back later. |
-| **VBS/HVCI disabled** | Credential Guard and certain memory protections are off. Significant performance gain, notable security trade-off. |
+| **VBS/HVCI disabled** | Credential Guard and memory protections are off. Good perf gain, but you lose some security hardening. |
 | **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB - BSOD risk. |
 | **Interrupt Affinity** | Wrong pinning can increase latency instead of reducing it. Identify the correct PCI bridge before any change. |
-| **Service startup tweaks** | Services touched by `03_services.ps1` are aligned to the reference main PC. The noisiest services are disabled again, most secondary ones stay manual, and `BITS` / `UsoSvc` / `wuauserv` can still be adjusted later by the chosen Windows Update profile. |
+| **Service startup tweaks** | Startup types come from the reference main PC. Noisiest services are disabled, most stay manual. `BITS` / `UsoSvc` / `wuauserv` can still change depending on the Windows Update profile you pick. |
 | **WU Disabled profile** | No security patches, only use on isolated gaming machines. |
 | **Firewall disabled** | No Windows firewall filtering. Use only if another firewall or isolated setup covers the machine. |
-| **Timer resolution tools** | If you do not use `Process Lasso`, enable `SetTimerResolution`. If you already use `Process Lasso` for other reasons, prefer `Process Lasso > Options > Tools > System Timer Resolution` and do not use both. Set the exact target you want, such as `0.510` or `0.520`, then reboot and verify it with `Tools/MeasureSleep.exe` run as administrator. `MeasureSleep` should report the same effective value you selected (`0.5100ms` for `0.510`, `0.5200ms` for `0.520`), with `Sleep(1)` staying close to `1 ms` and a low `delta`. Known culprits include VoiceMeeter Macro Buttons below v1.1.3.1, which forces 0.50 ms via `NtSetTimerResolution`; update it to v1.1.3.1+ (available on the VB-Audio Discord). Recent VoiceMeeter builds themselves should no longer force the timer resolution, so a registry fix is normally not needed. If VoiceMeeter still appears to be involved on your system, a known fallback fix exists: set `TimerResolution=1` (DWORD) at `HKCU\VB-Audio\VoiceMeeter`. OpenRGB is another known conflict because it holds a 0.50 ms timer resolution request for as long as it is running; close it after configuring your LED profiles. |
+| **Timer resolution tools** | Use either `SetTimerResolution` or `Process Lasso`, not both. After reboot, check with `Tools/MeasureSleep.exe`. Known conflicts: VoiceMeeter Macro Buttons < v1.1.3.1 (forces 0.50 ms, update it), OpenRGB (holds 0.50 ms while running, close it after setup). |
 
 ---
 
 ## About
 
-win_deslopper is a personal collection of Windows tweaks accumulated over the years from various sources: community guides, benchmarks, forum threads, YouTube channels, and hands-on testing. The goal is to centralize what actually makes a difference and make it as straightforward as possible to apply.
+Personal collection of Windows tweaks built up over the years, pulled from community guides, benchmarks, forums, YouTube, and a lot of trial and error. The point is to have one place with the stuff that actually works, ready to run.
 
-Some of these are simply options that should be on by default: showing file extensions, disabling GameDVR when you never use it, turning off mouse acceleration, cleaning up the right-click menu. Others go further into performance and privacy territory.
+Some of it is just common sense (file extensions visible, GameDVR off, no mouse acceleration). The rest goes deeper into performance, privacy, and debloat territory.
 
-The automated script system and git history were built and managed with the help of AI coding tools, mainly Claude Code and Codex. The tweak selection, what to include or exclude, and the overall direction are entirely manual; the AI handled the scripting infrastructure (orchestration, rollback, logging) and repository management.
+The scripts, rollback system, and repo structure were built with AI tools (Claude Code, Codex). Tweak selection and decisions are manual.
 
 **Tested on** : Intel / AMD CPU - NVIDIA GPU. Results on other hardware configurations may vary.
 
