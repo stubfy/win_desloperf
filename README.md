@@ -237,12 +237,43 @@ To be done in order after rebooting. The Defender step is back in its own manual
 | Step | Path | Why manual | Risk level |
 |------|------|-----------|------------|
 | 1 | **2 - Windows Defender/run_defender.bat** | Requires Safe Mode; PPL and Tamper Protection block full disable in normal mode | High |
-| 2 | **3 - MSI Utils** | Manual identification of compatible devices required | Moderate |
+| 2 | **3 - MSI Utils** | Manual identification of compatible devices required on first run | Moderate |
 | 3 | **4 - NVInspector** | Per-game NVIDIA driver profiles, user-specific | Low |
 | 4 | **5 - Device Manager** | USB power saving per device node, not cleanly scriptable | Low |
 | 5 | **6 - Interrupt Affinity** | Automated by `set_affinity.bat`. Re-run after each NVIDIA driver update (driver resets the setting). | Low |
 | 6 | **7 - Network WIP** | NIC settings depend on adapter model | Moderate |
 | 7 | **Tools** | Complementary tools (Autoruns, temp folders) | Low |
+
+### MSI Utils: first run vs subsequent runs
+
+MSI mode (Message Signaled Interrupts) must be configured once manually -- the GUI tool needs a human to decide which devices get MSI enabled and which don't. But the setting can be captured and replayed automatically from then on.
+
+**First run (after a fresh install):**
+
+1. Launch `PCIutil.exe` as administrator, then close it immediately (installs the kernel driver needed by the next step)
+2. Launch `MSI_util_v3.exe` as administrator
+3. Enable MSI on compatible devices (GPU, NIC, NVMe). See `readme.txt` for the full device list and what to avoid
+4. Reboot and verify nothing broke
+5. Run `3 - MSI Utils/msi_snapshot.bat` to save the configuration
+
+`msi_snapshot.bat` reads the MSI state of every PCI device from the registry and writes it to `msi_state.json`. Before writing, it also saves the current live state to `msi_state_backup.json` so the snapshot can be compared or reverted.
+
+**Subsequent runs (after a reformat):**
+
+`run_all.bat` detects `msi_state.json` automatically during the automated phase and offers to apply it:
+
+```
+>>> PHASE B.20 - MSI interrupt mode (from saved snapshot)
+    Snapshot found: ...msi_state.json
+    Created: 2026-03-16 14:30:00 on DESKTOP-ABC
+  Apply saved MSI configuration? (Y/N) [default: Y]
+```
+
+Accepting writes `MSISupported` and `MessageNumberLimit` to the registry for each device in the snapshot. Devices that are no longer present (e.g. after a hardware change or PCI slot change) are skipped with a warning -- configure those manually and re-run `msi_snapshot.bat` to update the snapshot.
+
+You can also run `3 - MSI Utils/msi_restore.bat` standalone at any time. It saves the current live state to `msi_state_pre_restore.json` before applying anything.
+
+> Do not enable MSI on audio controllers, capture cards (ELGATO), or legacy USB -- BSOD risk. See `readme.txt` for the full list.
 
 ---
 
