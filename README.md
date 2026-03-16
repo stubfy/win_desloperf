@@ -160,11 +160,24 @@ If you use `Process Lasso`:
 
 After reboot, run `Tools/MeasureSleep.exe` as administrator.
 
-A good result should look similar to this:
+A good visual proof should show two things at the same time:
+- the requested timer value is active (`0.5000ms`, `0.5100ms`, `0.5200ms`, etc.)
+- whether `Sleep(1)` is actually behaving like a global high-resolution timer
 
-    Resolution: 0.5100ms, Sleep(1) slept 1.0168ms (delta: 0.0168)
-    Resolution: 0.5100ms, Sleep(1) slept 1.0210ms (delta: 0.0210)
-    Resolution: 0.5100ms, Sleep(1) slept 1.0156ms (delta: 0.0156)
+If you want to make the proof explicit in a screenshot, also keep this registry key visible:
+
+    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel
+    GlobalTimerResolutionRequests = 1
+
+Three useful visual cases:
+
+| Not global | Best / clean global result | Global, but noisier |
+|-----------|-----------------------------|---------------------|
+| ![Timer request not applied globally yet](assets/readme/timer-not-global.png) | ![Clean global timer resolution result](assets/readme/timer-global-clean.png) | ![Global timer resolution result with more jitter](assets/readme/timer-global-noisy.png) |
+| `GlobalTimerResolutionRequests=0`: the timer request exists, but `Sleep(1)` still behaves like the default ~15.6 ms system tick. | Best screenshot for the README: `GlobalTimerResolutionRequests=1`, requested timer active, and `Sleep(1)` stays near `1.01-1.02ms` with very low `delta`. | Also global (`GlobalTimerResolutionRequests=1`): valid proof that the timer is affecting system behavior, but less clean because `Sleep(1)` sits closer to `1.1-1.5ms` with larger spikes. |
+
+The middle screenshot is the best one to lead with in the README.
+It is the clearest proof that the timer request is active system-wide and behaving as expected in practice.
 
 Do not expect the exact same numbers on every line. What matters is:
 - either `Process Lasso` or `SetTimerResolution` is forcing the exact timer value you selected
