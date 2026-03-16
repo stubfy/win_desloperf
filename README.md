@@ -24,6 +24,9 @@
   - [Service startup tweaks](#service-startup-tweaks)
   - [Logging](#logging)
 - [Manual phase](#manual-phase)
+  - [MSI Utils](#msi-utils)
+  - [NIC Device Manager tweaks](#nic-device-manager-tweaks)
+  - [Network benchmarking](#network-benchmarking)
 - [Rollback](#rollback)
 - [Project structure](#project-structure)
 - [Warnings](#warnings)
@@ -40,7 +43,7 @@ Tweaks for better gaming performance on Windows 11 25H2. The pack covers:
 - **Debloat**: UWP app removal, service startup cleanup, Recall/AI 25H2 disabled
 - **Privacy**: 240 OOSU10 tweaks, DiagTrack, Cortana, widgets, Copilot disabled
 - **Boot**: dynamic tick disabled, legacy boot menu
-- **Network**: Cloudflare DNS, network throttling disabled, NIC offloads
+- **Network**: Cloudflare DNS, network throttling disabled, TCP stack tuned (ECN, RSS, CUBIC, Nagle off), LSO off, QoS reservation removed
 - **Windows Update**: configurable profile: Maximum / Security only / Disabled
 - **Personal shell/UI**: a dedicated script groups subjective theme/taskbar/Explorer preferences separately
 
@@ -82,7 +85,7 @@ If you pick `[S]`, Safe Mode gets configured and a `Disable Defender and Return 
 
 **2. Reboot**
 
-**3. Follow the manual steps in order (`2 - Windows Defender/run_defender.bat` if you did not choose `[S]`, then folders 3 to 7, then `Tools/`)**
+**3. Follow the manual steps in order (`2 - Windows Defender/run_defender.bat` if you did not choose `[S]`, then folders 3, 4, 5, 6, then NIC Device Manager tweaks, then `Tools/`)**
 
 The manual folders still contain a `readme.txt` with detailed instructions.
 
@@ -107,7 +110,7 @@ The manual folders still contain a `readme.txt` with detailed instructions.
 | `11_usb.ps1` | USB selective suspend disabled |
 | `12_ai_disable.ps1` | Recall, AI, Copilot disabled (25H2) |
 | `13_telemetry_tasks.ps1` | Telemetry scheduled tasks + PS7 + Brave |
-| `14_network_tweaks.ps1` | Teredo disabled |
+| `14_network_tweaks.ps1` | Teredo disabled, TCP stack (ECN, RSC off, heuristics off), LSO disabled on active adapters, Nagle disabled per Ethernet interface, QoS bandwidth reservation removed, MaxUserPort extended |
 | `15_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
 | `18_firewall.ps1` | Windows Firewall profiles disabled |
 | `16_uwt.ps1` | UWT-equivalent tweaks (privacy, context menu, visual effects) |
@@ -241,7 +244,7 @@ To be done in order after rebooting. The Defender step is back in its own manual
 | 3 | **4 - NVInspector** | Per-game NVIDIA driver profiles, user-specific | Low |
 | 4 | **5 - Device Manager** | USB power saving per device node, not cleanly scriptable | Low |
 | 5 | **6 - Interrupt Affinity** | Automated by `set_affinity.bat`. Re-run after each NVIDIA driver update (driver resets the setting). | Low |
-| 6 | **7 - Network WIP** | NIC settings depend on adapter model | Moderate |
+| 6 | **NIC Device Manager** | Hardware-dependent NIC settings (interrupt moderation, EEE, buffers) -- see section below | Low |
 | 7 | **Tools** | Complementary tools (Autoruns, temp folders) | Low |
 
 ### MSI Utils
@@ -271,6 +274,55 @@ If a device changed PCI slot since the snapshot, its InstanceId will differ and 
 `msi_restore.bat` does the same thing standalone, and saves the current state to `msi_state_pre_restore.json` before touching anything.
 
 > Do not enable MSI on audio controllers, capture cards (ELGATO), or legacy USB -- BSOD risk. See `readme.txt` for the full list.
+
+### NIC Device Manager tweaks
+
+Open Device Manager, find your NIC under Network Adapters, go to Properties > Advanced. These settings are hardware-dependent -- names vary by driver.
+
+| Setting | Value | Notes |
+|---------|-------|-------|
+| Interrupt Moderation | Disabled | Reduces DPC latency at the cost of slightly higher CPU usage. On 2.5G/10G adapters, test first -- can increase CPU load noticeably at high throughput. |
+| Energy Efficient Ethernet (EEE) | Disabled | Prevents the NIC from entering low-power states mid-session. |
+| Flow Control | Disabled | Removes pause frames that can introduce latency spikes. |
+| Receive Buffers | Max (e.g. 2048 Intel, 1024 Realtek) | More buffer = fewer drops under burst load. |
+| Transmit Buffers | Max | Same reason. |
+| Wake on Magic Packet / Wake on Pattern | Disabled | Prevents unwanted wake events; irrelevant for desktops kept on. |
+| Power Management (device tab) | Uncheck "Allow the computer to turn off this device to save power" | Prevents the OS from cutting power to the NIC during idle. |
+| Large Send Offload V2 (IPv4 / IPv6) | Disabled | Already handled by `14_network_tweaks.ps1` via PowerShell. Manual toggle as a fallback if the PS cmdlet did not apply. |
+| Checksum Offload (IPv4/TCP/UDP) | Keep Enabled | Offloading checksum computation to the NIC is always a win -- no latency cost. |
+| Speed and Duplex | Keep Auto-Negotiation | Forcing a speed can cause duplex mismatch with the switch, which is worse than auto. Only force if you have a specific reason and control both ends. |
+
+### Network benchmarking
+
+Tools to measure before/after. All free.
+
+| Tool | Purpose |
+|------|---------|
+| **hrPing** | High-resolution ping (microsecond precision), measures jitter |
+| **iperf3** | Throughput and jitter between two endpoints |
+| **LatencyMon** | DPC/ISR latency -- detects if the NIC driver causes spikes |
+| **Wireshark** | Verify Nagle / delayed ACK behavior via TCP capture |
+| **PingPlotter Free** | Continuous monitoring with hop-by-hop visualization |
+
+**Method:**
+
+1. Take a restore point (or run before any tweaks)
+2. Baseline (3 runs each, average):
+   - `hrping <game-server> -n 500` -- min/avg/max/jitter
+   - `iperf3 -c <server> -t 30` -- throughput
+   - LatencyMon for 5 min of gameplay -- NIC driver DPC latency
+3. Apply tweaks, reboot
+4. Repeat the same tests
+5. Compare: **jitter** and **99th percentile** matter more than average latency
+
+| Metric | Acceptable threshold |
+|--------|---------------------|
+| Jitter (latency std dev) | < 5 ms |
+| 99th percentile latency | < 2x the average |
+| NIC driver DPC latency | < 100 us average |
+| Packet loss | < 0.1% |
+
+Average latency depends on physical distance to the server -- no tweak changes the speed of light.
 
 ---
 
@@ -333,7 +385,6 @@ win_deslopper/
 ├── 4 - NVInspector/
 ├── 5 - Gestionnaire/
 ├── 6 - Interrupt Affinity/
-├── 7 - Network WIP/
 └── Tools/
     └── MeasureSleep.exe
 ```

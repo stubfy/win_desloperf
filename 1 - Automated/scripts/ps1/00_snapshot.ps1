@@ -164,6 +164,66 @@ try {
     }
 } catch {}
 
+# ── Network snapshot ──────────────────────────────────────────────────────────
+$netSnap = @{}
+
+$tcpFields = @{}
+try {
+    netsh int tcp show global 2>$null | ForEach-Object {
+        if ($_ -match 'Receive-Side Scaling State\s*:\s*(.+)$')    { $tcpFields['rss']                  = $matches[1].Trim().ToLower() }
+        if ($_ -match 'Auto-Tuning Level\s*:\s*(.+)$')             { $tcpFields['autotuninglevel']       = $matches[1].Trim().ToLower() }
+        if ($_ -match 'Congestion Control Provider\s*:\s*(.+)$')   { $tcpFields['congestionprovider']    = $matches[1].Trim().ToLower() }
+        if ($_ -match 'ECN Capability\s*:\s*(.+)$')                { $tcpFields['ecncapability']         = $matches[1].Trim().ToLower() }
+        if ($_ -match 'Segment Coalescing State\s*:\s*(.+)$')      { $tcpFields['rsc']                   = $matches[1].Trim().ToLower() }
+        if ($_ -match 'Non Sack Rtt Resiliency\s*:\s*(.+)$')      { $tcpFields['nonsackrttresiliency']  = $matches[1].Trim().ToLower() }
+        if ($_ -match 'Max SYN Retransmissions\s*:\s*(.+)$')      { $tcpFields['maxsynretransmissions'] = $matches[1].Trim().ToLower() }
+        if ($_ -match 'Initial RTO\s*:\s*(.+)$')                   { $tcpFields['initialrto']            = $matches[1].Trim().ToLower() }
+    }
+} catch {}
+$netSnap['TcpGlobal'] = $tcpFields
+
+$heuristicsState = $null
+try {
+    netsh int tcp show heuristics 2>$null | ForEach-Object {
+        if ($_ -match 'Window Scaling Heuristics\s*:\s*(.+)$') {
+            $heuristicsState = $matches[1].Trim().ToLower()
+        }
+    }
+} catch {}
+$netSnap['Heuristics'] = $heuristicsState
+
+$maxUserPort = $null
+try { $maxUserPort = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'MaxUserPort' -ErrorAction Stop).MaxUserPort } catch {}
+$netSnap['MaxUserPort'] = $maxUserPort
+
+$pschedPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched'
+$nonBestEffortLimit = $null
+try { $nonBestEffortLimit = (Get-ItemProperty -Path $pschedPath -Name 'NonBestEffortLimit' -ErrorAction Stop).NonBestEffortLimit } catch {}
+$netSnap['NonBestEffortLimit'] = $nonBestEffortLimit
+
+$nlaDoNotUse = $null
+try { $nlaDoNotUse = (Get-ItemProperty -Path (Join-Path $pschedPath 'NLA') -Name 'Do not use NLA' -ErrorAction Stop).'Do not use NLA' } catch {}
+$netSnap['NLADoNotUse'] = $nlaDoNotUse
+
+$nagleSnap = @{}
+try {
+    $ethernetAdapters = @(Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.PhysicalMediaType -eq '802.3' })
+    foreach ($adapter in $ethernetAdapters) {
+        $guid      = $adapter.InterfaceGuid
+        $ifacePath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid"
+        $nagleEntry = @{ TcpAckFrequency = $null; TCPNoDelay = $null; TcpDelAckTicks = $null }
+        if (Test-Path $ifacePath) {
+            try { $nagleEntry.TcpAckFrequency = (Get-ItemProperty -Path $ifacePath -Name 'TcpAckFrequency' -ErrorAction Stop).TcpAckFrequency } catch {}
+            try { $nagleEntry.TCPNoDelay      = (Get-ItemProperty -Path $ifacePath -Name 'TCPNoDelay'      -ErrorAction Stop).TCPNoDelay      } catch {}
+            try { $nagleEntry.TcpDelAckTicks  = (Get-ItemProperty -Path $ifacePath -Name 'TcpDelAckTicks'  -ErrorAction Stop).TcpDelAckTicks  } catch {}
+        }
+        $nagleSnap[$guid] = $nagleEntry
+    }
+} catch {}
+$netSnap['NagleInterfaces'] = $nagleSnap
+
+Write-Host "    Network  : TCP global + QoS + Nagle ($($nagleSnap.Count) interface(s))"
+
 # ── Affinity snapshot ─────────────────────────────────────────────────────────
 $affinitySnap = [ordered]@{}
 try {
@@ -200,6 +260,7 @@ try {
     Registry  = $regArray
     Services  = $svcSnap
     BCD       = $bcdSnap
+    Network   = $netSnap
     Affinity  = $affinitySnap
 } | ConvertTo-Json -Depth 4 | Set-Content $SNAP_FILE -Encoding UTF8
 
