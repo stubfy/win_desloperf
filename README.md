@@ -17,6 +17,12 @@
 - [Fresh install example](#fresh-install-example)
 - [Quick start](#quick-start)
 - [Automated phase](#automated-phase)
+  - [Windows Update profiles](#windows-update-profiles)
+  - [Registry tweaks](#registry-tweaks-applied)
+  - [Timer resolution](#timer-resolution-options)
+  - [GPU interrupt affinity](#gpu-interrupt-affinity)
+  - [Service startup tweaks](#service-startup-tweaks)
+  - [Logging](#logging)
 - [Manual phase](#manual-phase)
 - [Rollback](#rollback)
 - [Project structure](#project-structure)
@@ -144,53 +150,19 @@ Defender is handled manually from `2 - Windows Defender/`. Picking `[S]` at the 
 
 ### Timer resolution options
 
-`run_all.ps1` asks whether `SetTimerResolution` should be enabled at startup.
+`run_all.ps1` asks if `SetTimerResolution` should start with Windows. If you already use Process Lasso for timer resolution, skip it -- no point running both.
 
-What to use:
-- if you do not use `Process Lasso`, enable `SetTimerResolution`
-- if you already use `Process Lasso` for other reasons, prefer `Process Lasso > Options > Tools > System Timer Resolution` instead of running `SetTimerResolution` separately
-- do not use both for the same purpose, because that only adds a redundant background process
+If you use Process Lasso instead:
+1. `Options > Tools > System Timer Resolution`
+2. Set the value you want (`0.510`, `0.520`, etc.)
+3. Enable `Set at every boot` + `Apply globally`
 
-If you use `Process Lasso`:
-1. Open `Process Lasso`.
-2. Go to `Options > Tools > System Timer Resolution`.
-3. Set `New Timer Resolution` to the exact value you want, for example `0.510` or `0.520`.
-4. Enable `Set at every boot`.
-5. Enable `Apply globally`.
+After reboot, verify with `Tools/MeasureSleep.exe` (as admin). The requested timer value should be active and `Sleep(1)` should stay close to `1 ms`.
 
-After reboot, run `Tools/MeasureSleep.exe` as administrator.
-
-A good visual proof should show two things at the same time:
-- the requested timer value is active (`0.5000ms`, `0.5100ms`, `0.5200ms`, etc.)
-- whether `Sleep(1)` is actually behaving like a global high-resolution timer
-
-If you want to make the proof explicit in a screenshot, also keep this registry key visible:
-
-    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel
-    GlobalTimerResolutionRequests = 1
-
-Three useful visual cases:
-
-| Not global | Best / clean global result | Global, but noisier |
-|-----------|-----------------------------|---------------------|
+| Not global | Global, clean | Global, noisier |
+|-----------|---------------|-----------------|
 | ![Timer request not applied globally yet](assets/readme/timer-not-global.png) | ![Clean global timer resolution result](assets/readme/timer-global-clean.png) | ![Global timer resolution result with more jitter](assets/readme/timer-global-noisy.png) |
-| `GlobalTimerResolutionRequests=0`: the timer request exists, but `Sleep(1)` still behaves like the default ~15.6 ms system tick. | Best screenshot for the README: `GlobalTimerResolutionRequests=1`, requested timer active, and `Sleep(1)` stays near `1.01-1.02ms` with very low `delta`. | Also global (`GlobalTimerResolutionRequests=1`): valid proof that the timer is affecting system behavior, but less clean because `Sleep(1)` sits closer to `1.1-1.5ms` with larger spikes. |
-
-The middle screenshot is the best one to lead with in the README.
-It is the clearest proof that the timer request is active system-wide and behaving as expected in practice.
-
-Do not expect the exact same numbers on every line. What matters is:
-- either `Process Lasso` or `SetTimerResolution` is forcing the exact timer value you selected
-- if you set `0.510`, `MeasureSleep` should report about `0.5100ms`
-- if you set `0.520`, `MeasureSleep` should report about `0.5200ms`
-- `Sleep(1)` should stay close to `1 ms`
-- `delta` should stay low, usually only a few hundredths of a millisecond
-
-About `delta`:
-- `delta` is the extra time above the requested `Sleep(1)` duration
-- example: `Sleep(1) slept 1.0168ms` means the sleep overshot by `0.0168ms`
-- small positive deltas are normal because scheduling is never perfectly exact
-- if `delta` is consistently high, timer behavior is less clean
+| `GlobalTimerResolutionRequests=0`: timer request active but `Sleep(1)` still at ~15.6 ms. | `GlobalTimerResolutionRequests=1`, timer active globally, `Sleep(1)` near `1.01-1.02 ms`. | Same key, valid, but `Sleep(1)` drifts to `1.1-1.5 ms` with more jitter. |
 
 ### GPU interrupt affinity
 
