@@ -1,8 +1,8 @@
 @echo off
-net session >/dev/null 2>&1
+net session >nul 2>&1
 if %errorlevel% neq 0 (
     powershell -Command "Start-Process '%~f0' -Verb RunAs"
     exit /b
 )
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0ps1${name}.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0ps1\opt_edge_restore.ps1"
 pause
