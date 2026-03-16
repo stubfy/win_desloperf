@@ -142,7 +142,7 @@ The Defender step is manual again and lives in `2 - Windows Defender/`. If you c
 
 ### Timer resolution options
 
-`run_all.ps1` now asks whether `SetTimerResolution` should be enabled at startup.
+`run_all.ps1` asks whether `SetTimerResolution` should be enabled at startup.
 
 If you already use `Process Lasso`, answer `N` there and use its built-in equivalent instead:
 
