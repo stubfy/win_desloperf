@@ -9,7 +9,15 @@ but remain useful for monitoring and system maintenance after optimization.
 MEASURESLEEP
 -------------
 Use `MeasureSleep.exe` as administrator to verify the actual system timer resolution after
-`SetTimerResolution.exe` is enabled.
+either `SetTimerResolution.exe` or `Process Lasso > Options > Tools > System Timer Resolution`
+is enabled.
+
+If you use Process Lasso, set:
+  - `New Timer Resolution` to `0.520`
+  - `Set at every boot` enabled
+  - `Apply globally` enabled
+
+Then reboot and check the measured value with `MeasureSleep.exe`.
 
 Target value:
   - around `5200` when the requested 0.52 ms timer resolution is active

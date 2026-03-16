@@ -20,7 +20,7 @@
         07 edge           -> Edge policies
         08 debloat        -> UWP app removal
         09 oosu10         -> O&O ShutUp10++ privacy config
-        10 timer          -> SetTimerResolution startup
+        10 timer          -> Optional SetTimerResolution startup
         11 usb            -> USB selective suspend
         12 ai_disable     -> Recall/Copilot/AI policies
         13 telemetry      -> Scheduled tasks + PS7 + Brave
@@ -131,6 +131,7 @@ Write-Host ""
 $uninstallEdge     = $true
 $uninstallOneDrive = $true
 $disableFirewall   = $true
+$enableTimerTool   = $true
 $updateProfil      = '2'   # default: security only
 
 Write-Host "  WINDOWS UPDATE PROFILE:" -ForegroundColor White
@@ -179,6 +180,19 @@ if ($ans -ieq 'N') {
     Write-Log "Option selected: Firewall disable = YES" 'INFO'
 }
 
+$ans = Read-Host "  Enable SetTimerResolution at startup (~0.52 ms)? (Y/N) [default: Y]"
+if ($ans -ieq 'N') {
+    $enableTimerTool = $false
+    Write-Host "  -> Skipping SetTimerResolution. If you already use Process Lasso," -ForegroundColor Yellow
+    Write-Host "     use Options > Tools > System Timer Resolution instead (see README)." -ForegroundColor DarkGray
+    Write-Log "Option selected: SetTimerResolution startup = NO" 'INFO'
+} else {
+    $enableTimerTool = $true
+    Write-Host "  -> SetTimerResolution will be installed to user startup." -ForegroundColor Yellow
+    Write-Host "     Skip this if Process Lasso already manages the system timer resolution." -ForegroundColor DarkGray
+    Write-Log "Option selected: SetTimerResolution startup = YES" 'INFO'
+}
+
 Write-Host ""
 
 # ── PHASE A: Snapshot + Backup ────────────────────────────────────────────────
@@ -213,8 +227,15 @@ Invoke-Script "$SCRIPTS\08_debloat.ps1"
 Write-Step "PHASE B.8 - O&O ShutUp10++ (silent mode)"
 Invoke-Script "$SCRIPTS\09_oosu10.ps1"
 
-Write-Step "PHASE B.9 - SetTimerResolution at startup"
-Invoke-Script "$SCRIPTS\10_timer.ps1"
+if ($enableTimerTool) {
+    Write-Step "PHASE B.9 - SetTimerResolution at startup"
+    Invoke-Script "$SCRIPTS\10_timer.ps1"
+} else {
+    Write-Step "PHASE B.9 - SetTimerResolution at startup (skipped)"
+    Write-Host "    Skipped        : user chose not to install the timer tool"
+    Write-Host "                     Process Lasso users can use its built-in timer resolution tool instead"
+    Write-Log "Skipped: 10_timer.ps1 (user chose not to enable SetTimerResolution startup)" 'INFO'
+}
 
 Write-Step "PHASE B.10 - USB selective suspend"
 Invoke-Script "$SCRIPTS\11_usb.ps1"
@@ -274,7 +295,7 @@ Write-Host "  4. NVIDIA Profile Inspector - per-game       (4 - NVInspector/)"
 Write-Host "  5. Device Manager - disable USB power saving (5 - Gestionnaire/)"
 Write-Host "  6. Interrupt Affinity - pin GPU IRQ to core  (6 - Interrupt Affinity/)"
 Write-Host "  7. NIC settings - disable offloads, buffers  (7 - Network WIP/)"
-Write-Host "  8. Verify timer: run MeasureSleep.exe as admin (Tools/)"
+Write-Host "  8. Optional timer check: verify with MeasureSleep.exe as admin (Tools/)"
 Write-Host ""
 Write-Host "To undo all tweaks: .\restore_all.ps1" -ForegroundColor Gray
 Write-Host ""

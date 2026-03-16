@@ -29,7 +29,7 @@
 
 win_deslopper applies a set of system tweaks to improve performance on Windows 11 25H2. The pack covers:
 
-- **Input latency**: timer resolution (~0.5 ms), MSI interrupts, GPU IRQ affinity, mouse acceleration fix
+- **Input latency**: timer resolution (~0.5 ms, via optional SetTimerResolution or Process Lasso), MSI interrupts, GPU IRQ affinity, mouse acceleration fix
 - **System fluidity**: power throttling disabled, MMCSS high priority, USB selective suspend disabled
 - **Debloat**: UWP app removal, service startup cleanup, Recall/AI 25H2 disabled
 - **Privacy**: 240 OOSU10 tweaks, DiagTrack, Cortana, widgets, Copilot disabled
@@ -68,6 +68,7 @@ You will be prompted for a few options before anything runs:
 - **Uninstall Edge + WebView2 Runtime** (optional, best-effort), default: Yes
 - **Uninstall OneDrive** (optional), default: Yes
 - **Disable Windows Firewall profiles** (optional), default: Yes
+- **Enable SetTimerResolution at startup** (optional), default: Yes. If you already use Process Lasso, you can skip it.
 
 Estimated duration: 5 to 15 minutes. A reboot prompt is shown at the end.
 If you choose `[S]` there, the pack triggers the same flow as `2 - Windows Defender/run_defender.bat`: Safe Mode is configured and `Disable Defender and Return to Normal Mode.bat` is created on the Desktop for the Defender step.
@@ -95,7 +96,7 @@ The manual folders still contain a `readme.txt` with detailed instructions.
 | `07_edge.ps1` | Microsoft Edge policies |
 | `08_debloat.ps1` | UWP app removal (Teams, Microsoft 365, Family, Quick Assist, Sticky Notes...) |
 | `09_oosu10.ps1` | O&O ShutUp10++ silent mode (240 tweaks) |
-| `10_timer.ps1` | SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
+| `10_timer.ps1` | Optional SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
 | `11_usb.ps1` | USB selective suspend disabled |
 | `12_ai_disable.ps1` | Recall, AI, Copilot disabled (25H2) |
 | `13_telemetry_tasks.ps1` | Telemetry scheduled tasks + PS7 + Brave |
@@ -138,6 +139,22 @@ The Defender step is manual again and lives in `2 - Windows Defender/`. If you c
 - Classic context menu (Windows 11)
 - Widgets / News disabled
 - Personal shell/theme tweaks are applied separately in `20_personal_settings.ps1` (dark mode, black accent, taskbar seconds, classic Alt+Tab, Explorer presentation)
+
+### Timer resolution options
+
+`run_all.ps1` now asks whether `SetTimerResolution` should be enabled at startup.
+
+If you already use `Process Lasso`, answer `N` there and use its built-in equivalent instead:
+
+1. Open `Process Lasso`.
+2. Go to `Options > Tools > System Timer Resolution`.
+3. Set `New Timer Resolution` to `0.520`.
+4. Enable `Set at every boot`.
+5. Enable `Apply globally`.
+
+After rebooting, run `Tools/MeasureSleep.exe` as administrator and confirm that the measured value is around `5200`.
+
+Using `Process Lasso` for this avoids keeping a separate `SetTimerResolution.exe` process running just for the timer request.
 
 ### Service startup tweaks
 
@@ -256,7 +273,7 @@ win_deslopper/
 | **Service startup tweaks** | Services touched by `03_services.ps1` are aligned to the reference main PC. The noisiest services are disabled again, most secondary ones stay manual, and `BITS` / `UsoSvc` / `wuauserv` can still be adjusted later by the chosen Windows Update profile. |
 | **WU Disabled profile** | No security patches, only use on isolated gaming machines. |
 | **Firewall disabled** | No Windows firewall filtering. Use only if another firewall or isolated setup covers the machine. |
-| **SetTimerResolution** | After enabling `SetTimerResolution`, verify with `Tools/MeasureSleep.exe` run as administrator that the timer resolution is `5200`. If it is not `5200`, another program is forcing it to `5000`, and you need to find that process manually. Known culprits include VoiceMeeter Macro Buttons below v1.1.3.1, which forces 0.50 ms via `NtSetTimerResolution`; update it to v1.1.3.1+ (available on the VB-Audio Discord). Recent VoiceMeeter builds themselves should no longer force the timer resolution, so a registry fix is normally not needed. If VoiceMeeter still appears to be involved on your system, a known fallback fix exists: set `TimerResolution=1` (DWORD) at `HKCU\VB-Audio\VoiceMeeter`. OpenRGB is another known conflict because it holds a 0.50 ms timer resolution request for as long as it is running; close it after configuring your LED profiles. |
+| **Timer resolution tools** | `SetTimerResolution` is optional in `run_all.ps1`. If you already use `Process Lasso > Options > Tools > System Timer Resolution`, do not enable both. Configure it to `0.520`, with `Set at every boot` and `Apply globally` enabled, then reboot and verify with `Tools/MeasureSleep.exe` run as administrator that the timer resolution is around `5200`. If it is not `5200`, another program may be forcing it to `5000`, and you need to find that process manually. Known culprits include VoiceMeeter Macro Buttons below v1.1.3.1, which forces 0.50 ms via `NtSetTimerResolution`; update it to v1.1.3.1+ (available on the VB-Audio Discord). Recent VoiceMeeter builds themselves should no longer force the timer resolution, so a registry fix is normally not needed. If VoiceMeeter still appears to be involved on your system, a known fallback fix exists: set `TimerResolution=1` (DWORD) at `HKCU\VB-Audio\VoiceMeeter`. OpenRGB is another known conflict because it holds a 0.50 ms timer resolution request for as long as it is running; close it after configuring your LED profiles. |
 
 ---
 
