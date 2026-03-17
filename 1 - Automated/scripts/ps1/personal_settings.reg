@@ -31,7 +31,6 @@ Windows Registry Editor Version 5.00
 ; LaunchTo=1: Open File Explorer to This PC instead of Home.
 ; TaskbarAl=0: Left-align taskbar buttons like Windows 10.
 ; TaskbarAnimations=0: Disable taskbar button fade animations.
-; TaskbarEndTask=2: Enable the "End task" entry on taskbar app right-click menus.
 ; ListviewAlphaSelect=1: Keep translucent file selection rectangles.
 ; ListviewShadow=1: Keep label shadows in Explorer icon/list views.
 ; IconsOnly=0: Keep thumbnails enabled instead of icon-only mode.
@@ -44,11 +43,14 @@ Windows Registry Editor Version 5.00
 "LaunchTo"=dword:00000001
 "TaskbarAl"=dword:00000000
 "TaskbarAnimations"=dword:00000000
-"TaskbarEndTask"=dword:00000002
 "ListviewAlphaSelect"=dword:00000001
 "ListviewShadow"=dword:00000001
 "IconsOnly"=dword:00000000
 "Hidden"=dword:00000001
+
+; TaskbarEndTask=1: Enable the "End task" entry on taskbar app right-click menus.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings]
+"TaskbarEndTask"=dword:00000001
 
 ; Preference=2 enables the "End task" entry in the taskbar right-click context menu.
 ; This Task Manager preference is harmless on earlier Windows 11 builds.
