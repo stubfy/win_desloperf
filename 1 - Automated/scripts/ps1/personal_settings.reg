@@ -3,7 +3,7 @@ Windows Registry Editor Version 5.00
 ; ===========================================================================
 ; WIN_DESLOPPER - Personal Settings
 ; Windows 11 25H2 - Subjective shell/theme preferences
-; Applied by  : scripts\14_personal_settings.ps1
+; Applied by  : scripts\15_personal_settings.ps1
 ; Rollback    : restore\14_personal_settings.ps1 + restore\personal_settings_defaults.reg
 ; ===========================================================================
 

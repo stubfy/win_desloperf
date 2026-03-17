@@ -10,28 +10,28 @@
     To undo: .\restore_all.ps1
 
     Execution order:
-      Phase A - Snapshot + Backup (00_snapshot, 01_backup)
+      Phase A - Snapshot + Backup (snapshot, backup)
       Phase B - Tweaks in dependency order:
-        02 registry       -> consolidated reg file (performance, privacy, QoL)
-        03 services       -> startup type alignment
-        04 bcdedit        -> timer tick + boot menu
-        05 power              -> Ultimate Performance plan
+        registry       -> consolidated reg file (performance, privacy, QoL)
+        services       -> startup type alignment
+        bcdedit        -> timer tick + boot menu
+        power              -> Ultimate Performance plan
         [7 - DNS]             -> Cloudflare DNS (user choice)
-        06 debloat            -> UWP app removal
-        07 oosu10             -> O&O ShutUp10++ privacy config
-        08 timer              -> Optional SetTimerResolution startup
-        09 usb                -> USB selective suspend
-        10 ai_disable         -> Recall/Copilot/AI policies
-        11 telemetry          -> Scheduled tasks + PS7 + Brave
-        12 network            -> Teredo disable
+        debloat            -> UWP app removal
+        oosu10             -> O&O ShutUp10++ privacy config
+        timer              -> Optional SetTimerResolution startup
+        usb                -> USB selective suspend
+        ai_disable         -> Recall/Copilot/AI policies
+        telemetry_tasks    -> Scheduled tasks + PS7 + Brave
+        network_tweaks     -> Teredo disable
         [8 - Windows Update]  -> WU profile (user choice)
-        [9 - Firewall]        -> Firewall disable (user choice)
-        13 uwt                -> UWT equivalent tweaks + SPI visual effects
-        14 personal           -> Subjective shell/theme preferences (user choice)
-        15 mouse_accel        -> MarkC mouse fix (DPI-aware)
+        firewall           -> Firewall disable (user choice)
+        uwt                -> UWT equivalent tweaks + SPI visual effects
+        personal_settings  -> Subjective shell/theme preferences (user choice)
+        mouse_accel        -> MarkC mouse fix (DPI-aware)
         [6 - Interrupt Affinity] -> GPU IRQ pin to core 2 (user choice)
       Options - Edge uninstall, OneDrive uninstall (user choice)
-      Phase C - Diff report (99_show_diff)
+      Phase C - Diff report (show_diff)
 
     Logging: all output is written to %APPDATA%\win_deslopper\logs\win_deslopper.log
     Format: [HH:mm:ss] [LEVEL] message
@@ -52,13 +52,8 @@ $ErrorActionPreference = 'Continue'
 $ROOT         = Split-Path (Split-Path (Split-Path $MyInvocation.MyCommand.Path))
 $PACK_ROOT    = Split-Path $ROOT -Parent
 $SCRIPTS      = $PSScriptRoot
-$DEFENDER_DIR    = Join-Path $PACK_ROOT "2 - Windows Defender"
 $MSI_UTILS_DIR   = Join-Path $PACK_ROOT "3 - MSI Utils"
 $NVINSPECTOR_DIR = Join-Path $PACK_ROOT "4 - NVInspector"
-$AFFINITY_DIR    = Join-Path $PACK_ROOT "6 - Interrupt Affinity"
-$DNS_DIR         = Join-Path $PACK_ROOT "7 - DNS"
-$WU_DIR          = Join-Path $PACK_ROOT "8 - Windows Update"
-$FIREWALL_DIR    = Join-Path $PACK_ROOT "9 - Firewall"
 $PACK_VERSION = 'v0.9'
 $LOG_DIR      = Join-Path $env:APPDATA 'win_deslopper\logs'
 $LOG_FILE     = Join-Path $LOG_DIR "win_deslopper.log"
@@ -298,27 +293,27 @@ Write-Host ""
 
 # ── PHASE A: Snapshot + Backup ────────────────────────────────────────────────
 Write-Step "PHASE A.0 - Snapshot current state (for diff report at end)"
-& "$SCRIPTS\00_snapshot.ps1"
+& "$SCRIPTS\snapshot.ps1"
 
 Write-Step "PHASE A.1 - Backup (restore point + service/registry state)"
-Invoke-Script "$SCRIPTS\01_backup.ps1"
+Invoke-Script "$SCRIPTS\backup.ps1"
 
 # ── PHASE B: Automated tweaks ──────────────────────────────────────────────────
 Write-Step "PHASE B.1 - Registry tweaks (consolidated, deduplicated)"
-Invoke-Script "$SCRIPTS\02_registry.ps1"
+Invoke-Script "$SCRIPTS\registry.ps1"
 
 Write-Step "PHASE B.2 - Apply service startup tweaks"
-Invoke-Script "$SCRIPTS\03_services.ps1"
+Invoke-Script "$SCRIPTS\services.ps1"
 
 Write-Step "PHASE B.3 - Boot configuration (bcdedit)"
-Invoke-Script "$SCRIPTS\04_bcdedit.ps1"
+Invoke-Script "$SCRIPTS\bcdedit.ps1"
 
 Write-Step "PHASE B.4 - Ultimate Performance power plan"
-Invoke-Script "$SCRIPTS\05_power.ps1"
+Invoke-Script "$SCRIPTS\power.ps1"
 
 if ($configureDns) {
     Write-Step "PHASE B.5 - Cloudflare DNS (1.1.1.1 / 1.0.0.1)"
-    Invoke-Script (Join-Path $DNS_DIR 'ps1\set_dns.ps1')
+    Invoke-Script "$SCRIPTS\set_dns.ps1"
 } else {
     Write-Step "PHASE B.5 - Cloudflare DNS (skipped)"
     Write-Host "    Skipped        : user chose not to override the current DNS configuration"
@@ -326,59 +321,59 @@ if ($configureDns) {
 }
 
 Write-Step "PHASE B.6 - Remove bloatware UWP apps"
-Invoke-Script "$SCRIPTS\06_debloat.ps1"
+Invoke-Script "$SCRIPTS\debloat.ps1"
 
 Write-Step "PHASE B.7 - O&O ShutUp10++ (silent mode)"
-Invoke-Script "$SCRIPTS\07_oosu10.ps1"
+Invoke-Script "$SCRIPTS\oosu10.ps1"
 
 if ($enableTimerTool) {
     Write-Step "PHASE B.8 - SetTimerResolution at startup"
-    Invoke-Script "$SCRIPTS\08_timer.ps1"
+    Invoke-Script "$SCRIPTS\timer.ps1"
 } else {
     Write-Step "PHASE B.8 - SetTimerResolution at startup (skipped)"
     Write-Host "    Skipped        : user chose not to install the timer tool"
     Write-Host "                     Process Lasso users can use its built-in timer resolution tool instead"
-    Write-Log "Skipped: 08_timer.ps1 (user chose not to enable SetTimerResolution startup)" 'INFO'
+    Write-Log "Skipped: timer.ps1 (user chose not to enable SetTimerResolution startup)" 'INFO'
 }
 
 Write-Step "PHASE B.9 - USB selective suspend"
-Invoke-Script "$SCRIPTS\09_usb.ps1"
+Invoke-Script "$SCRIPTS\usb.ps1"
 
 Write-Step "PHASE B.10 - Disable AI / Recall / Copilot (25H2)"
-Invoke-Script "$SCRIPTS\10_ai_disable.ps1"
+Invoke-Script "$SCRIPTS\ai_disable.ps1"
 
 Write-Step "PHASE B.11 - Telemetry scheduled tasks + PS7 + Brave"
-Invoke-Script "$SCRIPTS\11_telemetry_tasks.ps1"
+Invoke-Script "$SCRIPTS\telemetry_tasks.ps1"
 
 Write-Step "PHASE B.12 - Additional network tweaks (Teredo)"
-Invoke-Script "$SCRIPTS\12_network_tweaks.ps1"
+Invoke-Script "$SCRIPTS\network_tweaks.ps1"
 
 Write-Step "PHASE B.13 - Windows Update profile: $profilLabel"
-& (Join-Path $WU_DIR 'ps1\set_windows_update.ps1') -Profil $updateProfil
+& "$SCRIPTS\set_windows_update.ps1" -Profil $updateProfil
 
 if ($disableFirewall) {
     Write-Step "PHASE B.14 - Disable Windows Firewall profiles"
-    Invoke-Script (Join-Path $FIREWALL_DIR 'ps1\disable_firewall.ps1')
+    Invoke-Script "$SCRIPTS\firewall.ps1"
 }
 
 Write-Step "PHASE B.15 - UWT equivalent tweaks (privacy, context menu, visual effects)"
-Invoke-Script "$SCRIPTS\13_uwt.ps1"
+Invoke-Script "$SCRIPTS\uwt.ps1"
 
 if ($applyPersonalSettings) {
     Write-Step "PHASE B.16 - Personal shell settings (theme, colors, taskbar)"
-    Invoke-Script "$SCRIPTS\14_personal_settings.ps1"
+    Invoke-Script "$SCRIPTS\personal_settings.ps1"
 } else {
     Write-Step "PHASE B.16 - Personal shell settings (skipped)"
     Write-Host "    Skipped        : user chose not to apply the pack's subjective shell/theme preferences"
-    Write-Log "Skipped: 14_personal_settings.ps1 (user chose not to apply personal settings)" 'INFO'
+    Write-Log "Skipped: personal_settings.ps1 (user chose not to apply personal settings)" 'INFO'
 }
 
 Write-Step "PHASE B.17 - MarkC mouse acceleration fix (1:1 scaling)"
-Invoke-Script "$SCRIPTS\15_mouse_accel.ps1"
+Invoke-Script "$SCRIPTS\mouse_accel.ps1"
 
 if ($setInterruptAffinity) {
     Write-Step "PHASE B.18 - GPU interrupt affinity (pin to core 2)"
-    Invoke-Script (Join-Path $AFFINITY_DIR "ps1\set_affinity.ps1") @{SkipReboot = $true}
+    Invoke-Script "$SCRIPTS\set_affinity.ps1" @{SkipReboot = $true}
 } else {
     Write-Step "PHASE B.18 - GPU interrupt affinity (skipped)"
     Write-Host "    Skipped        : run 6 - Interrupt Affinity\set_affinity.bat after NVIDIA updates"
@@ -396,8 +391,8 @@ if (Test-Path $msiStateFile) {
 
     $ans = Read-Host "  Apply saved MSI configuration? (Y/N) [default: Y]"
     if ($ans -eq '' -or $ans -ieq 'Y') {
-        $restoreScript = Join-Path $MSI_UTILS_DIR "ps1\msi_restore.ps1"
-        & $restoreScript -StateFile $msiStateFile -SkipConfirm
+        $restoreScript = "$SCRIPTS\msi_restore.ps1"
+        & $restoreScript -StateFile $msiStateFile -DataDir $MSI_UTILS_DIR -SkipConfirm
         Write-Log "MSI state restored from snapshot" 'OK'
         $msiStateApplied = $true
     } else {
@@ -414,7 +409,7 @@ if (Test-Path $msiStateFile) {
 
 if ($installNvInspector) {
     Write-Step "PHASE B.20 - NVIDIA Profile Inspector install"
-    Invoke-Script (Join-Path $NVINSPECTOR_DIR 'ps1\install_nvinspector.ps1')
+    Invoke-Script "$SCRIPTS\install_nvinspector.ps1" @{SourceRoot = $NVINSPECTOR_DIR}
 }
 
 # ── OPTIONS: physical uninstalls ──────────────────────────────────────────────
@@ -430,7 +425,7 @@ if ($uninstallEdge) {
 
 # ── Diff report ───────────────────────────────────────────────────────────────
 Write-Step "PHASE C - Recap (what actually changed vs before)"
-& "$SCRIPTS\99_show_diff.ps1"
+& "$SCRIPTS\show_diff.ps1"
 
 # ── Summary ────────────────────────────────────────────────────────────────────
 Write-Host ""
@@ -458,7 +453,7 @@ if ($installNvInspector -and (Test-Path $nvInspectorExe) -and (Test-Path $nvInsp
 }
 Write-Host "  5. Device Manager - disable USB power saving (5 - Device Manager/)"
 Write-Host "  6. Interrupt Affinity - re-run set_affinity.bat after each NVIDIA driver update"
-Write-Host "  7. Standalone reruns if needed: DNS / Windows Update / Firewall (7 - DNS/, 8 - Windows Update/, 9 - Firewall/)"
+Write-Host "  7. Quick reruns if needed: DNS / Windows Update / Firewall (7 - DNS/, 8 - Windows Update/, 1 - Automated/scripts/firewall.bat)"
 Write-Host "  8. NIC settings - disable offloads, buffers in Device Manager"
 Write-Host "  9. Optional timer check: verify with MeasureSleep.exe as admin (Tools/)"
 Write-Host ""
@@ -480,7 +475,7 @@ if ($restart -eq '') { $restart = 'N' }
 if ($restart -ieq 'S') {
     Write-Log "Safe Mode reboot requested by user." 'INFO'
 
-    $defenderLauncher = Join-Path $DEFENDER_DIR 'ps1\run_defender.ps1'
+    $defenderLauncher = "$SCRIPTS\run_defender.ps1"
     if (-not (Test-Path $defenderLauncher)) {
         Write-Host ""
         Write-Host "  ERROR: Defender launcher not found." -ForegroundColor Red

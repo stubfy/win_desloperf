@@ -153,7 +153,7 @@ Windows Registry Editor Version 5.00
 ; 1:1; at high speeds it overshoots. This produces inconsistent muscle memory.
 ; The MarkC fix overrides SmoothMouseXCurve and SmoothMouseYCurve with a perfectly
 ; linear mapping: 1 raw HID count = exactly 1 pixel, regardless of movement speed.
-; Different DPI scaling percentages require different curve values; 15_mouse_accel.ps1
+; Different DPI scaling percentages require different curve values; 16_mouse_accel.ps1
 ; auto-detects the active scaling and imports the matching .reg from mouse_fix/.
 ; The values below are for 100% DPI (LogPixels=96). The .DEFAULT hive values
 ; disable the legacy ballistics thresholds (MouseSpeed/Threshold1/Threshold2).

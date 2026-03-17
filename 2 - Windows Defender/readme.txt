@@ -11,8 +11,8 @@ PROCEDURE
 5. The helper disables the six Defender services, removes Safe Boot, and reboots back to normal Windows
 6. Continue with `3 - MSI Utils/`, `4 - NVInspector/`, `5 - Device Manager/`, `6 - Interrupt Affinity/`, then `Tools/`.
 
-If needed later, the standalone rerun steps are also available at the pack root:
-`7 - DNS/`, `8 - Windows Update/`, `9 - Firewall/`.
+If needed later, the quick rerun entry points are also available:
+`7 - DNS/`, `8 - Windows Update/`, and `1 - Automated/scripts/13_firewall.bat`.
 
 If you already chose `[S]` at the end of `1 - Automated/run_all.bat`, the Desktop helper is already created for you. In that case, skip `run_defender.bat` and just run the Desktop helper once Safe Mode boots.
 
