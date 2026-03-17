@@ -75,7 +75,9 @@ You will be prompted for a few options before anything runs:
 - **Uninstall Edge + WebView2 Runtime** (optional, best-effort), default: Yes
 - **Uninstall OneDrive** (optional), default: Yes
 - **Disable Windows Firewall profiles** (optional), default: Yes
+- **Apply Cloudflare DNS** (optional), default: Yes
 - **Enable SetTimerResolution at startup** (optional), default: Yes. If you already use Process Lasso, you can skip it.
+- **Apply personal shell/theme settings** (optional), default: Yes
 - **Install NVIDIA Profile Inspector to `%APPDATA%\win_deslopper` + Desktop shortcut** (NVIDIA GPU only), default: Yes
 - **Pin GPU interrupt affinity to core 2** (optional), default: Yes. Re-run `6 - Interrupt Affinity/set_affinity.bat` after each NVIDIA driver update.
 
@@ -101,7 +103,7 @@ Scripts executed in order:
 | `03_services.ps1` | Service startup alignment (reference main PC) |
 | `04_bcdedit.ps1` | Boot configuration (dynamictick, legacy menu) |
 | `05_power.ps1` | Ultimate Performance power plan + Bitsum values |
-| `06_dns.ps1` | Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
+| `06_dns.ps1` | Optional Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
 | `08_debloat.ps1` | UWP app removal (Teams, Microsoft 365, Family, Quick Assist, Sticky Notes...) |
 | `09_oosu10.ps1` | O&O ShutUp10++ silent mode (240 tweaks) |
 | `10_timer.ps1` | Optional SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
@@ -112,7 +114,7 @@ Scripts executed in order:
 | `15_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
 | `18_firewall.ps1` | Windows Firewall profiles disabled |
 | `16_uwt.ps1` | UWT-equivalent tweaks (privacy, context menu, visual effects) |
-| `20_personal_settings.ps1` | Personal shell/theme preferences (dark mode, accents, taskbar clock seconds, Explorer presentation) |
+| `20_personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, Explorer presentation) |
 | `17_mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
 | `set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
 

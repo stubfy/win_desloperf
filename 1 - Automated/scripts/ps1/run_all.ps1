@@ -16,7 +16,7 @@
         03 services       -> startup type alignment
         04 bcdedit        -> timer tick + boot menu
         05 power          -> Ultimate Performance plan
-        06 dns            -> Cloudflare DNS
+        06 dns            -> Cloudflare DNS (user choice)
         07 edge           -> Edge policies
         08 debloat        -> UWP app removal
         09 oosu10         -> O&O ShutUp10++ privacy config
@@ -28,7 +28,7 @@
         15 windows_update -> WU profile (user choice)
         18 firewall       -> Firewall disable (user choice)
         16 uwt            -> UWT equivalent tweaks + SPI visual effects
-        20 personal       -> Subjective shell/theme preferences
+        20 personal       -> Subjective shell/theme preferences (user choice)
         17 mouse_accel    -> MarkC mouse fix (DPI-aware)
         21 int_affinity  -> GPU IRQ pin to core 2 (user choice)
       Options - Edge uninstall, OneDrive uninstall (user choice)
@@ -171,6 +171,8 @@ $uninstallEdge     = $true
 $uninstallOneDrive = $true
 $disableFirewall   = $true
 $enableTimerTool   = $true
+$configureDns      = $true
+$applyPersonalSettings = $true
 $installNvInspector = $false
 $updateProfil      = '2'   # default: security only
 $nvInspectorBaseDir = Join-Path $env:APPDATA 'win_deslopper'
@@ -225,6 +227,17 @@ if ($ans -ieq 'N') {
     Write-Log "Option selected: Firewall disable = YES" 'INFO'
 }
 
+Write-Host "     Skip this if you want to keep DHCP/router DNS or another manual DNS setup." -ForegroundColor DarkGray
+$ans = Read-Host "  Apply Cloudflare DNS (1.1.1.1 / 1.0.0.1)? (Y/N) [default: Y]"
+if ($ans -ieq 'N') {
+    $configureDns = $false
+    Write-Log "Option selected: Cloudflare DNS = NO" 'INFO'
+} else {
+    $configureDns = $true
+    Write-Host "  -> Active network adapters will be configured to use Cloudflare DNS." -ForegroundColor Yellow
+    Write-Log "Option selected: Cloudflare DNS = YES" 'INFO'
+}
+
 Write-Host "     Skip this if Process Lasso already manages the system timer resolution." -ForegroundColor DarkGray
 $ans = Read-Host "  Enable SetTimerResolution at startup (~0.52 ms)? (Y/N) [default: Y]"
 if ($ans -ieq 'N') {
@@ -234,6 +247,17 @@ if ($ans -ieq 'N') {
     $enableTimerTool = $true
     Write-Host "  -> SetTimerResolution will be installed to user startup." -ForegroundColor Yellow
     Write-Log "Option selected: SetTimerResolution startup = YES" 'INFO'
+}
+
+Write-Host "     Skip this if you do not want the subjective theme/taskbar/Explorer preferences from this pack." -ForegroundColor DarkGray
+$ans = Read-Host "  Apply personal shell settings (theme, colors, taskbar)? (Y/N) [default: Y]"
+if ($ans -ieq 'N') {
+    $applyPersonalSettings = $false
+    Write-Log "Option selected: Personal settings = NO" 'INFO'
+} else {
+    $applyPersonalSettings = $true
+    Write-Host "  -> Personal shell/theme preferences will be applied near the end of the run." -ForegroundColor Yellow
+    Write-Log "Option selected: Personal settings = YES" 'INFO'
 }
 
 if ($hasNvidiaGpu) {
@@ -290,8 +314,14 @@ Invoke-Script "$SCRIPTS\04_bcdedit.ps1"
 Write-Step "PHASE B.4 - Ultimate Performance power plan"
 Invoke-Script "$SCRIPTS\05_power.ps1"
 
-Write-Step "PHASE B.5 - Cloudflare DNS (1.1.1.1 / 1.0.0.1)"
-Invoke-Script "$SCRIPTS\06_dns.ps1"
+if ($configureDns) {
+    Write-Step "PHASE B.5 - Cloudflare DNS (1.1.1.1 / 1.0.0.1)"
+    Invoke-Script "$SCRIPTS\06_dns.ps1"
+} else {
+    Write-Step "PHASE B.5 - Cloudflare DNS (skipped)"
+    Write-Host "    Skipped        : user chose not to override the current DNS configuration"
+    Write-Log "Skipped: 06_dns.ps1 (user chose not to apply Cloudflare DNS)" 'INFO'
+}
 
 Write-Step "PHASE B.6 - Microsoft Edge placeholder (no policies)"
 Invoke-Script "$SCRIPTS\07_edge.ps1"
@@ -335,8 +365,14 @@ if ($disableFirewall) {
 Write-Step "PHASE B.16 - UWT equivalent tweaks (privacy, context menu, visual effects)"
 Invoke-Script "$SCRIPTS\16_uwt.ps1"
 
-Write-Step "PHASE B.17 - Personal shell settings (theme, colors, taskbar)"
-Invoke-Script "$SCRIPTS\20_personal_settings.ps1"
+if ($applyPersonalSettings) {
+    Write-Step "PHASE B.17 - Personal shell settings (theme, colors, taskbar)"
+    Invoke-Script "$SCRIPTS\20_personal_settings.ps1"
+} else {
+    Write-Step "PHASE B.17 - Personal shell settings (skipped)"
+    Write-Host "    Skipped        : user chose not to apply the pack's subjective shell/theme preferences"
+    Write-Log "Skipped: 20_personal_settings.ps1 (user chose not to apply personal settings)" 'INFO'
+}
 
 Write-Step "PHASE B.18 - MarkC mouse acceleration fix (1:1 scaling)"
 Invoke-Script "$SCRIPTS\17_mouse_accel.ps1"
