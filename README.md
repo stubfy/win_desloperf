@@ -150,7 +150,7 @@ Scripts executed in order:
 | `set_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
 | `firewall.ps1` | Windows Firewall profiles disabled |
 | `uwt.ps1` | UWT-equivalent tweaks (privacy, context menu, visual effects) |
-| `personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, Explorer presentation) |
+| `personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, taskbar End task, Explorer presentation) |
 | `mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
 | `set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
 
@@ -189,7 +189,7 @@ At the end of the script, if you want to disable Defender, you can directly ente
 - HDCP disabled (NVIDIA)
 - Classic context menu (Windows 11)
 - Widgets / News disabled
-- Personal shell/theme tweaks are applied separately in `personal_settings.ps1` (dark mode, black accent, taskbar seconds, classic Alt+Tab, Explorer presentation)
+- Personal shell/theme tweaks are applied separately in `personal_settings.ps1` (dark mode, black accent, taskbar seconds, taskbar End task, classic Alt+Tab, Explorer presentation)
 
 ### Timer resolution options
 

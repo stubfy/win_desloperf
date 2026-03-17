@@ -420,15 +420,6 @@ Windows Registry Editor Version 5.00
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}]
 
 ; ---------------------------------------------------------------------------
-; TASKBAR "END TASK" (Windows 11 24H2+)
-; ---------------------------------------------------------------------------
-; Preference=2 enables the "End task" entry in the taskbar right-click context menu.
-; This is a Task Manager preference flag introduced in Windows 11 24H2 to surface
-; the force-kill option without opening Task Manager. Harmless on earlier builds.
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\TaskManager]
-"Preference"=dword:00000002
-
-; ---------------------------------------------------------------------------
 ; FOLDER TYPE DETECTION
 ; ---------------------------------------------------------------------------
 ; Explorer auto-detects folder content type (Pictures, Videos, Music, Documents)

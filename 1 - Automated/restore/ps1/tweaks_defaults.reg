@@ -169,10 +169,6 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}]
 @="Gallery"
 
-; --- Restaurer clic droit barre des taches ---
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\TaskManager]
-"Preference"=-
-
 ; --- Restaurer detection automatique type de dossier ---
 [HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\AllFolders\Shell]
 "FolderType"=-
