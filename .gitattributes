@@ -1,0 +1,3 @@
+# Export exclusions — not included in GitHub release zips (git archive / tag downloads)
+assets/         export-ignore
+.gitattributes  export-ignore
