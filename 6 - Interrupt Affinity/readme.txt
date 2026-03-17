@@ -1,4 +1,4 @@
-9 - INTERRUPT AFFINITY
+6 - INTERRUPT AFFINITY
 Pinning GPU interrupts to a dedicated CPU core
 ===============================================
 

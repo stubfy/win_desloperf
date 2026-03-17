@@ -1,6 +1,6 @@
 # win_deslopper
 
-![Version](https://img.shields.io/badge/version-0.8-blue)
+![Version](https://img.shields.io/badge/version-0.9-blue)
 ![Windows](https://img.shields.io/badge/Windows_11-25H2-0078D4?logo=windows)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-5391FE?logo=powershell)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -88,6 +88,9 @@ If you pick `[S]`, Safe Mode gets configured and a `Disable Defender and Return 
 
 **3. Follow the manual steps in order (`2 - Windows Defender/run_defender.bat` if you did not choose `[S]`, then folders 3, 4, 5, 6, then NIC Device Manager tweaks, then `Tools/`)**
 
+Standalone rerun steps are also available at the pack root when needed:
+`7 - DNS/set_dns.bat`, `8 - Windows Update/set_windows_update.bat`, `9 - Firewall/disable_firewall.bat`.
+
 The manual folders still contain guidance files where needed.
 
 ---
@@ -103,20 +106,20 @@ Scripts executed in order:
 | `03_services.ps1` | Service startup alignment (reference main PC) |
 | `04_bcdedit.ps1` | Boot configuration (dynamictick, legacy menu) |
 | `05_power.ps1` | Ultimate Performance power plan + Bitsum values |
-| `06_dns.ps1` | Optional Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
-| `08_debloat.ps1` | UWP app removal (Teams, Microsoft 365, Family, Quick Assist, Sticky Notes...) |
-| `09_oosu10.ps1` | O&O ShutUp10++ silent mode (240 tweaks) |
-| `10_timer.ps1` | Optional SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
-| `11_usb.ps1` | USB selective suspend disabled |
-| `12_ai_disable.ps1` | Recall, AI, Copilot disabled (25H2) |
-| `13_telemetry_tasks.ps1` | Telemetry scheduled tasks + PS7 + Brave |
-| `14_network_tweaks.ps1` | Teredo disabled, TCP stack (ECN, RSC off, heuristics off), LSO disabled on active adapters, Nagle disabled per Ethernet interface, QoS bandwidth reservation removed, MaxUserPort extended |
-| `15_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
-| `18_firewall.ps1` | Windows Firewall profiles disabled |
-| `16_uwt.ps1` | UWT-equivalent tweaks (privacy, context menu, visual effects) |
-| `20_personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, Explorer presentation) |
-| `17_mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
-| `set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
+| `7 - DNS\ps1\set_dns.ps1` | Optional Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
+| `06_debloat.ps1` | UWP app removal (Teams, Microsoft 365, Family, Quick Assist, Sticky Notes...) |
+| `07_oosu10.ps1` | O&O ShutUp10++ silent mode (240 tweaks) |
+| `08_timer.ps1` | Optional SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
+| `09_usb.ps1` | USB selective suspend disabled |
+| `10_ai_disable.ps1` | Recall, AI, Copilot disabled (25H2) |
+| `11_telemetry_tasks.ps1` | Telemetry scheduled tasks + PS7 + Brave |
+| `12_network_tweaks.ps1` | Teredo disabled, TCP stack (ECN, RSC off, heuristics off), LSO disabled on active adapters, Nagle disabled per Ethernet interface, QoS bandwidth reservation removed, MaxUserPort extended |
+| `8 - Windows Update\ps1\set_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
+| `9 - Firewall\ps1\disable_firewall.ps1` | Windows Firewall profiles disabled |
+| `13_uwt.ps1` | UWT-equivalent tweaks (privacy, context menu, visual effects) |
+| `14_personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, Explorer presentation) |
+| `15_mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
+| `6 - Interrupt Affinity\ps1\set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
 
 On systems with an NVIDIA GPU, the script can also copy NVInspector to `%APPDATA%\win_deslopper\NVInspector` and create a Desktop shortcut to `NVPI-R.exe`.
 
@@ -124,13 +127,13 @@ At the end of the script, if you want to disable Defender, you can directly ente
 
 ### Windows Update profiles
 
-`15_windows_update.ps1` can also be run standalone at any time:
+`8 - Windows Update\ps1\set_windows_update.ps1` can also be run standalone at any time:
 
 ```powershell
-.\15_windows_update.ps1 -Profil 1   # Maximum - all updates
-.\15_windows_update.ps1 -Profil 2   # Security only - no feature updates, no drivers via WU
-.\15_windows_update.ps1 -Profil 3   # Disable - completely disable WU (services + policies)
-.\15_windows_update.ps1             # Interactive menu
+.\set_windows_update.ps1 -Profil 1   # Maximum - all updates
+.\set_windows_update.ps1 -Profil 2   # Security only - no feature updates, no drivers via WU
+.\set_windows_update.ps1 -Profil 3   # Disable - completely disable WU (services + policies)
+.\set_windows_update.ps1             # Interactive menu
 ```
 
 ### Registry tweaks applied
@@ -151,7 +154,7 @@ At the end of the script, if you want to disable Defender, you can directly ente
 - HDCP disabled (NVIDIA)
 - Classic context menu (Windows 11)
 - Widgets / News disabled
-- Personal shell/theme tweaks are applied separately in `20_personal_settings.ps1` (dark mode, black accent, taskbar seconds, classic Alt+Tab, Explorer presentation)
+- Personal shell/theme tweaks are applied separately in `14_personal_settings.ps1` (dark mode, black accent, taskbar seconds, classic Alt+Tab, Explorer presentation)
 
 ### Timer resolution options
 
@@ -238,7 +241,7 @@ All executions are logged to:
 
 The log includes: pack version, timestamp, OS info, machine name, full output of each script, detailed errors with stack traces.
 
-`10_timer.ps1` will grab and install the VC++ x64 runtime if it's missing (needed by `SetTimerResolution.exe` and `MeasureSleep.exe`).
+`08_timer.ps1` will grab and install the VC++ x64 runtime if it's missing (needed by `SetTimerResolution.exe` and `MeasureSleep.exe`).
 
 ---
 
@@ -253,6 +256,15 @@ The log includes: pack version, timestamp, OS info, machine name, full output of
 | 5 | **6 - Interrupt Affinity** | Automated by `set_affinity.bat`, but you need to re-run after each NVIDIA driver update. | Low |
 | 6 | **NIC Device Manager** | Hardware-dependent NIC settings: disable Interrupt Moderation, EEE, Flow Control, Wake-on-*, LSO V2; max Receive/Transmit Buffers; uncheck power management. Keep Checksum Offload enabled and Speed/Duplex on Auto-Negotiation. | Low |
 | 7 | **Tools** | Complementary tools (Autoruns, temp folders) | Low |
+
+### Standalone rerun steps
+
+These are not mandatory manual steps after a fresh install, but they are exposed at
+the pack root so you can reapply them quickly later without re-running `run_all.bat`.
+
+- `7 - DNS/set_dns.bat` re-applies Cloudflare DNS on active adapters
+- `8 - Windows Update/set_windows_update.bat` switches the Windows Update profile
+- `9 - Firewall/disable_firewall.bat` disables the Windows Firewall profiles again
 
 ### MSI Utils
 
@@ -270,7 +282,7 @@ Which devices get MSI enabled is a judgment call, you have to look at the list a
 The step 1 script detects `msi_state.json` and asks during the automated phase:
 
 ```
->>> PHASE B.20 - MSI interrupt mode (from saved snapshot)
+>>> PHASE B.19 - MSI interrupt mode (from saved snapshot)
     Snapshot found: ...msi_state.json
     Created: 2026-03-16 14:30:00 on DESKTOP-ABC
   Apply saved MSI configuration? (Y/N) [default: Y]
@@ -296,7 +308,6 @@ Restores in order:
 - Services (back to default values)
 - Boot configuration (bcdedit)
 - DNS (back to DHCP)
-- Edge placeholder step (no policies to remove)
 - SetTimerResolution (startup shortcut removed)
 - Power plan (back to Balanced)
 - USB selective suspend (restored)
@@ -307,7 +318,7 @@ Restores in order:
 - GPU interrupt affinity (Affinity Policy keys removed or restored to pre-tweak state)
 - Optional reinstall prompt for Microsoft Edge + WebView2 Runtime / OneDrive
 
-> **Limitation**: Removed UWP apps are not restored automatically. The `10_debloat_restore.ps1` script provides Store reinstall commands.
+> **Limitation**: Removed UWP apps are not restored automatically. The `09_debloat_restore.ps1` script provides Store reinstall commands.
 
 ## Warnings
 

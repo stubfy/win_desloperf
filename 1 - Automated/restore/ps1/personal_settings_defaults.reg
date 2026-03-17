@@ -3,7 +3,7 @@ Windows Registry Editor Version 5.00
 ; ===========================================================================
 ; WIN_DESLOPPER - Personal Settings Defaults
 ; Restores Windows 11 defaults for subjective shell/theme preferences
-; Applied by  : restore\20_personal_settings.ps1
+; Applied by  : restore\14_personal_settings.ps1
 ; ===========================================================================
 
 ; ---------------------------------------------------------------------------

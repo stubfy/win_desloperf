@@ -23,7 +23,7 @@ param(
 # removed. TriggerInfo causes SCM to automatically start DoSvc when certain
 # network events fire (e.g., ETW network connectivity trigger). Removing it
 # prevents SCM from relaunching DoSvc behind our back after Start=4 is applied.
-# This is intentional redundancy on top of DODownloadMode=0 in 12_ai_disable.ps1.
+# This is intentional redundancy on top of DODownloadMode=0 in 10_ai_disable.ps1.
 #
 # Rollback: restore\02_services.ps1 reads backup\services_state.json and
 # restores each service to its pre-tweak startup type.
@@ -408,7 +408,7 @@ function Get-ServiceStartupCatalog {
         'InstallService'  # Microsoft Store installation infrastructure
         'VaultSvc'        # Credential Vault: stores encrypted credentials for apps and Windows
         'W32Time'         # Windows Time: NTP synchronization (keeps system clock accurate)
-        'wuauserv'        # Windows Update Agent: managed separately by 15_windows_update.ps1
+        'wuauserv'        # Windows Update Agent: managed separately by 8 - Windows Update\ps1\set_windows_update.ps1
     )
 
     # ---- AUTOMATIC DELAYED START ----
@@ -569,7 +569,7 @@ foreach ($svc in $serviceCatalog.AutomaticDelayedStart) {
 # Set to Disabled AND remove TriggerInfo to prevent SCM from starting it
 # automatically on network-connectivity ETW events. Without removing TriggerInfo
 # the service can relaunch itself even after the startup type is changed.
-# This is intentionally redundant with DODownloadMode=0 in 12_ai_disable.ps1:
+# This is intentionally redundant with DODownloadMode=0 in 10_ai_disable.ps1:
 # the registry policy blocks P2P downloading, TriggerInfo removal prevents the
 # process from ever running in the background to check for work.
 $doSvc = Get-Service 'DoSvc' -ErrorAction SilentlyContinue

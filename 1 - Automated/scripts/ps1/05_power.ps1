@@ -20,7 +20,7 @@
 #   powercfg -h off removes hiberfil.sys (also set via registry in tweaks_consolidated.reg
 #   HibernateEnabled=0; both layers needed for full removal).
 #
-# Rollback: restore\07_power.ps1
+# Rollback: restore\06_power.ps1
 
 # Duplicate the Ultimate Performance plan (built-in, fixed GUID)
 $dupOutput = powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>&1 | Out-String

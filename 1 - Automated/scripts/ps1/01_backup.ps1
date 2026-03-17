@@ -16,7 +16,7 @@
 #
 #   3. Firewall profile state export (backup\firewall_state.json):
 #      Records the Enabled/Disabled state of each firewall profile (Domain, Private,
-#      Public) before 18_firewall.ps1 disables them. restore\18_firewall.ps1 uses
+#      Public) before 9 - Firewall\ps1\disable_firewall.ps1 disables them. restore\12_firewall.ps1 uses
 #      this to restore the exact original state rather than blindly re-enabling all
 #      profiles (which would be wrong if a profile was already disabled before the pack ran).
 #

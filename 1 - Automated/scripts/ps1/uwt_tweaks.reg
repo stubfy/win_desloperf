@@ -3,8 +3,8 @@ Windows Registry Editor Version 5.00
 ; ===========================================================================
 ; WIN_DESLOPPER - UWT Equivalent Tweaks (converted from settings_v2.ini)
 ; Windows 11 25H2 - Gaming / Performance / Privacy
-; Applied by  : scripts\16_uwt.ps1
-; Rollback    : restore\16_uwt.ps1 + restore\uwt_defaults.reg
+; Applied by  : scripts\13_uwt.ps1
+; Rollback    : restore\13_uwt.ps1 + restore\uwt_defaults.reg
 ; ===========================================================================
 
 ; ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ Windows Registry Editor Version 5.00
 
 ; MinAnimate=0: Disables the minimize/maximize window animation (the collapsing
 ; effect to/from the taskbar button). Eliminated via registry to complement the
-; SPI_SETANIMATION call in 16_uwt.ps1. Both are needed because the SPI call
+; SPI_SETANIMATION call in 13_uwt.ps1. Both are needed because the SPI call
 ; updates the live session while the reg key persists across logons.
 [HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]
 "MinAnimate"="0"
@@ -291,7 +291,7 @@ Windows Registry Editor Version 5.00
 ; into Explorer's context menu handler pipeline. More reliable than deleting
 ; the handler keys (which Windows Update can restore); the block persists even
 ; if the extension is re-registered.
-; (The Copilot CLSID added by 12_ai_disable.ps1 also lives in this key.)
+; (The Copilot CLSID added by 10_ai_disable.ps1 also lives in this key.)
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked]
 ; Cast to Device: Streams media to DLNA/Miracast devices. Rarely used; adds
 ; latency to context menu loading by probing for compatible devices on open.
@@ -330,7 +330,7 @@ Windows Registry Editor Version 5.00
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.dib\Shell\3D Edit]
 
 ; Remove "3D Print with 3D Builder" from file context menus.
-; 3D Builder is a UWP app removed by 08_debloat.ps1; these shell association
+; 3D Builder is a UWP app removed by 06_debloat.ps1; these shell association
 ; keys may survive the package removal and leave broken context menu entries.
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.3mf\Shell\3D Print]
 [-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.bmp\Shell\3D Print]

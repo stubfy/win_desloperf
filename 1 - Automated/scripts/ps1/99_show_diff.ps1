@@ -13,7 +13,7 @@
 #                   Investigate: protected key, unsupported OS version, requires reboot.
 #
 # DiffExcluded services (BITS, UsoSvc, wuauserv): These services are managed by
-# 15_windows_update.ps1 with user-chosen profiles. Their desired final state depends
+# set_windows_update.ps1 with user-chosen profiles. Their desired final state depends
 # on the chosen profile and cannot be statically predicted, so they are excluded from
 # the diff to avoid misleading "failed" entries.
 #
@@ -101,7 +101,7 @@ $svcDesiredMap = @{}
 foreach ($svc in $serviceCatalog.Disabled) {
     $svcDesiredMap[$svc] = 'Disabled'
 }
-# BITS, UsoSvc and wuauserv excluded: their state is overridden by 15_windows_update.ps1
+# BITS, UsoSvc and wuauserv excluded: their state is overridden by set_windows_update.ps1
 foreach ($svc in $serviceCatalog.Manual) {
     if ($svc -notin $serviceCatalog.DiffExcluded) {
         $svcDesiredMap[$svc] = 'Manual'

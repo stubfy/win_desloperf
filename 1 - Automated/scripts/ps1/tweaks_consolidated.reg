@@ -153,7 +153,7 @@ Windows Registry Editor Version 5.00
 ; 1:1; at high speeds it overshoots. This produces inconsistent muscle memory.
 ; The MarkC fix overrides SmoothMouseXCurve and SmoothMouseYCurve with a perfectly
 ; linear mapping: 1 raw HID count = exactly 1 pixel, regardless of movement speed.
-; Different DPI scaling percentages require different curve values; 17_mouse_accel.ps1
+; Different DPI scaling percentages require different curve values; 15_mouse_accel.ps1
 ; auto-detects the active scaling and imports the matching .reg from mouse_fix/.
 ; The values below are for 100% DPI (LogPixels=96). The .DEFAULT hive values
 ; disable the legacy ballistics thresholds (MouseSpeed/Threshold1/Threshold2).
@@ -262,7 +262,7 @@ Windows Registry Editor Version 5.00
 ; WIDGETS / NEWS AND INTERESTS
 ; ---------------------------------------------------------------------------
 ; AllowNewsAndInterests=0 disables the Widgets panel via Group Policy.
-; 08_debloat.ps1 also removes the MicrosoftWindows.Client.WebExperience and
+; 06_debloat.ps1 also removes the MicrosoftWindows.Client.WebExperience and
 ; Microsoft.WidgetsPlatformRuntime UWP packages. Both layers are needed:
 ; the policy prevents re-enablement even if the packages survive or are reinstalled.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Dsh]
@@ -302,7 +302,7 @@ Windows Registry Editor Version 5.00
 ; Starting with Windows 10 2004, Microsoft changed the behavior of timeBeginPeriod:
 ; a process requesting a high-resolution timer no longer raises the system-wide
 ; clock interrupt rate -- the effect is scoped to the requesting process only.
-; SetTimerResolution.exe (installed by 10_timer.ps1) calls NtSetTimerResolution
+; SetTimerResolution.exe (installed by 08_timer.ps1) calls NtSetTimerResolution
 ; to request ~5200 µs. Without GlobalTimerResolutionRequests=1, only the
 ; SetTimerResolution process benefits -- game threads still run at the default
 ; ~15.6 ms clock rate. This key restores the legacy global scope so that the
@@ -362,7 +362,7 @@ Windows Registry Editor Version 5.00
 ; AllowTelemetry=0: Sets the diagnostic data level to "Security only" (minimum).
 ; This is a Group Policy equivalent key. In practice Windows enforces a floor of
 ; 1 (Basic) on Home/Pro SKUs, but the policy key still reduces the volume of
-; data sent. Additional telemetry tasks are disabled in 13_telemetry_tasks.ps1.
+; data sent. Additional telemetry tasks are disabled in 11_telemetry_tasks.ps1.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection]
 "AllowTelemetry"=dword:00000000
 
@@ -372,7 +372,7 @@ Windows Registry Editor Version 5.00
 ; Windows Timeline logs every document/app/URL interaction and can upload it to
 ; Microsoft for cross-device resume. EnableActivityFeed + PublishUserActivities
 ; + UploadUserActivities together fully disable the local logging and cloud sync.
-; Note: CDP (Cross-Device Platform) is also disabled in 12_ai_disable.ps1.
+; Note: CDP (Cross-Device Platform) is also disabled in 10_ai_disable.ps1.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System]
 "EnableActivityFeed"=dword:00000000
 "PublishUserActivities"=dword:00000000
@@ -502,7 +502,7 @@ Windows Registry Editor Version 5.00
 ; optional cross-device cloud sync. AllowClipboardHistory=0 disables the
 ; feature entirely at the policy level, preventing re-enablement from Settings.
 ; AllowCrossDeviceClipboard=0 explicitly blocks cloud clipboard sync (requires
-; CDP -- already disabled via EnableCdp=0 in 12_ai_disable.ps1 -- but added
+; CDP -- already disabled via EnableCdp=0 in 10_ai_disable.ps1 -- but added
 ; here as a defence-in-depth measure).
 ; The HKCU keys are user-level preferences; the HKLM policy keys take
 ; precedence and cannot be overridden by the user.
