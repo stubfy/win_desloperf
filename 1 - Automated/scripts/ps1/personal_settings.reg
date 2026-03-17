@@ -13,28 +13,40 @@ Windows Registry Editor Version 5.00
 
 ; EnableAutoTray=0: Always show all system tray icons.
 ; ShowFrequent/ShowRecent=0: Hide "Frequent" and "Recent" from Quick Access.
+; ShowCloudFilesInQuickAccess=0: Hide Office.com/account-based files from Home.
 ; link=hex:00,00,00,00: Remove the " - Shortcut" suffix from new shortcuts.
 ; AltTabSettings=1: Use the classic Alt+Tab switcher.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]
 "EnableAutoTray"=dword:00000000
 "ShowFrequent"=dword:00000000
 "ShowRecent"=dword:00000000
+"ShowCloudFilesInQuickAccess"=dword:00000000
 "link"=hex:00,00,00,00
 "AltTabSettings"=dword:00000001
 
 ; HideNewAppNotification=1: Hide "a new app was installed" toasts.
 ; ShowSecondsInSystemClock=1: Add seconds to the taskbar clock.
+; ShowTaskViewButton=0: Hide the Task View button from the taskbar.
+; Start_IrisRecommendations=0: Hide Start tips/shortcuts/new-app recommendations.
+; LaunchTo=1: Open File Explorer to This PC instead of Home.
+; TaskbarAl=0: Left-align taskbar buttons like Windows 10.
 ; TaskbarAnimations=0: Disable taskbar button fade animations.
 ; ListviewAlphaSelect=1: Keep translucent file selection rectangles.
 ; ListviewShadow=1: Keep label shadows in Explorer icon/list views.
 ; IconsOnly=0: Keep thumbnails enabled instead of icon-only mode.
+; Hidden=1: Show hidden files, folders, and drives.
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "HideNewAppNotification"=dword:00000001
 "ShowSecondsInSystemClock"=dword:00000001
+"ShowTaskViewButton"=dword:00000000
+"Start_IrisRecommendations"=dword:00000000
+"LaunchTo"=dword:00000001
+"TaskbarAl"=dword:00000000
 "TaskbarAnimations"=dword:00000000
 "ListviewAlphaSelect"=dword:00000001
 "ListviewShadow"=dword:00000001
 "IconsOnly"=dword:00000000
+"Hidden"=dword:00000001
 
 ; ColorPrevalence=1: Use the accent color on title bars/window borders.
 ; ColorizationColor=0xc4000000: Black accent tone.
@@ -59,3 +71,14 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent]
 "StartColorMenu"=dword:ff000000
 "AccentColorMenu"=dword:ff000000
+
+; EnableAutocorrection=0: Disable automatic correction of misspelled words.
+; EnableSpellchecking=0: Disable highlighting of misspelled words.
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\TabletTip\1.7]
+"EnableAutocorrection"=dword:00000000
+"EnableSpellchecking"=dword:00000000
+
+; Enable=1 under QuietHours policy: Turn off Quiet Hours / Do Not Disturb
+; automatic activation rules at policy level.
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\QuietHours]
+"Enable"=dword:00000001
