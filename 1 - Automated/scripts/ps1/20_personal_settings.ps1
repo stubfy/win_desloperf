@@ -15,15 +15,51 @@ if ($result.ExitCode -eq 0) {
     Write-Host "    [WARN] regedit exit code: $($result.ExitCode)"
 }
 
-function Set-QuietHoursPolicyDisabled {
-    $policyPath = 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\QuietHours'
-    if (-not (Test-Path $policyPath)) {
-        New-Item -Path $policyPath -Force | Out-Null
+function Disable-AutoDndRules {
+    # Windows 11 stores automatic Do Not Disturb rules (game, fullscreen, display
+    # duplication, post-update, scheduled) as binary blobs in CloudStore.
+    # A 13-byte blob with no enabled/profile payload = rule disabled.
+    $disabled = [byte[]](0x43,0x42,0x01,0x00,0x0A,0x02,0x01,0x00,0x2A,0x2A,0x00,0x00,0x00)
+
+    $base = "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\" +
+            "default`$windows.data.donotdisturb.quietmoment`$quietmomentlist"
+
+    $moments = @(
+        'quietmomentgame'          # When playing a game
+        'quietmomentpresentation'  # When duplicating your display
+        'quietmomentfullscreen'    # When using an app in full-screen mode
+        'quietmomentpostoobe'      # For the first hour after a Windows feature update
+        'quietmomentscheduled'     # During these times
+    )
+
+    $ok = 0
+    foreach ($m in $moments) {
+        $path = "$base\windows.data.donotdisturb.quietmoment`$$m"
+        try {
+            if (-not (Test-Path $path)) {
+                New-Item -Path $path -Force | Out-Null
+            }
+            Set-ItemProperty -Path $path -Name 'Data' -Value $disabled -Type Binary -Force
+            $ok++
+        } catch {
+            Write-Host "    [WARN] Failed to disable $m : $_"
+        }
     }
 
-    # NoQuietHours policy: 1 disables automatic Do Not Disturb / Quiet Hours behavior.
-    New-ItemProperty -Path $policyPath -Name 'Enable' -PropertyType DWord -Value 1 -Force | Out-Null
-    Write-Host "    [SET] Automatic Do Not Disturb rules disabled via QuietHours policy"
+    # Restart WpnUserService so the new blobs take effect immediately
+    try {
+        Get-Service WpnUserService_* | Restart-Service -Force -ErrorAction Stop
+        Write-Host "    [OK] Automatic Do Not Disturb rules disabled ($ok/5 rules, WpnUserService restarted)"
+    } catch {
+        Write-Host "    [OK] Automatic Do Not Disturb rules disabled ($ok/5 rules)"
+        Write-Host "    [WARN] Could not restart WpnUserService: $_ -- changes apply after reboot"
+    }
+
+    # Clean up legacy QuietHours policy (no longer needed)
+    $legacyPath = 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\QuietHours'
+    if (Test-Path $legacyPath) {
+        Remove-Item -Path $legacyPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Set-ClassicAltTab {
@@ -120,7 +156,7 @@ function Refresh-UserShell {
 }
 
 Set-ClassicAltTab
-Set-QuietHoursPolicyDisabled
+Disable-AutoDndRules
 Refresh-UserPolicy
 Set-DesktopWallpaper -Path ''
 Refresh-UserShell

@@ -156,13 +156,6 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection]
 "DoNotShowFeedbackNotifications"=dword:00000001
 
-; Enable=1 under QuietHours policy: Keeps the global notification system active
-; (notifications are ON) while preventing the OS from auto-activating Focus Assist /
-; Do Not Disturb modes through usage-pattern detection. The user remains in control
-; of when DND is toggled manually.
-[HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\QuietHours]
-"Enable"=dword:00000001
-
 ; ScoobeSystemSettingEnabled=0: Suppresses the "Let's finish setting up your PC"
 ; prompts that Windows shows post-OOBE to push OneDrive sign-in, Microsoft account
 ; linking, Office trial activation, etc.
