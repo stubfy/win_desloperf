@@ -18,8 +18,10 @@ if ($result.ExitCode -eq 0) {
 function Disable-AutoDndRules {
     # Windows 11 stores automatic Do Not Disturb rules (game, fullscreen, display
     # duplication, post-update, scheduled) as binary blobs in CloudStore.
-    # A 13-byte blob with no enabled/profile payload = rule disabled.
-    $disabled = [byte[]](0x43,0x42,0x01,0x00,0x0A,0x02,0x01,0x00,0x2A,0x2A,0x00,0x00,0x00)
+    # Blob layout: 43 42 01 00 | 0A 02 [enabled] 00 | 2A 2A 00 00 00
+    #              header       field1  0=off 1=on     field5 (no profile data)
+    # Using 0x00 at the enabled byte explicitly disables the rule in the Settings UI.
+    $disabled = [byte[]](0x43,0x42,0x01,0x00,0x0A,0x02,0x00,0x00,0x2A,0x2A,0x00,0x00,0x00)
 
     $base = "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\" +
             "default`$windows.data.donotdisturb.quietmoment`$quietmomentlist"
