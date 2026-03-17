@@ -194,3 +194,12 @@ Windows Registry Editor Version 5.00
 ; --- Restaurer NumLock par defaut (0 = off) ---
 [HKEY_CURRENT_USER\Control Panel\Keyboard]
 "InitialKeyboardIndicators"="0"
+
+; --- Restaurer historique clipboard et sync cloud ---
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System]
+"AllowClipboardHistory"=-
+"AllowCrossDeviceClipboard"=-
+
+[HKEY_CURRENT_USER\Software\Microsoft\Clipboard]
+"EnableClipboardHistory"=-
+"EnableCloudClipboard"=-

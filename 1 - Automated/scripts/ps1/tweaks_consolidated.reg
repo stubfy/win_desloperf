@@ -488,3 +488,24 @@ Windows Registry Editor Version 5.00
 ; for new user sessions. Cosmetic preference; no performance impact.
 [HKEY_CURRENT_USER\Control Panel\Keyboard]
 "InitialKeyboardIndicators"="2"
+
+; ---------------------------------------------------------------------------
+; CLIPBOARD HISTORY + CLOUD CLIPBOARD
+; ---------------------------------------------------------------------------
+; Clipboard History (Win+V) stores up to 25 recent clipboard items in RAM.
+; The local feature itself does not exfiltrate data, but enabling it activates
+; a code path that can interact with Connected Devices Platform (CDP) for the
+; optional cross-device cloud sync. AllowClipboardHistory=0 disables the
+; feature entirely at the policy level, preventing re-enablement from Settings.
+; AllowCrossDeviceClipboard=0 explicitly blocks cloud clipboard sync (requires
+; CDP -- already disabled via EnableCdp=0 in 12_ai_disable.ps1 -- but added
+; here as a defence-in-depth measure).
+; The HKCU keys are user-level preferences; the HKLM policy keys take
+; precedence and cannot be overridden by the user.
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System]
+"AllowClipboardHistory"=dword:00000000
+"AllowCrossDeviceClipboard"=dword:00000000
+
+[HKEY_CURRENT_USER\Software\Microsoft\Clipboard]
+"EnableClipboardHistory"=dword:00000000
+"EnableCloudClipboard"=dword:00000000
