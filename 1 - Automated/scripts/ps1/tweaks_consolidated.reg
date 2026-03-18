@@ -543,3 +543,189 @@ Windows Registry Editor Version 5.00
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Classes\ms-gamebarservices\shell\open\command]
 @="systray.exe"
+
+; ---------------------------------------------------------------------------
+; EXPLORER / SYSTEM DEFAULTS (from uwt_tweaks.reg)
+; ---------------------------------------------------------------------------
+
+; NoLowDiskSpaceChecks=1: Suppresses the "Low disk space on drive X" balloon
+; notification. On a gaming PC with large game libraries the drive may run close
+; to capacity intentionally; the repeated warnings serve no purpose.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer]
+"NoLowDiskSpaceChecks"=dword:00000001
+
+; NoUseStoreOpenWith=1: When double-clicking an unregistered file type, Windows
+; normally offers to search the Microsoft Store for an appropriate app. This
+; policy disables that redirect and falls back to the classic "Open with..." dialog.
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
+"NoUseStoreOpenWith"=dword:00000001
+
+; PrintScreenKeyForSnippingEnabled=1: The Print Screen key opens Snipping Tool
+; instead of writing to the clipboard. More ergonomic for selective screenshots.
+[HKEY_CURRENT_USER\Control Panel\Keyboard]
+"PrintScreenKeyForSnippingEnabled"=dword:00000001
+
+; RunningState=0: Ensures the Windows Magnifier accessibility tool is not
+; running at startup. Kept off by default; users who need it can enable manually.
+[HKEY_CURRENT_USER\Software\Microsoft\ScreenMagnifier]
+"RunningState"=dword:00000000
+
+; VisualFXSetting=3: Tells Windows that the user has manually customized the
+; visual effects preset (3=Custom). This prevents Windows from overriding the
+; individual effect settings below when the power plan changes.
+; DragFullWindows=1: Show window contents while dragging (not just the outline).
+; FontSmoothing=2: ClearType subpixel antialiasing (required for readability).
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects]
+"VisualFXSetting"=dword:00000003
+
+[HKEY_CURRENT_USER\Control Panel\Desktop]
+"DragFullWindows"="1"
+"FontSmoothing"="2"
+
+; MinAnimate=0: Disables the minimize/maximize window animation (the collapsing
+; effect to/from the taskbar button). Eliminated via registry to complement the
+; SPI_SETANIMATION call in registry.ps1. Both are needed because the SPI call
+; updates the live session while the reg key persists across logons.
+[HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics]
+"MinAnimate"="0"
+
+; HideSystray=1: Hides the Windows Security (Defender) shield icon from the
+; system tray. Distinct from DisableNotifications in this file
+; which suppresses the toasts -- this hides the permanent tray icon.
+; Both together prevent the tray from being cluttered with Defender alerts on
+; a PC where Defender is intentionally disabled.
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender Security Center\Systray]
+"HideSystray"=dword:00000001
+
+; AllowWindowsInkWorkspace=0: Disables Windows Ink Workspace (pen/stylus tools).
+; On a gaming PC without a stylus this feature is unused; disabling removes the
+; associated background process (InkWorkspaceHosted).
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsInkWorkspace]
+"AllowWindowsInkWorkspace"=dword:00000000
+
+; AutoRestartShell=1: Instructs Windows to automatically restart Explorer.exe
+; if it crashes, instead of leaving the user with a blank desktop. This is the
+; OS default on most builds; set explicitly to ensure it is not disabled.
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]
+"AutoRestartShell"=dword:00000001
+
+; ---------------------------------------------------------------------------
+; PERFORMANCE - CPU SCHEDULER FOREGROUND BOOST
+; ---------------------------------------------------------------------------
+
+; Win32PrioritySeparation controls how the Windows CPU scheduler distributes
+; time between foreground and background threads. The value is a 6-bit field:
+;   Bits [1:0] quantum length : 0=short, 2=long
+;   Bits [3:2] quantum type   : 0=variable, 2=fixed
+;   Bits [5:4] foreground boost: 0=none, 1=2x, 2=3x
+; 0x26 = 0b100110 => short quantums, variable, maximum foreground boost (3x).
+; This means foreground threads get 3x longer CPU slices than background threads,
+; improving UI responsiveness and game loop consistency.
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\PriorityControl]
+"Win32PrioritySeparation"=dword:00000026
+
+; ---------------------------------------------------------------------------
+; SECURITY / UAC
+; ---------------------------------------------------------------------------
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System]
+; HideFastUserSwitching=1: Removes the "Switch user" button from the Start menu.
+; On a single-user gaming PC this option is irrelevant and wastes space.
+"HideFastUserSwitching"=dword:00000001
+; EnableLUA=1: Keeps UAC (User Account Control) enabled. Required by StartAllBack,
+; most security software, and COM elevation dialogs. Do NOT set to 0 even if
+; running as admin -- many applications check this flag before requesting elevation.
+"EnableLUA"=dword:00000001
+
+; ---------------------------------------------------------------------------
+; CONTEXT MENU - REMOVALS (Shell Extensions Blocked)
+; ---------------------------------------------------------------------------
+
+; Shell Extensions\Blocked: Any CLSID listed here is prevented from loading
+; into Explorer's context menu handler pipeline. More reliable than deleting
+; the handler keys (which Windows Update can restore); the block persists even
+; if the extension is re-registered.
+; (The Copilot CLSID added by privacy.ps1 also lives in this key.)
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked]
+; Cast to Device: Streams media to DLNA/Miracast devices. Rarely used; adds
+; latency to context menu loading by probing for compatible devices on open.
+"{7AD84985-87B4-4a16-BE58-8B72A5B390F7}"=""
+; Share (modern share sheet): Opens the Windows 11 share panel. Blocked because
+; the full context menu is already restored in this file; the
+; Share entry is redundant and slow to populate.
+"{E2BF9676-5F8F-435C-97EB-11607A5BEDF7}"=""
+; Give Access To (network sharing wizard): Sets up shared folder permissions via
+; a multi-step wizard. Only useful on home networks; removed to keep menu clean.
+"{f81e9010-6ea4-11ce-a7ff-00aa003ca9f6}"=""
+; Include in Library: Adds the selected folder to a Windows Library. Libraries
+; are a legacy feature not used on most modern setups.
+"{289AF617-1CC3-42A6-926C-E6A863F0E3BA}"=""
+; Restore Previous Versions (files): File History / shadow copy integration.
+; Slow to load (queries VSS) and irrelevant if shadow copies are not enabled.
+"{596AB062-B4D2-4215-9F74-E9109B0A8153}"=""
+; Restore Previous Versions (directories): Same as above, for folders.
+"{3742D782-BC80-4488-9B6E-9AD4E9AAC76C}"=""
+; Scan with Windows Defender: Triggers an on-demand Defender scan. Blocked
+; because Defender is disabled in the manual Safe Mode step; the entry would
+; fail silently anyway.
+"{09A47860-11B0-4DA5-AFA5-26D86198A780}"=""
+
+; Remove "Edit with Paint 3D" from image context menus.
+; Paint 3D is not installed on clean 25H2 builds but these Shell handler keys
+; can persist from upgrades. Deleting them cleans up image context menus.
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.bmp\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpeg\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpg\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.png\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.gif\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.tif\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.tiff\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.ico\Shell\3D Edit]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.dib\Shell\3D Edit]
+
+; Remove "3D Print with 3D Builder" from file context menus.
+; 3D Builder is a UWP app removed by debloat.ps1; these shell association
+; keys may survive the package removal and leave broken context menu entries.
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.3mf\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.bmp\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpg\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.jpeg\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.png\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.stl\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.wrl\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.fbx\Shell\3D Print]
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Classes\SystemFileAssociations\.obj\Shell\3D Print]
+
+; "Open Command Prompt here" on folders, folder backgrounds and drives.
+; Adds a shell verb that opens cmd.exe in the selected directory. Uses
+; 'cmd.exe /s /k pushd "%V"' so the path is set correctly including UNC paths.
+; The "Admin" variant is intentionally not added here -- running an elevated CMD
+; from every folder is a privilege escalation risk; use the standard one instead.
+[HKEY_CLASSES_ROOT\Directory\shell\OpenCMDHere]
+@="Open Command Prompt here"
+"Icon"="cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\shell\OpenCMDHere\command]
+@="cmd.exe /s /k pushd \"%V\""
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDHere]
+@="Open Command Prompt here"
+"Icon"="cmd.exe"
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDHere\command]
+@="cmd.exe /s /k pushd \"%V\""
+
+[HKEY_CLASSES_ROOT\Drive\shell\OpenCMDHere]
+@="Open Command Prompt here"
+"Icon"="cmd.exe"
+
+[HKEY_CLASSES_ROOT\Drive\shell\OpenCMDHere\command]
+@="cmd.exe /s /k pushd \"%V\""
+
+; Remove any previously registered "Open Command Prompt as Admin here" entries.
+; Elevated CMD-from-context-menu is a convenience shortcut that bypasses the
+; intentional friction of UAC, making accidental privilege escalation easier.
+[-HKEY_CLASSES_ROOT\Directory\shell\OpenCMDAdminHere]
+[-HKEY_CLASSES_ROOT\Directory\Background\shell\OpenCMDAdminHere]
+[-HKEY_CLASSES_ROOT\Drive\shell\OpenCMDAdminHere]
+[-HKEY_CLASSES_ROOT\DesktopBackground\Shell\OpenCMDAdminHere]

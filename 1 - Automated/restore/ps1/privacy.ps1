@@ -1,4 +1,29 @@
-# restore\ai_restore.ps1 - Remove AI / Recall / Copilot policies
+# restore\privacy.ps1 - Restore privacy registry defaults + AI/Copilot policies
+# Combines: restore\ai_restore.ps1 + privacy_defaults.reg import
+#
+# Note: OOSU10, telemetry tasks, and wscsvc are NOT auto-restored here.
+#   - OOSU10: use the system restore point created by backup.ps1
+#   - Telemetry tasks: re-enable manually via Task Scheduler
+#     (Microsoft\Windows\Customer Experience Improvement Program, etc.)
+#   - wscsvc: restored automatically via restore\services.ps1 (JSON backup)
+
+# === SECTION: Privacy registry defaults ===
+
+$PRIVACY_DEFAULTS = Join-Path $PSScriptRoot "privacy_defaults.reg"
+
+if (Test-Path $PRIVACY_DEFAULTS) {
+    $result = Start-Process regedit.exe -ArgumentList "/s `"$PRIVACY_DEFAULTS`"" -Wait -PassThru
+    if ($result.ExitCode -eq 0) {
+        Write-Host "    [OK] privacy_defaults.reg imported"
+    } else {
+        Write-Host "    [WARN] regedit exit code: $($result.ExitCode)"
+    }
+} else {
+    Write-Host "    [WARN] privacy_defaults.reg not found: $PRIVACY_DEFAULTS" -ForegroundColor Yellow
+}
+
+# === SECTION: AI / Recall / Copilot restore ===
+# Removes policy keys written by the AI disable section of privacy.ps1.
 
 $paths = @(
     'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI'

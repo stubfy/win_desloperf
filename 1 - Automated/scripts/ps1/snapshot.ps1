@@ -8,7 +8,7 @@
 #   - Which values were changed by the pack (applied)
 #   - Which values failed to apply (failed)
 #
-# Registry parsing: the script reads tweaks_consolidated.reg, uwt_tweaks.reg
+# Registry parsing: the script reads tweaks_consolidated.reg, privacy_tweaks.reg
 # and personal_settings.reg
 # line-by-line and extracts every DWORD and string value. For each value it
 # records the BEFORE (current system value) and DESIRED (value the pack will set),
@@ -31,7 +31,7 @@ $ROOT       = Split-Path (Split-Path $PSScriptRoot)
 $BACKUP_DIR = Join-Path $ROOT "backup"
 $REG_FILES  = @(
     (Join-Path $PSScriptRoot "tweaks_consolidated.reg")
-    (Join-Path $PSScriptRoot "uwt_tweaks.reg")
+    (Join-Path $PSScriptRoot "privacy_tweaks.reg")
     (Join-Path $PSScriptRoot "personal_settings.reg")
 )
 $REQUIRED_TRACKED_REGISTRY_VALUES = @(
@@ -43,18 +43,18 @@ $REQUIRED_TRACKED_REGISTRY_VALUES = @(
 # tracked for regression detection post-Windows-Update. Each entry defines the
 # path, value name, expected desired value, and type (for display in show_diff).
 $ADDITIONAL_TRACKED_REG_VALUES = @(
-    # ai_disable.ps1 - Recall / Click to Do
+    # privacy.ps1 - Recall / Click to Do
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI';                               Name='DisableAIDataAnalysis'; Desired=1;   Type='DWORD' }
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI';                               Name='AllowRecallEnablement'; Desired=0;   Type='DWORD' }
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI';                               Name='DisableClickToDo';      Desired=1;   Type='DWORD' }
     @{ Path='HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ClickToDo';        Name='DisableClickToDo';      Desired=1;   Type='DWORD' }
-    # ai_disable.ps1 - Paint AI features
+    # privacy.ps1 - Paint AI features
     @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableCocreator';        Desired=1; Type='DWORD' }
     @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableGenerativeFill';   Desired=1; Type='DWORD' }
     @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableImageCreator';     Desired=1; Type='DWORD' }
     @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableGenerativeErase';  Desired=1; Type='DWORD' }
     @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableRemoveBackground'; Desired=1; Type='DWORD' }
-    # ai_disable.ps1 - Notepad AI features
+    # privacy.ps1 - Notepad AI features
     @{ Path='HKCU:\Software\Microsoft\Notepad\Settings';  Name='DisableAIFeatures'; Desired=1; Type='DWORD' }
     # set_windows_update.ps1 Profile 2/3 - anti-forced-reboot
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'; Name='NoAutoRebootWithLoggedOnUsers'; Desired=1; Type='DWORD' }

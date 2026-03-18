@@ -15,7 +15,7 @@
 #   6. Remove the OneDrive namespace extension from the Explorer navigation pane
 #      by setting System.IsPinnedToNameSpaceTree=0 for the OneDrive CLSID.
 #   7. Apply DisableFileSyncNGSC=1 policy to block reinstallation by Windows.
-#      Note: this policy is also set in uwt_tweaks.reg as a baseline.
+#      Note: this policy is also set in privacy_tweaks.reg as a baseline.
 #
 # FILE SAFETY: Local OneDrive files (if sync was active) are preserved in
 # %USERPROFILE%\OneDrive and are NOT deleted. Only the application and its

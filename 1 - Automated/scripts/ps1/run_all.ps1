@@ -12,23 +12,17 @@
     Execution order:
       Phase A - Snapshot + Backup (snapshot, backup)
       Phase B - Tweaks in dependency order:
-        registry       -> consolidated reg file (performance, privacy, QoL)
+        registry       -> consolidated reg file + visual effects + MarkC mouse fix
         services       -> startup type alignment
-        bcdedit        -> timer tick + boot menu
-        power              -> Ultimate Performance plan
+        performance    -> Ultimate Performance plan + BCD + USB selective suspend
         [7 - DNS]             -> Cloudflare DNS (user choice)
         debloat            -> UWP app removal
-        oosu10             -> O&O ShutUp10++ privacy config
+        privacy            -> OOSU10 + AI/Copilot/Recall + telemetry tasks + privacy registry
         timer              -> Optional SetTimerResolution startup
-        usb                -> USB selective suspend
-        ai_disable         -> Recall/Copilot/AI policies
-        telemetry_tasks    -> Scheduled tasks + PS7 + Brave
-        network_tweaks     -> Teredo disable
+        network_tweaks     -> Teredo disable + TCP/Nagle/QoS
         [8 - Windows Update]  -> WU profile (user choice)
         firewall           -> Firewall disable (user choice)
-        uwt                -> UWT equivalent tweaks + SPI visual effects
         personal_settings  -> Subjective shell/theme preferences (user choice)
-        mouse_accel        -> MarkC mouse fix (DPI-aware)
         [6 - Interrupt Affinity] -> GPU IRQ pin to core 2 (user choice)
       Options - Edge uninstall, OneDrive uninstall (user choice)
       Phase C - Diff report (show_diff)
@@ -314,92 +308,74 @@ Write-Step "PHASE A.1 - Backup (restore point + service/registry state)"
 Invoke-Script "$SCRIPTS\backup.ps1"
 
 # ── PHASE B: Automated tweaks ──────────────────────────────────────────────────
-Write-Step "PHASE B.1 - Registry tweaks (consolidated, deduplicated)"
+Write-Step "PHASE B.1 - Registry tweaks + visual effects + MarkC mouse fix"
 Invoke-Script "$SCRIPTS\registry.ps1"
 
 Write-Step "PHASE B.2 - Apply service startup tweaks"
 Invoke-Script "$SCRIPTS\services.ps1"
 
-Write-Step "PHASE B.3 - Boot configuration (bcdedit)"
-Invoke-Script "$SCRIPTS\bcdedit.ps1"
-
-Write-Step "PHASE B.4 - Ultimate Performance power plan"
-Invoke-Script "$SCRIPTS\power.ps1"
+Write-Step "PHASE B.3 - System performance (power plan, BCD, USB suspend)"
+Invoke-Script "$SCRIPTS\performance.ps1"
 
 if ($configureDns) {
-    Write-Step "PHASE B.5 - Cloudflare DNS (1.1.1.1 / 1.0.0.1)"
+    Write-Step "PHASE B.4 - Cloudflare DNS (1.1.1.1 / 1.0.0.1)"
     Invoke-Script "$SCRIPTS\set_dns.ps1"
 } else {
-    Write-Step "PHASE B.5 - Cloudflare DNS (skipped)"
+    Write-Step "PHASE B.4 - Cloudflare DNS (skipped)"
     Write-Host "    Skipped        : user chose not to override the current DNS configuration"
     Write-Log "Skipped: set_dns.ps1 (user chose not to apply Cloudflare DNS)" 'INFO'
 }
 
-Write-Step "PHASE B.6 - Remove bloatware UWP apps"
+Write-Step "PHASE B.5 - Remove bloatware UWP apps"
 Invoke-Script "$SCRIPTS\debloat.ps1"
 
-Write-Step "PHASE B.7 - O&O ShutUp10++ (silent mode)"
-Invoke-Script "$SCRIPTS\oosu10.ps1"
+Write-Step "PHASE B.6 - Privacy & AI (OOSU10, telemetry, AI/Copilot, privacy registry)"
+Invoke-Script "$SCRIPTS\privacy.ps1"
 
 if ($enableTimerTool) {
-    Write-Step "PHASE B.8 - SetTimerResolution at startup"
+    Write-Step "PHASE B.7 - SetTimerResolution at startup"
     Invoke-Script "$SCRIPTS\timer.ps1"
 } else {
-    Write-Step "PHASE B.8 - SetTimerResolution at startup (skipped)"
+    Write-Step "PHASE B.7 - SetTimerResolution at startup (skipped)"
     Write-Host "    Skipped        : user chose not to install the timer tool"
     Write-Host "                     Process Lasso users can use its built-in timer resolution tool instead"
     Write-Log "Skipped: timer.ps1 (user chose not to enable SetTimerResolution startup)" 'INFO'
 }
 
-Write-Step "PHASE B.9 - USB selective suspend"
-Invoke-Script "$SCRIPTS\usb.ps1"
-
-Write-Step "PHASE B.10 - Disable AI / Recall / Copilot (25H2)"
-Invoke-Script "$SCRIPTS\ai_disable.ps1"
-
-Write-Step "PHASE B.11 - Telemetry scheduled tasks + PS7 + Brave"
-Invoke-Script "$SCRIPTS\telemetry_tasks.ps1"
-
-Write-Step "PHASE B.12 - Additional network tweaks (Teredo)"
+Write-Step "PHASE B.8 - Additional network tweaks (Teredo, TCP, Nagle, QoS)"
 Invoke-Script "$SCRIPTS\network_tweaks.ps1"
 
-Write-Step "PHASE B.13 - Windows Update profile: $profilLabel"
+Write-Step "PHASE B.9 - Windows Update profile: $profilLabel"
 Invoke-Script "$SCRIPTS\set_windows_update.ps1" @{Profil = $updateProfil}
 
 if ($disableFirewall) {
-    Write-Step "PHASE B.14 - Disable Windows Firewall profiles"
+    Write-Step "PHASE B.10 - Disable Windows Firewall profiles"
     Invoke-Script "$SCRIPTS\firewall.ps1"
 }
 
-Write-Step "PHASE B.15 - UWT equivalent tweaks (privacy, context menu, visual effects)"
-Invoke-Script "$SCRIPTS\uwt.ps1"
-
 if ($applyPersonalSettings) {
-    Write-Step "PHASE B.16 - Personal shell settings (theme, colors, taskbar, Settings app)"
+    Write-Step "PHASE B.11 - Personal shell settings (theme, colors, taskbar, Settings app)"
     Invoke-Script "$SCRIPTS\personal_settings.ps1"
 } else {
-    Write-Step "PHASE B.16 - Personal shell settings (skipped)"
+    Write-Step "PHASE B.11 - Personal shell settings (skipped)"
     Write-Host "    Skipped        : user chose not to apply the pack's subjective shell/theme preferences"
     Write-Log "Skipped: personal_settings.ps1 (user chose not to apply personal settings)" 'INFO'
 }
 
-Write-Step "PHASE B.17 - MarkC mouse acceleration fix (1:1 scaling)"
-Invoke-Script "$SCRIPTS\mouse_accel.ps1"
-
 if ($setInterruptAffinity) {
-    Write-Step "PHASE B.18 - GPU interrupt affinity (pin to core 2)"
+    Write-Step "PHASE B.12 - GPU interrupt affinity (pin to core 2)"
     Invoke-Script "$SCRIPTS\set_affinity.ps1" @{SkipReboot = $true}
 } else {
-    Write-Step "PHASE B.18 - GPU interrupt affinity (skipped)"
+    Write-Step "PHASE B.12 - GPU interrupt affinity (skipped)"
     Write-Host "    Skipped        : run 6 - Interrupt Affinity\set_affinity.bat after NVIDIA updates"
     Write-Log "Skipped: set_affinity.ps1 (user opted out)" 'INFO'
 }
 
-# ── PHASE B.19 - MSI interrupt mode ───────────────────────────────────────────
+# ── PHASE B.13 - MSI interrupt mode ───────────────────────────────────────────
 $msiStateFile    = Join-Path $MSI_UTILS_DIR "msi_state.json"
 $msiStateApplied = $false
 if (Test-Path $msiStateFile) {
-    Write-Step "PHASE B.19 - MSI interrupt mode (from saved snapshot)"
+    Write-Step "PHASE B.13 - MSI interrupt mode (from saved snapshot)"
     $msiMeta = (Get-Content $msiStateFile -Encoding UTF8 | ConvertFrom-Json)._meta
     Write-Host "    Snapshot found: $msiStateFile" -ForegroundColor Cyan
     Write-Host "    Created: $($msiMeta.created) on $($msiMeta.machine)" -ForegroundColor DarkGray
@@ -415,7 +391,7 @@ if (Test-Path $msiStateFile) {
         Write-Log "Skipped: MSI restore (user opted out)" 'INFO'
     }
 } else {
-    Write-Step "PHASE B.19 - MSI interrupt mode (no snapshot found)"
+    Write-Step "PHASE B.13 - MSI interrupt mode (no snapshot found)"
     Write-Host "    No msi_state.json found in 3 - MSI Utils/." -ForegroundColor DarkGray
     Write-Host "    Configure MSI manually via MSI_util_v3.exe, then run msi_snapshot.bat to save" -ForegroundColor DarkGray
     Write-Host "    your settings -- next time run_all.bat runs, it will apply them automatically." -ForegroundColor DarkGray
@@ -423,7 +399,7 @@ if (Test-Path $msiStateFile) {
 }
 
 if ($installNvInspector) {
-    Write-Step "PHASE B.20 - NVIDIA Profile Inspector install"
+    Write-Step "PHASE B.14 - NVIDIA Profile Inspector install"
     Invoke-Script "$SCRIPTS\install_nvinspector.ps1" @{SourceRoot = $NVINSPECTOR_DIR}
 }
 

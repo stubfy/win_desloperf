@@ -135,23 +135,17 @@ Scripts executed in order:
 | Script | Purpose |
 |--------|---------|
 | `backup.ps1` | Windows restore point + service/registry state export |
-| `registry.ps1` | Consolidated, deduplicated registry tweaks |
+| `registry.ps1` | Consolidated registry tweaks + visual effects SPI (live session) + MarkC mouse fix (auto-detects DPI scaling) |
 | `services.ps1` | Service startup alignment (built-in catalog) |
-| `bcdedit.ps1` | Boot configuration (dynamictick, legacy menu) |
-| `power.ps1` | Ultimate Performance power plan + PPM Rocket (immediate max CPU frequency) |
+| `performance.ps1` | Ultimate Performance power plan + PPM Rocket (immediate max CPU frequency), BCD (dynamictick, legacy menu), USB selective suspend disabled |
 | `set_dns.ps1` | Optional Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
 | `debloat.ps1` | UWP app removal: Microsoft bloatware (Teams, Copilot, Outlook, Sticky Notes...), Xbox overlay, OEM apps (HP/Dell/Lenovo), pre-installed third-party apps (Spotify, Netflix, TikTok, Candy Crush...) |
-| `oosu10.ps1` | O&O ShutUp10++ silent mode (240 tweaks) |
+| `privacy.ps1` | O&O ShutUp10++ (240 tweaks) + Recall, Click to Do, Copilot, Paint AI, Notepad AI, Edge AI/sidebar disabled + telemetry scheduled tasks + PS7 telemetry + Brave policies + privacy registry tweaks |
 | `timer.ps1` | Optional SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
-| `usb.ps1` | USB selective suspend disabled |
-| `ai_disable.ps1` | Recall, Click to Do, Copilot, Paint AI (Cocreator/GenFill/GenErase/RemoveBG), Notepad AI, Edge Copilot/sidebar disabled (25H2) |
-| `telemetry_tasks.ps1` | Telemetry scheduled tasks + PS7 telemetry + Brave policies (background, metrics, VPN, Wallet, Leo AI, Rewards, Talk, News) |
 | `network_tweaks.ps1` | Teredo disabled, TCP stack (ECN, RSC off, heuristics off), LSO disabled on active adapters, Nagle disabled per Ethernet interface, QoS bandwidth reservation removed, MaxUserPort extended |
 | `set_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
 | `firewall.ps1` | Windows Firewall profiles disabled |
-| `uwt.ps1` | UWT-equivalent tweaks (privacy, context menu, visual effects) |
 | `personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, taskbar End task, Explorer presentation, Settings Home hidden) |
-| `mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
 | `set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
 
 On systems with an NVIDIA GPU, the script can also copy NVInspector to `%APPDATA%\win_desloperf\NVInspector` and create a Desktop shortcut to `NVPI-R.exe`.
@@ -320,7 +314,7 @@ Which devices get MSI enabled is a judgment call, you have to look at the list a
 The step 1 script detects `msi_state.json` and asks during the automated phase:
 
 ```
->>> PHASE B.19 - MSI interrupt mode (from saved snapshot)
+>>> PHASE B.13 - MSI interrupt mode (from saved snapshot)
     Snapshot found: ...msi_state.json
     Created: 2026-03-16 14:30:00 on DESKTOP-ABC
   Apply saved MSI configuration? (Y/N) [default: Y]
@@ -342,21 +336,17 @@ If a device changed PCI slot since the snapshot, its InstanceId will differ and 
 
 Restores in order:
 
-- Registry (from backup created by `backup.ps1`)
+- Registry (from backup + visual effects SPI reset + mouse curves reverted to Windows default)
 - Services (back to saved state from `backup/services_state.json`)
-- Boot configuration (bcdedit)
+- System performance (BCD entries removed, power plan back to Balanced, USB selective suspend restored)
 - DNS (back to DHCP)
 - SetTimerResolution (startup shortcut removed)
-- Power plan (back to Balanced)
-- USB selective suspend (restored)
-- AI/Recall/Copilot policy keys (removed)
+- Privacy & AI (privacy registry defaults + AI/Recall/Copilot policy keys removed)
 - UWP app reinstallation help (`debloat_restore.ps1` provides Store/winget commands)
 - Network tweaks (Teredo, TCP stack, LSO, Nagle, QoS restored to Windows defaults)
 - Windows Update (restored to Maximum / Windows default)
 - Windows Firewall profiles (restored to saved state or Windows default)
-- UWT equivalent tweaks (visual effects, privacy keys restored to Windows defaults)
 - Personal shell/theme settings (restored to Windows defaults)
-- Mouse acceleration curves (MarkC fix reverted to Windows default)
 - GPU interrupt affinity (Affinity Policy keys removed or restored to pre-tweak state)
 - Optional reinstall prompt for Microsoft Edge + WebView2 Runtime / OneDrive
 
