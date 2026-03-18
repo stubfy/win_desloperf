@@ -44,7 +44,7 @@ In this pack you will find tweaks for:
 - **Boot**: legacy boot menu
 - **Network**: Cloudflare DNS (optional), network throttling disabled, TCP stack tuned (ECN, RSS, CUBIC, Nagle off), LSO off, QoS reservation removed
 - **Windows Update**: configurable profile: Maximum / Security only / Disabled. Security only is often the best.
-- **Personal settings**: a dedicated script groups subjective theme/taskbar/Explorer preferences separately, optional
+- **Personal settings**: a dedicated script groups subjective theme/taskbar/Explorer/Settings preferences separately, optional
 
 The pack is mostly automated via scripts. Tweaks that can't be automated are in separate folders, organized by steps (2, 3, 4...) in the root of the pack.
 Some folders remain manual because they may need to be reapplied later (for example, after an NVIDIA driver update, you should manually re-run the step 6 folder).
@@ -150,7 +150,7 @@ Scripts executed in order:
 | `set_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
 | `firewall.ps1` | Windows Firewall profiles disabled |
 | `uwt.ps1` | UWT-equivalent tweaks (privacy, context menu, visual effects) |
-| `personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, taskbar End task, Explorer presentation) |
+| `personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, taskbar End task, Explorer presentation, Settings Home hidden) |
 | `mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
 | `set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
 
@@ -192,7 +192,7 @@ Profile 2 also sets `NoAutoRebootWithLoggedOnUsers=1` (Windows will not reboot t
 - Classic context menu (Windows 11)
 - Widgets / News disabled
 - Start menu Recommended section hidden
-- Personal shell/theme tweaks are applied separately in `personal_settings.ps1` (dark mode, black accent, taskbar seconds, taskbar End task, classic Alt+Tab, Explorer presentation)
+- Personal shell/theme tweaks are applied separately in `personal_settings.ps1` (dark mode, black accent, taskbar seconds, taskbar End task, classic Alt+Tab, Explorer presentation, Settings Home hidden)
 
 ### Timer resolution options
 

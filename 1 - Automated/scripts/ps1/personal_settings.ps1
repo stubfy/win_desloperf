@@ -35,6 +35,98 @@ function Set-ClassicAltTab {
     Write-Host "    [SET] Classic Alt+Tab enabled"
 }
 
+function Get-SettingsPageVisibilityBackupFile {
+    $automatedRoot = Split-Path (Split-Path $PSScriptRoot)
+    $backupDir = Join-Path $automatedRoot 'backup'
+    if (-not (Test-Path $backupDir)) {
+        New-Item -Path $backupDir -ItemType Directory -Force | Out-Null
+    }
+
+    return Join-Path $backupDir 'personal_settings_settings_page_visibility.json'
+}
+
+function Save-SettingsPageVisibilityBackup {
+    param(
+        [bool]$Existed,
+        [AllowNull()]
+        [string]$Value
+    )
+
+    $backupFile = Get-SettingsPageVisibilityBackupFile
+    if (Test-Path $backupFile) {
+        return
+    }
+
+    [PSCustomObject]@{
+        Existed = $Existed
+        Value   = $Value
+    } | ConvertTo-Json | Set-Content -Path $backupFile -Encoding UTF8
+}
+
+function Get-VisibilityTokens {
+    param(
+        [AllowNull()]
+        [string]$TokenString
+    )
+
+    if ([string]::IsNullOrWhiteSpace($TokenString)) {
+        return @()
+    }
+
+    return @(
+        $TokenString.Split(';') |
+            ForEach-Object { $_.Trim().ToLowerInvariant() } |
+            Where-Object { $_ } |
+            Select-Object -Unique
+    )
+}
+
+function Set-SettingsHomeHidden {
+    $policyPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
+    if (-not (Test-Path $policyPath)) {
+        New-Item -Path $policyPath -Force | Out-Null
+    }
+
+    $currentValue = (Get-ItemProperty -Path $policyPath -Name 'SettingsPageVisibility' -ErrorAction SilentlyContinue).SettingsPageVisibility
+    Save-SettingsPageVisibilityBackup -Existed (-not [string]::IsNullOrWhiteSpace($currentValue)) -Value $currentValue
+
+    $newValue = $null
+    if ([string]::IsNullOrWhiteSpace($currentValue)) {
+        $newValue = 'hide:home'
+    } elseif ($currentValue -match '^(?<Mode>hide|showonly)\s*:(?<Tokens>.*)$') {
+        $mode = $Matches.Mode.ToLowerInvariant()
+        $tokens = Get-VisibilityTokens -TokenString $Matches.Tokens
+
+        if ($mode -eq 'hide') {
+            if ($tokens -contains 'home') {
+                Write-Host "    [SET] Settings Home already hidden"
+                return
+            }
+
+            $newValue = 'hide:' + (($tokens + 'home') -join ';')
+        } else {
+            $visiblePages = @($tokens | Where-Object { $_ -ne 'home' })
+            if ($visiblePages.Count -eq $tokens.Count) {
+                Write-Host "    [SET] Settings Home already hidden by existing show-only policy"
+                return
+            }
+
+            if ($visiblePages.Count -eq 0) {
+                $newValue = 'hide:home'
+                Write-Host "    [WARN] Existing Settings page policy only exposed Home; replaced with hide:home and saved the original value for restore" -ForegroundColor Yellow
+            } else {
+                $newValue = 'showonly:' + ($visiblePages -join ';')
+            }
+        }
+    } else {
+        $newValue = 'hide:home'
+        Write-Host "    [WARN] Existing SettingsPageVisibility value was not recognized; replaced with hide:home and saved the original value for restore" -ForegroundColor Yellow
+    }
+
+    Set-ItemProperty -Path $policyPath -Name 'SettingsPageVisibility' -Value $newValue -Type String -Force | Out-Null
+    Write-Host "    [SET] Settings Home hidden"
+}
+
 function Refresh-UserPolicy {
     $result = Start-Process -FilePath "$env:SystemRoot\System32\gpupdate.exe" `
         -ArgumentList '/target:user /force' `
@@ -135,6 +227,7 @@ function Refresh-UserShell {
 }
 
 Set-ClassicAltTab
+Set-SettingsHomeHidden
 Refresh-UserPolicy
 Warn-WallpaperOverrides
 Set-DesktopWallpaper -Path ''

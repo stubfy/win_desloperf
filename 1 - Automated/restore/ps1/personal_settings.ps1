@@ -32,6 +32,101 @@ function Restore-AltTabDefault {
     Write-Host "    [SET] Alt+Tab restored to Windows default"
 }
 
+function Get-SettingsPageVisibilityBackupFile {
+    $automatedRoot = Split-Path (Split-Path $PSScriptRoot)
+    $backupDir = Join-Path $automatedRoot 'backup'
+    return Join-Path $backupDir 'personal_settings_settings_page_visibility.json'
+}
+
+function Get-VisibilityTokens {
+    param(
+        [AllowNull()]
+        [string]$TokenString
+    )
+
+    if ([string]::IsNullOrWhiteSpace($TokenString)) {
+        return @()
+    }
+
+    return @(
+        $TokenString.Split(';') |
+            ForEach-Object { $_.Trim().ToLowerInvariant() } |
+            Where-Object { $_ } |
+            Select-Object -Unique
+    )
+}
+
+function Remove-EmptyExplorerPolicyKey {
+    $policyPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
+    if (-not (Test-Path $policyPath)) {
+        return
+    }
+
+    $remainingValues = (Get-Item -Path $policyPath -ErrorAction SilentlyContinue).Property
+    if (-not $remainingValues -or $remainingValues.Count -eq 0) {
+        Remove-Item -Path $policyPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Restore-SettingsHomeDefault {
+    $policyPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
+    $backupFile = Get-SettingsPageVisibilityBackupFile
+
+    if (Test-Path $backupFile) {
+        try {
+            $backup = Get-Content -Path $backupFile -Encoding UTF8 | ConvertFrom-Json
+            if ($backup.Existed) {
+                if (-not (Test-Path $policyPath)) {
+                    New-Item -Path $policyPath -Force | Out-Null
+                }
+
+                Set-ItemProperty -Path $policyPath -Name 'SettingsPageVisibility' -Value ([string]$backup.Value) -Type String -Force | Out-Null
+                Write-Host "    [SET] Settings page visibility restored from backup"
+            } else {
+                if (Test-Path $policyPath) {
+                    Remove-ItemProperty -Path $policyPath -Name 'SettingsPageVisibility' -ErrorAction SilentlyContinue
+                }
+
+                Remove-EmptyExplorerPolicyKey
+                Write-Host "    [SET] Settings Home restored to Windows default"
+            }
+
+            Remove-Item -Path $backupFile -Force -ErrorAction SilentlyContinue
+            return
+        } catch {
+            Write-Host "    [WARN] Settings Home backup could not be read; falling back to token cleanup" -ForegroundColor Yellow
+        }
+    }
+
+    if (-not (Test-Path $policyPath)) {
+        Write-Host "    [SET] Settings Home already at Windows default"
+        return
+    }
+
+    $currentValue = (Get-ItemProperty -Path $policyPath -Name 'SettingsPageVisibility' -ErrorAction SilentlyContinue).SettingsPageVisibility
+    if ([string]::IsNullOrWhiteSpace($currentValue)) {
+        Remove-ItemProperty -Path $policyPath -Name 'SettingsPageVisibility' -ErrorAction SilentlyContinue
+        Remove-EmptyExplorerPolicyKey
+        Write-Host "    [SET] Settings Home already at Windows default"
+        return
+    }
+
+    if ($currentValue -match '^hide\s*:(?<Tokens>.*)$') {
+        $tokens = @(Get-VisibilityTokens -TokenString $Matches.Tokens | Where-Object { $_ -ne 'home' })
+        if ($tokens.Count -eq 0) {
+            Remove-ItemProperty -Path $policyPath -Name 'SettingsPageVisibility' -ErrorAction SilentlyContinue
+            Remove-EmptyExplorerPolicyKey
+        } else {
+            Set-ItemProperty -Path $policyPath -Name 'SettingsPageVisibility' -Value ('hide:' + ($tokens -join ';')) -Type String -Force | Out-Null
+        }
+
+        Write-Host "    [SET] Settings Home restored to Windows default"
+        return
+    }
+
+    Write-Host "    [WARN] Existing Settings page policy was left unchanged (no backup found to restore it safely)" -ForegroundColor Yellow
+}
+
 function Refresh-UserPolicy {
     $result = Start-Process -FilePath "$env:SystemRoot\System32\gpupdate.exe" `
         -ArgumentList '/target:user /force' `
@@ -127,6 +222,7 @@ function Refresh-UserShell {
 }
 
 Restore-AltTabDefault
+Restore-SettingsHomeDefault
 Refresh-UserPolicy
 Warn-WallpaperOverrides
 $defaultWallpaper = if (Test-Path "$env:SystemRoot\Web\Wallpaper\Windows\img0.jpg") {

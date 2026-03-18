@@ -261,8 +261,8 @@ if ($ans -ieq 'N') {
     Write-Log "Option selected: SetTimerResolution startup = YES" 'INFO'
 }
 
-Write-Host "     Skip this if you do not want the subjective theme/taskbar/Explorer preferences from this pack." -ForegroundColor DarkGray
-$ans = Read-Host "  Apply personal shell settings (theme, colors, taskbar)? (Y/N) [default: Y]"
+Write-Host "     Skip this if you do not want the subjective theme/taskbar/Explorer/Settings preferences from this pack." -ForegroundColor DarkGray
+$ans = Read-Host "  Apply personal shell settings (theme, colors, taskbar, Settings app)? (Y/N) [default: Y]"
 if ($ans -ieq 'N') {
     $applyPersonalSettings = $false
     Write-Log "Option selected: Personal settings = NO" 'INFO'
@@ -375,7 +375,7 @@ Write-Step "PHASE B.15 - UWT equivalent tweaks (privacy, context menu, visual ef
 Invoke-Script "$SCRIPTS\uwt.ps1"
 
 if ($applyPersonalSettings) {
-    Write-Step "PHASE B.16 - Personal shell settings (theme, colors, taskbar)"
+    Write-Step "PHASE B.16 - Personal shell settings (theme, colors, taskbar, Settings app)"
     Invoke-Script "$SCRIPTS\personal_settings.ps1"
 } else {
     Write-Step "PHASE B.16 - Personal shell settings (skipped)"
