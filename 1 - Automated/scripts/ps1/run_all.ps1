@@ -601,12 +601,14 @@ $hasMsiSnapshot      = Test-Path $msiStateFile
 
 $defaultOptions = Get-RunAllDefaultOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot
 $launchOptions  = Load-RunAllOptions -Path $RUN_ALL_OPTIONS_FILE -Defaults $defaultOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot
+$reviewedLaunchOptionsSequentially = $false
 
 if (Show-LaunchOptionsSummary -Options $launchOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot -OptionsFile $RUN_ALL_OPTIONS_FILE -MsiStateFile $msiStateFile) {
     Write-Log 'Launch options accepted from the current summary.' 'INFO'
 } else {
     Write-Host ''
     Write-Log 'Launch options summary declined; switching to sequential prompts.' 'INFO'
+    $reviewedLaunchOptionsSequentially = $true
     $launchOptions = Show-LaunchOptionsFallback -Options $launchOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot -OptionsFile $RUN_ALL_OPTIONS_FILE
 }
 
@@ -817,9 +819,13 @@ Write-Log '============================================================'
 if ($defenderStep) {
     Write-Host '  Defender was selected at launch.' -ForegroundColor Yellow
     Write-Host '  Rebooting into Safe Mode will happen only if you confirm it now.' -ForegroundColor DarkGray
+    $safeModeDefault = if ($reviewedLaunchOptionsSequentially) { 'N' } else { 'Y' }
+    if ($reviewedLaunchOptionsSequentially) {
+        Write-Host '  Because you reviewed the optional choices manually, the reboot default is now No.' -ForegroundColor DarkGray
+    }
     Write-Host ''
-    $restart = Read-Host 'Reboot into Safe Mode now for the Defender step? (Y/N) [default: Y]'
-    if ([string]::IsNullOrWhiteSpace($restart)) { $restart = 'Y' }
+    $restart = Read-Host "Reboot into Safe Mode now for the Defender step? (Y/N) [default: $safeModeDefault]"
+    if ([string]::IsNullOrWhiteSpace($restart)) { $restart = $safeModeDefault }
 
     if ($restart -ieq 'Y') {
         Write-Log 'Safe Mode reboot confirmed by user for Defender step.' 'INFO'
@@ -865,6 +871,7 @@ if ($defenderStep) {
         Write-Log 'Normal reboot skipped by user.' 'INFO'
     }
 }
+
 
 
 
