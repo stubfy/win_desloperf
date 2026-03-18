@@ -1,4 +1,4 @@
-# win_deslopper
+# win_desloperf
 
 ![Version](https://img.shields.io/badge/version-0.9-blue)
 ![Windows](https://img.shields.io/badge/Windows_11-25H2-0078D4?logo=windows)
@@ -79,7 +79,7 @@ You will be prompted for a few options before anything runs:
 - **Apply Cloudflare DNS** (optional), default: Yes
 - **Enable SetTimerResolution at startup** (optional), default: Yes. If you already use Process Lasso, you can skip it.
 - **Apply personal shell/theme settings** (optional), default: Yes
-- **Install NVIDIA Profile Inspector to `%APPDATA%\win_deslopper` + Desktop shortcut** (NVIDIA GPU only), default: Yes
+- **Install NVIDIA Profile Inspector to `%APPDATA%\win_desloperf` + Desktop shortcut** (NVIDIA GPU only), default: Yes
 - **Pin GPU interrupt affinity to core 2** (optional), default: Yes. Re-run `6 - Interrupt Affinity/set_affinity.bat` after each NVIDIA driver update.
 
 Estimated duration: 5 to 15 minutes. A reboot prompt is shown at the end.
@@ -108,7 +108,7 @@ No git, GitHub Desktop, or terminal knowledge is required.
 
 The updater:
 - reads your current local pack version
-- checks the latest GitHub tag for `stubfy/win_deslopper`
+- checks the latest GitHub tag for `stubfy/win_desloperf`
 - shows the changelog tag by tag before asking for confirmation
 - updates the pack **in place** so the folder path stays the same
 - keeps a backup of the previous pack next to the current folder
@@ -154,7 +154,7 @@ Scripts executed in order:
 | `mouse_accel.ps1` | MarkC mouse acceleration fix (auto-detects DPI scaling) |
 | `set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
 
-On systems with an NVIDIA GPU, the script can also copy NVInspector to `%APPDATA%\win_deslopper\NVInspector` and create a Desktop shortcut to `NVPI-R.exe`.
+On systems with an NVIDIA GPU, the script can also copy NVInspector to `%APPDATA%\win_desloperf\NVInspector` and create a Desktop shortcut to `NVPI-R.exe`.
 
 At the end of the script, if you want to disable Defender, you can directly enter Safe Mode by choosing the S option.
 
@@ -274,7 +274,7 @@ Noisy stuff like `SysMain`, `DPS`, `DiagTrack`, `WSearch` gets disabled. Most se
 All executions are logged to:
 
 ```
-%APPDATA%\win_deslopper\logs\win_deslopper.log
+%APPDATA%\win_desloperf\logs\win_desloperf.log
 ```
 
 The log includes: pack version, timestamp, OS info, machine name, full output of each script, detailed errors with stack traces.
@@ -289,7 +289,7 @@ The log includes: pack version, timestamp, OS info, machine name, full output of
 |------|------|-----------|------------|
 | 1 | **2 - Windows Defender** | Requires Safe Mode; PPL and Tamper Protection block full disable in normal mode | High |
 | 2 | **3 - MSI Utils** | Manual identification of compatible devices required on first run | Moderate |
-| 3 | **4 - NVInspector** | `run_all.bat` can install NVInspector to `%APPDATA%\win_deslopper` and add a Desktop shortcut. Profile tuning remains manual; pre-configured profiles are included in base-settings. | Low |
+| 3 | **4 - NVInspector** | `run_all.bat` can install NVInspector to `%APPDATA%\win_desloperf` and add a Desktop shortcut. Profile tuning remains manual; pre-configured profiles are included in base-settings. | Low |
 | 4 | **5 - Device Manager** | Disable unused devices (HDA Controller, IME, Hyper-V driver, GS Wavetable, etc.) to remove their DPCs and interrupts; which devices are safe to disable depends on your hardware | Low |
 | 5 | **6 - Interrupt Affinity** | Automated by `set_affinity.bat`, but you need to re-run after each NVIDIA driver update. | Low |
 | 6 | **NIC Device Manager** | Hardware-dependent NIC settings: disable Interrupt Moderation, EEE, Flow Control, Wake-on-*, LSO V2; max Receive/Transmit Buffers; uncheck power management. Keep Checksum Offload enabled and Speed/Duplex on Auto-Negotiation. | Low |
@@ -363,7 +363,7 @@ Restores in order:
 ## Project structure
 
 ```
-win_deslopper/
+win_desloperf/
 ├── 1 - Automated/          Core automation (run_all.bat, restore_all.bat, scripts/)
 ├── 2 - Windows Defender/   Manual Defender disable (requires Safe Mode)
 ├── 3 - MSI Utils/          MSI interrupt mode configuration

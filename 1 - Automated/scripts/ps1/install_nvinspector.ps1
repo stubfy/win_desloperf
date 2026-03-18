@@ -64,7 +64,7 @@ if (-not $sourceDir) {
     return
 }
 
-$installRoot = Join-Path $env:APPDATA 'win_deslopper'
+$installRoot = Join-Path $env:APPDATA 'win_desloperf'
 $installDir  = Join-Path $installRoot 'NVInspector'
 $exePath     = Join-Path $installDir 'NVPI-R.exe'
 $desktopDir  = [System.Environment]::GetFolderPath('Desktop')
@@ -101,7 +101,7 @@ $wsh = New-Object -ComObject WScript.Shell
 $shortcut = $wsh.CreateShortcut($shortcutPath)
 $shortcut.TargetPath       = $exePath
 $shortcut.WorkingDirectory = $installDir
-$shortcut.Description      = 'NVIDIA Profile Inspector - win_deslopper'
+$shortcut.Description      = 'NVIDIA Profile Inspector - win_desloperf'
 $shortcut.IconLocation     = "$exePath,0"
 $shortcut.Save()
 

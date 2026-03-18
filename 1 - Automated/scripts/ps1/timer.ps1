@@ -38,7 +38,7 @@ function Ensure-VcRuntimeForTimerTools {
         return $true
     }
 
-    $installerPath = Join-Path ([System.IO.Path]::GetTempPath()) 'win_deslopper_vc_redist.x64.exe'
+    $installerPath = Join-Path ([System.IO.Path]::GetTempPath()) 'win_desloperf_vc_redist.x64.exe'
     Write-Host "    VC++ runtime   : missing, downloading Microsoft Visual C++ Redistributable..." -ForegroundColor Yellow
 
     try {
@@ -92,9 +92,9 @@ if (-not (Ensure-VcRuntimeForTimerTools)) {
     return
 }
 
-# Install to %APPDATA%\win_deslopper\ so the binary persists across pack updates
+# Install to %APPDATA%\win_desloperf\ so the binary persists across pack updates
 # without requiring admin rights to the original pack directory at runtime.
-$installDir = Join-Path $env:APPDATA "win_deslopper"
+$installDir = Join-Path $env:APPDATA "win_desloperf"
 if (-not (Test-Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }

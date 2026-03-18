@@ -1,7 +1,7 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    win_deslopper - Main launcher
+    win_desloperf - Main launcher
     Windows 11 25H2 - Gaming optimization / Debloat / QoL
 
 .DESCRIPTION
@@ -33,7 +33,7 @@
       Options - Edge uninstall, OneDrive uninstall (user choice)
       Phase C - Diff report (show_diff)
 
-    Logging: all output is written to %APPDATA%\win_deslopper\logs\win_deslopper.log
+    Logging: all output is written to %APPDATA%\win_desloperf\logs\win_desloperf.log
     Format: [HH:mm:ss] [LEVEL] message
     Levels: INFO, STEP, RUN, OUT, OK, WARN, ERROR
 
@@ -54,8 +54,8 @@ $PACK_ROOT    = Split-Path $ROOT -Parent
 $SCRIPTS      = $PSScriptRoot
 $MSI_UTILS_DIR   = Join-Path $PACK_ROOT "3 - MSI Utils"
 $NVINSPECTOR_DIR = Join-Path $PACK_ROOT "4 - NVInspector"
-$LOG_DIR      = Join-Path $env:APPDATA 'win_deslopper\logs'
-$LOG_FILE     = Join-Path $LOG_DIR "win_deslopper.log"
+$LOG_DIR      = Join-Path $env:APPDATA 'win_desloperf\logs'
+$LOG_FILE     = Join-Path $LOG_DIR "win_desloperf.log"
 
 if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null }
 
@@ -157,14 +157,14 @@ function Get-PreferredDisplayGpu {
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "  win_deslopper $PACK_VERSION" -ForegroundColor Cyan
+Write-Host "  win_desloperf $PACK_VERSION" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  by stubfy" -ForegroundColor DarkGray
 Write-Host ""
 
 # ── Log init ───────────────────────────────────────────────────────────────────
 Write-Log "============================================================"
-Write-Log "win_deslopper $PACK_VERSION" 'INFO'
+Write-Log "win_desloperf $PACK_VERSION" 'INFO'
 Write-Log "Date   : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" 'INFO'
 Write-Log "OS     : $([System.Environment]::OSVersion.VersionString)" 'INFO'
 Write-Log "Machine: $env:COMPUTERNAME" 'INFO'
@@ -187,7 +187,7 @@ $configureDns      = $true
 $applyPersonalSettings = $true
 $installNvInspector = $false
 $updateProfil      = '2'   # default: security only
-$nvInspectorBaseDir = Join-Path $env:APPDATA 'win_deslopper'
+$nvInspectorBaseDir = Join-Path $env:APPDATA 'win_desloperf'
 $nvInspectorExe    = Join-Path $nvInspectorBaseDir 'NVInspector\NVPI-R.exe'
 $nvInspectorShortcut = Join-Path ([System.Environment]::GetFolderPath('Desktop')) 'NVIDIA Profile Inspector.lnk'
 $preferredGpu = Get-PreferredDisplayGpu

@@ -75,7 +75,7 @@ if %errorlevel% neq 0 (
 set "DEFENDER_SCRIPT=$defenderScript"
 echo.
 echo  =========================================================
-echo   win_deslopper -- Disable Defender and Return to Normal Mode
+echo   win_desloperf -- Disable Defender and Return to Normal Mode
 echo  =========================================================
 echo.
 echo  This will:

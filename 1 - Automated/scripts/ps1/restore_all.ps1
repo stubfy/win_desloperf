@@ -1,7 +1,7 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    win_deslopper - Full restore
+    win_desloperf - Full restore
     Reverts all tweaks applied by run_all.ps1
 
 .DESCRIPTION
@@ -60,7 +60,7 @@ function Invoke-Script {
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Yellow
-Write-Host "   WIN_DESLOPPER - RESTORE                      " -ForegroundColor Yellow
+Write-Host "   WIN_DESLOPERF - RESTORE                      " -ForegroundColor Yellow
 Write-Host "================================================" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "This operation reverts all tweaks applied by run_all.ps1" -ForegroundColor Red

@@ -1,7 +1,7 @@
 Windows Registry Editor Version 5.00
 
 ; ===========================================================================
-; WIN_DESLOPPER - UWT Equivalent Tweaks (converted from settings_v2.ini)
+; WIN_DESLOPERF - UWT Equivalent Tweaks (converted from settings_v2.ini)
 ; Windows 11 25H2 - Gaming / Performance / Privacy
 ; Applied by  : scripts\14_uwt.ps1
 ; Rollback    : restore\13_uwt.ps1 + restore\uwt_defaults.reg

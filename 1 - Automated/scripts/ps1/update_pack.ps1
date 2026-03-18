@@ -1,7 +1,7 @@
 #Requires -Version 5.0
 <#
 .SYNOPSIS
-    win_deslopper pack updater.
+    win_desloperf pack updater.
 .DESCRIPTION
     Checks the latest GitHub tag, shows the changelog tag-by-tag, and can
     replace the current pack in place without requiring git on the user side.
@@ -18,7 +18,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ROOT = if (-not [string]::IsNullOrWhiteSpace($RootPath)) { (Get-Item $RootPath).FullName } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$REPO = 'stubfy/win_deslopper'
+$REPO = 'stubfy/win_desloperf'
 $VERSION_FILE = Join-Path $ROOT 'pack-version.txt'
 $LEGACY_VERSION_FILE = Join-Path $ROOT '1 - Automated\scripts\ps1\run_all.ps1'
 
@@ -60,7 +60,7 @@ function Write-Err {
 function Get-WebRequestParams {
     $params = @{
         Headers = @{
-            'User-Agent' = 'win_deslopper-updater'
+            'User-Agent' = 'win_desloperf-updater'
             'Accept'     = 'application/vnd.github+json'
         }
         TimeoutSec = $TimeoutSec
@@ -324,7 +324,7 @@ $movedNewPack = $false
 
 try {
     Write-Host ''
-    Write-Host '  win_deslopper - Applying update' -ForegroundColor Cyan
+    Write-Host '  win_desloperf - Applying update' -ForegroundColor Cyan
     Write-Host ''
 
     Wait-ForParentExit -Id $ParentPid
@@ -391,7 +391,7 @@ finally {
 }
 
 Write-Host ''
-Write-Host '  win_deslopper - Pack update' -ForegroundColor Cyan
+Write-Host '  win_desloperf - Pack update' -ForegroundColor Cyan
 Write-Host ("  " + (Get-Date -Format 'yyyy-MM-dd HH:mm')) -ForegroundColor DarkGray
 Write-Host ''
 
@@ -488,7 +488,7 @@ if ($answer -notin @('Y', 'y')) {
     exit 0
 }
 
-$tempRoot = Join-Path $env:TEMP ("win_deslopper-update-" + [guid]::NewGuid().ToString('N'))
+$tempRoot = Join-Path $env:TEMP ("win_desloperf-update-" + [guid]::NewGuid().ToString('N'))
 $zipPath = Join-Path $tempRoot 'pack.zip'
 $extractPath = Join-Path $tempRoot 'extract'
 $helperPath = Join-Path $tempRoot 'apply_update.ps1'
