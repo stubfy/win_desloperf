@@ -57,16 +57,24 @@ function Get-ExactServiceStartupType {
 
 # System restore point
 Write-Host "    Creating restore point... " -NoNewline
+$restorePointCreated = $false
 try {
     Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue
     Checkpoint-Computer `
         -Description "OptiPack - Before tweaks $(Get-Date -Format 'yyyy-MM-dd HH:mm')" `
         -RestorePointType MODIFY_SETTINGS `
         -ErrorAction Stop
+    $restorePointCreated = $true
     Write-Host "[OK]" -ForegroundColor Green
 } catch {
-    Write-Host "[WARNING: $($_.Exception.Message)]" -ForegroundColor Yellow
-    Write-Host "    Restore point may fail if another was created recently."
+    $message = $_.Exception.Message
+    if ($message -match 'already been created within the past 1440 minutes') {
+        Write-Host "[SKIPPED]" -ForegroundColor Yellow
+        Write-Host "    Restore point not created: Windows already has one from the last 24 hours."
+    } else {
+        Write-Host "[WARNING]" -ForegroundColor Yellow
+        Write-Host "    Restore point failed: $message" -ForegroundColor Yellow
+    }
 }
 
 # Export service states (for precise rollback)
@@ -153,3 +161,4 @@ Set-ItemProperty -Path $cmPath -Name 'BackupCount'          -Value 2 -Type DWord
 Write-Host "    Automatic daily registry backup enabled (2 copies)"
 
 Write-Host "    Backup complete: $BACKUP_DIR"
+
