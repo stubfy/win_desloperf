@@ -5,5 +5,5 @@ if %errorlevel% neq 0 (
     exit /b
 )
 set "DEFENDER_DISABLE_PS1=%~dp0ps1\defender_disable.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%DEFENDER_DISABLE_PS1%"
+powershell -NoProfile -ExecutionPolicy RemoteSigned -Command "Unblock-File -LiteralPath '%DEFENDER_DISABLE_PS1%' -ErrorAction SilentlyContinue; & '%DEFENDER_DISABLE_PS1%'"
 pause

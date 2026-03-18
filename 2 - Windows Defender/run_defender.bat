@@ -19,7 +19,7 @@ if not exist "%RUN_DEFENDER_PS1%" (
 
 if defined SAFEBOOT_OPTION goto safe_mode
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%RUN_DEFENDER_PS1%"
+powershell -NoProfile -ExecutionPolicy RemoteSigned -Command "Unblock-File -LiteralPath '%RUN_DEFENDER_PS1%' -ErrorAction SilentlyContinue; & '%RUN_DEFENDER_PS1%'"
 pause
 exit /b
 
@@ -45,7 +45,7 @@ echo    2. Remove Safe Boot flag
 echo    3. Reboot to normal Windows
 echo.
 pause
-powershell -NoProfile -ExecutionPolicy Bypass -File "%DISABLE_DEFENDER_PS1%"
+powershell -NoProfile -ExecutionPolicy RemoteSigned -Command "Unblock-File -LiteralPath '%DISABLE_DEFENDER_PS1%' -ErrorAction SilentlyContinue; & '%DISABLE_DEFENDER_PS1%'"
 if errorlevel 1 (
     echo.
     echo  Defender script failed. Safe Boot was kept enabled.
