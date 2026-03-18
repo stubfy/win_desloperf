@@ -509,6 +509,7 @@ function Get-ServiceStartupCatalog {
         Defaults               = $defaults
         Tracked                = @($disabled + $manual + $automatic + $automaticDelayedStart)
         DiffExcluded           = @('BITS', 'UsoSvc', 'wuauserv')
+        DiffVolatile           = @('DeviceAssociationService', 'IKEEXT', 'PcaSvc')
     }
 }
 
@@ -641,4 +642,5 @@ if ($doSvc) {
 } else {
     Write-Host "    [NOT FOUND]  DoSvc" -ForegroundColor Gray
 }
+
 

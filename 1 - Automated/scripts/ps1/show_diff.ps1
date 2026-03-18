@@ -24,6 +24,16 @@
 $ROOT      = Split-Path (Split-Path $PSScriptRoot)
 $SNAP_FILE = Join-Path $ROOT "backup\snapshot_latest.json"
 $serviceCatalog = & (Join-Path $PSScriptRoot 'services.ps1') -ExportCatalogOnly
+$volatileRegistryKeys = @(
+    'HKCU:\Control Panel\Keyboard|InitialKeyboardIndicators'
+)
+$volatileRegistryApplied = [System.Collections.Generic.List[object]]::new()
+$volatileServicesApplied = [System.Collections.Generic.List[object]]::new()
+$volatileServices = if ($serviceCatalog.PSObject.Properties.Name -contains 'DiffVolatile') {
+    @($serviceCatalog.DiffVolatile)
+} else {
+    @()
+}
 
 function Get-ExactServiceStartupType {
     param([Parameter(Mandatory)][string]$Name)
@@ -63,6 +73,8 @@ foreach ($data in $snap.Registry) {
     $type    = $data.Type
     $before  = $data.Before
     $desired = $data.Desired
+    $entryId = "$path|$name"
+    $isVolatile = $entryId -in $volatileRegistryKeys
 
     $current = $null
     try {
@@ -77,14 +89,21 @@ foreach ($data in $snap.Registry) {
 
     if ($current -eq $desiredN) {
         if ($beforeN -eq $desiredN) {
-            $regAlready++
+            if (-not $isVolatile) {
+                $regAlready++
+            }
         } else {
-            $regChanged.Add([PSCustomObject]@{
+            $changeRecord = [PSCustomObject]@{
                 Path   = $path
                 Name   = $name
                 Before = if ($null -eq $beforeN) { '(missing)' } else { $beforeN }
                 After  = $current
-            })
+            }
+            if ($isVolatile) {
+                $volatileRegistryApplied.Add($changeRecord)
+            } else {
+                $regChanged.Add($changeRecord)
+            }
         }
     } else {
         $regFailed.Add([PSCustomObject]@{
@@ -131,9 +150,20 @@ foreach ($prop in $snap.Services.PSObject.Properties) {
     $current = Get-ExactServiceStartupType -Name $svcName
     if (-not $current) { continue }
 
+    $isVolatile = $svcName -in $volatileServices
     if ($current -eq $desired) {
-        if ($before -eq $desired) { $svcAlready++ }
-        else { $svcChanged.Add([PSCustomObject]@{ Name=$svcName; Before=$before; After=$current }) }
+        if ($before -eq $desired) {
+            if (-not $isVolatile) {
+                $svcAlready++
+            }
+        } else {
+            $changeRecord = [PSCustomObject]@{ Name=$svcName; Before=$before; After=$current }
+            if ($isVolatile) {
+                $volatileServicesApplied.Add($changeRecord)
+            } else {
+                $svcChanged.Add($changeRecord)
+            }
+        }
     } else {
         $svcFailed.Add([PSCustomObject]@{ Name=$svcName; Current=$current; Desired=$desired })
     }
@@ -366,6 +396,23 @@ if ($svcChanged.Count -gt 0) {
     Write-Host "  Services - applied ($($svcChanged.Count)):" -ForegroundColor Green
     foreach ($s in $svcChanged) {
         Write-Host ("    + {0,-35}  {1}  ->  {2}" -f $s.Name, $s.Before, $s.After) -ForegroundColor Green
+    }
+}
+
+if ($volatileRegistryApplied.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Registry - volatile / re-applied ($($volatileRegistryApplied.Count), not counted):" -ForegroundColor Yellow
+    foreach ($r in $volatileRegistryApplied) {
+        Write-Host ("    ~ {0,-40}  {1}  ->  {2}" -f $r.Name, $r.Before, $r.After) -ForegroundColor Yellow
+        Write-Host ("      $(fPath $r.Path)") -ForegroundColor DarkGray
+    }
+}
+
+if ($volatileServicesApplied.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Services - volatile / re-applied ($($volatileServicesApplied.Count), not counted):" -ForegroundColor Yellow
+    foreach ($s in $volatileServicesApplied) {
+        Write-Host ("    ~ {0,-35}  {1}  ->  {2}" -f $s.Name, $s.Before, $s.After) -ForegroundColor Yellow
     }
 }
 
