@@ -71,13 +71,14 @@ The Windows install is fresh, and the "before" screenshot was not taken on the f
 1 - Automated/run_all.bat   (double-click, UAC prompt is automatic)
 ```
 
-Before anything runs, `run_all.bat` shows a summary of the current launch options:
+Before anything runs, `run_all.bat` shows a summary of the current optional choices:
 - if `1 - Automated/backup/run_all_options.json` exists, the last validated choices are loaded
 - otherwise the built-in defaults are shown
 - **Defender Safe Mode step** stays enabled by default
-- answer **Y** to `Run like this?` to launch immediately with those options
-- answer **N** to review the same options one by one through sequential prompts
-- validated choices are saved back to `1 - Automated/backup/run_all_options.json` for future runs
+- answer **Y** to `Run like this?` to launch immediately with those optional choices
+- answer **N** to review the same optional choices one by one through sequential prompts
+- validated optional choices are saved back to `1 - Automated/backup/run_all_options.json` for future runs
+- the core automated phases still run automatically; these are only the optional choices shown up front
 - **Apply saved MSI snapshot** appears in the flow when `1 - Automated/backup/msi_state.json` exists
 
 Estimated duration: 5 to 15 minutes. The final reboot is still confirmed at the end:

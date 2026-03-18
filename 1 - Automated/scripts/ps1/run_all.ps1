@@ -375,7 +375,7 @@ function Show-LaunchOptionsSummary {
     Write-Host ''
     Write-Host "  win_desloperf $PACK_VERSION" -ForegroundColor Cyan
     Write-Host ''
-    Write-Host '  CONFIGURATION BEFORE LAUNCH' -ForegroundColor Magenta
+    Write-Host '  OPTIONAL STEPS BEFORE LAUNCH' -ForegroundColor Magenta
     if (Test-Path $OptionsFile) {
         Write-Host "  Source: saved choices from $OptionsFile" -ForegroundColor DarkGray
     } else {
@@ -384,6 +384,8 @@ function Show-LaunchOptionsSummary {
     if ($HasMsiSnapshot) {
         Write-Host "  MSI snapshot: $MsiStateFile" -ForegroundColor DarkGray
     }
+    Write-Host ''
+    Write-Host '  The core automated phases still run automatically; only the choices below are optional.' -ForegroundColor DarkGray
     Write-Host ''
 
     Write-LaunchOptionsSummaryLine -Label 'Defender Safe Mode step' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['defenderStep']))
@@ -410,7 +412,8 @@ function Show-LaunchOptionsSummary {
     }
 
     Write-Host ''
-    Write-Host '  Answer N if you want to review each option one by one before launch.' -ForegroundColor DarkGray
+    Write-Host '  Answer N if you want to review these optional choices one by one before launch.' -ForegroundColor DarkGray
+    Write-Host '  Any choices you validate there will be saved for the next run.' -ForegroundColor DarkGray
     Write-Host ''
 
     return (Read-BooleanChoice -Prompt 'Run like this?' -Default $true)
@@ -465,8 +468,9 @@ function Show-LaunchOptionsFallback {
     Write-Host ''
     Write-Host "  win_desloperf $PACK_VERSION" -ForegroundColor Cyan
     Write-Host ''
-    Write-Host '  REVIEW AND EDIT OPTIONS' -ForegroundColor Magenta
-    Write-Host '  Answer each prompt. Press Enter to keep the shown default.' -ForegroundColor DarkGray
+    Write-Host '  REVIEW OPTIONAL STEPS' -ForegroundColor Magenta
+    Write-Host '  These prompts cover optional choices only. The core automated phases still run automatically.' -ForegroundColor DarkGray
+    Write-Host '  Press Enter to keep the shown default. Any validated choices will be saved for the next run.' -ForegroundColor DarkGray
     if (Test-Path $OptionsFile) {
         Write-Host "  Editing saved choices: $OptionsFile" -ForegroundColor DarkGray
     } else {
