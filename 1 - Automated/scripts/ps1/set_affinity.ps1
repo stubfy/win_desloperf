@@ -86,7 +86,7 @@ try {
             Write-Host "           Applying GPU + PCI Bridge only (sufficient for IRQ pinning)." -ForegroundColor DarkGray
         }
     } else {
-        Write-Host "    [WARN] Bridge is not PCI ($($pp.Data)). Applying GPU only." -ForegroundColor Yellow
+        Write-Host "    [NOTE] Parent is not PCI ($($pp.Data)). Applying GPU-only affinity for compatibility." -ForegroundColor DarkGray
     }
 } catch {
     Write-Host "    [WARN] Could not walk PCI chain: $_. Applying GPU only." -ForegroundColor Yellow
@@ -138,3 +138,4 @@ if (-not $SkipReboot) {
         Restart-Computer -Force
     }
 }
+

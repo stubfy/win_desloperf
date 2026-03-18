@@ -1,5 +1,37 @@
 # restore\network_tweaks.ps1 - Restore network tweaks
 
+function Get-NagleTargetAdapters {
+    $upAdapters = @(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' })
+    $strict = @($upAdapters | Where-Object { $_.PhysicalMediaType -eq '802.3' })
+    if ($strict.Count -gt 0) {
+        return [PSCustomObject]@{
+            Adapters = $strict
+            Mode     = 'strict'
+            Note     = $null
+        }
+    }
+
+    $fallback = @($upAdapters | Where-Object {
+        $label = ("{0} {1}" -f $_.Name, $_.InterfaceDescription)
+        $isLikelyWired = [bool]$_.HardwareInterface -or $label -match 'Ethernet|PRO/1000|Gigabit|Realtek|PCIe|virtio'
+        $isExcluded = $label -match 'Wi-?Fi|Wireless|WLAN|Bluetooth|Loopback|Teredo|Tunnel|VPN|PPP|WAN Miniport'
+        $isLikelyWired -and -not $isExcluded
+    })
+    if ($fallback.Count -gt 0) {
+        return [PSCustomObject]@{
+            Adapters = $fallback
+            Mode     = 'fallback'
+            Note     = 'no adapter reported PhysicalMediaType=802.3; using compatible active adapter fallback'
+        }
+    }
+
+    return [PSCustomObject]@{
+        Adapters = @()
+        Mode     = 'none'
+        Note     = 'no compatible active wired adapter found'
+    }
+}
+
 # ── Teredo ────────────────────────────────────────────────────────────────────
 netsh interface teredo set state default 2>&1 | ForEach-Object { Write-Host "    $_" }
 Write-Host "    Teredo restored (default state)"
@@ -24,9 +56,11 @@ foreach ($adapter in $activeAdapters) {
 }
 
 # ── Nagle restore (remove per-interface keys) ─────────────────────────────────
-$ethernetAdapters = @(Get-NetAdapter | Where-Object {
-    $_.Status -eq 'Up' -and $_.PhysicalMediaType -eq '802.3'
-})
+$nagleSelection = Get-NagleTargetAdapters
+$ethernetAdapters = @($nagleSelection.Adapters)
+if ($nagleSelection.Mode -eq 'fallback') {
+    Write-Host "    Nagle select  : $($nagleSelection.Note)" -ForegroundColor DarkGray
+}
 foreach ($adapter in $ethernetAdapters) {
     $guid      = $adapter.InterfaceGuid
     $ifacePath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid"
@@ -36,6 +70,9 @@ foreach ($adapter in $ethernetAdapters) {
         Remove-ItemProperty -Path $ifacePath -Name 'TcpDelAckTicks'  -ErrorAction SilentlyContinue
         Write-Host "    Nagle restored: $($adapter.Name)"
     }
+}
+if ($ethernetAdapters.Count -eq 0) {
+    Write-Host "    Nagle restore : $($nagleSelection.Note)"
 }
 
 # ── MaxUserPort restore ───────────────────────────────────────────────────────
@@ -52,3 +89,4 @@ if (Test-Path $nlaPschedPath) {
 $pschedPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched'
 Remove-ItemProperty -Path $pschedPath -Name 'NonBestEffortLimit' -ErrorAction SilentlyContinue
 Write-Host "    QoS NonBestEffortLimit key removed"
+

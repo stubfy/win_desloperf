@@ -135,7 +135,9 @@ function Get-EdgeSetupCandidates {
         Sort-Object FullName -Unique
 }
 
-function Test-WebView2Installed {
+function Get-WebView2PresenceEvidence {
+    $evidence = [System.Collections.Generic.List[string]]::new()
+
     foreach ($key in $webView2ClientKeys) {
         if (-not (Test-Path $key)) { continue }
 
@@ -146,7 +148,7 @@ function Test-WebView2Installed {
         }
 
         if ($version -and $version -ne '0.0.0.0') {
-            return $true
+            $evidence.Add("client key $key (pv=$version)")
         }
     }
 
@@ -154,21 +156,40 @@ function Test-WebView2Installed {
         if (-not (Test-Path $root)) { continue }
 
         if (Test-Path (Join-Path $root 'msedgewebview2.exe')) {
-            return $true
+            $evidence.Add("files under $root")
+            continue
         }
 
         $exe = Get-ChildItem -Path $root -Filter 'msedgewebview2.exe' -Recurse -ErrorAction SilentlyContinue |
             Select-Object -First 1
         if ($exe) {
-            return $true
+            $evidence.Add("files under $root")
         }
     }
 
-    if (Get-UninstallEntryByName -DisplayNamePattern "$webView2DisplayName*") {
-        return $true
+    $appxPackages = @(Get-AppxPackage -AllUsers -Name '*Win32WebViewHost*' -ErrorAction SilentlyContinue)
+    foreach ($pkg in $appxPackages) {
+        $evidence.Add("AppX $($pkg.PackageFullName)")
     }
 
-    return $false
+    try {
+        $provisioned = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like '*Win32WebViewHost*' })
+        foreach ($pkg in $provisioned) {
+            $evidence.Add("provisioned $($pkg.PackageName)")
+        }
+    } catch {
+    }
+
+    if (Get-UninstallEntryByName -DisplayNamePattern "$webView2DisplayName*") {
+        $evidence.Add("uninstall entry $webView2DisplayName")
+    }
+
+    return @($evidence | Select-Object -Unique)
+}
+
+function Test-WebView2Installed {
+    return (@(Get-WebView2PresenceEvidence).Count -gt 0)
 }
 
 function Get-WebView2UninstallInfo {
@@ -372,7 +393,7 @@ function Remove-WebView2AppxPackage {
             Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
             Write-Host "    AppX removed   : $($pkg.PackageFullName)"
         } catch {
-            Write-Host "    AppX removal   : system app, skipped (DISM unlock applied)" -ForegroundColor DarkGray
+            Write-Host "    AppX removal   : still registered (system app or pending reboot)" -ForegroundColor DarkGray
         }
     }
 }
@@ -438,8 +459,15 @@ function Uninstall-WebView2 {
     Set-ItemProperty -Path $webView2BlockPolicyPath -Name $webView2InstallPolicy -Value 0 -Type DWord -Force
     Set-ItemProperty -Path $webView2BlockPolicyPath -Name $webView2UpdatePolicy -Value 0 -Type DWord -Force
 
-    if (Test-WebView2Installed) {
+    $presenceEvidence = @(Get-WebView2PresenceEvidence)
+    if ($presenceEvidence.Count -gt 0) {
         Write-Host "    [WARNING] WebView2 Runtime is still present after the uninstall flow." -ForegroundColor Yellow
+        foreach ($item in ($presenceEvidence | Select-Object -First 3)) {
+            Write-Host "              Still detected via: $item" -ForegroundColor Yellow
+        }
+        if ($presenceEvidence.Count -gt 3) {
+            Write-Host "              (+$($presenceEvidence.Count - 3) more evidence point(s))" -ForegroundColor Yellow
+        }
         Write-Host "              You may need to retry after a reboot." -ForegroundColor Yellow
         return $false
     }
@@ -498,3 +526,4 @@ if ($webView2Installed) {
 } else {
     Write-Host "    WebView2 Runtime not found." -ForegroundColor Gray
 }
+

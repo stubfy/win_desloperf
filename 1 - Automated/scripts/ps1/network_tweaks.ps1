@@ -41,6 +41,38 @@
 #
 # Rollback: restore\network_tweaks.ps1
 
+function Get-NagleTargetAdapters {
+    $upAdapters = @(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' })
+    $strict = @($upAdapters | Where-Object { $_.PhysicalMediaType -eq '802.3' })
+    if ($strict.Count -gt 0) {
+        return [PSCustomObject]@{
+            Adapters = $strict
+            Mode     = 'strict'
+            Note     = $null
+        }
+    }
+
+    $fallback = @($upAdapters | Where-Object {
+        $label = ("{0} {1}" -f $_.Name, $_.InterfaceDescription)
+        $isLikelyWired = [bool]$_.HardwareInterface -or $label -match 'Ethernet|PRO/1000|Gigabit|Realtek|PCIe|virtio'
+        $isExcluded = $label -match 'Wi-?Fi|Wireless|WLAN|Bluetooth|Loopback|Teredo|Tunnel|VPN|PPP|WAN Miniport'
+        $isLikelyWired -and -not $isExcluded
+    })
+    if ($fallback.Count -gt 0) {
+        return [PSCustomObject]@{
+            Adapters = $fallback
+            Mode     = 'fallback'
+            Note     = 'no adapter reported PhysicalMediaType=802.3; using compatible active adapter fallback'
+        }
+    }
+
+    return [PSCustomObject]@{
+        Adapters = @()
+        Mode     = 'none'
+        Note     = 'no compatible active wired adapter found'
+    }
+}
+
 # ── Teredo ────────────────────────────────────────────────────────────────────
 netsh interface teredo set state disabled 2>&1 | ForEach-Object { Write-Host "    $_" }
 Write-Host "    Teredo disabled"
@@ -82,9 +114,11 @@ Set-ItemProperty -Path $nlaPschedPath -Name 'Do not use NLA' -Value 1 -Type DWor
 Write-Host "    QoS NLA bypass = 1"
 
 # ── Nagle disable (per active Ethernet interface) ─────────────────────────────
-$ethernetAdapters = @(Get-NetAdapter | Where-Object {
-    $_.Status -eq 'Up' -and $_.PhysicalMediaType -eq '802.3'
-})
+$nagleSelection = Get-NagleTargetAdapters
+$ethernetAdapters = @($nagleSelection.Adapters)
+if ($nagleSelection.Mode -eq 'fallback') {
+    Write-Host "    Nagle select  : $($nagleSelection.Note)" -ForegroundColor DarkGray
+}
 foreach ($adapter in $ethernetAdapters) {
     $guid      = $adapter.InterfaceGuid
     $ifacePath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid"
@@ -98,10 +132,12 @@ foreach ($adapter in $ethernetAdapters) {
     }
 }
 if ($ethernetAdapters.Count -eq 0) {
-    Write-Host "    Nagle: no active Ethernet adapter found"
+    Write-Host "    Nagle: $($nagleSelection.Note)"
 }
 
 # ── MaxUserPort ───────────────────────────────────────────────────────────────
 $tcpParamsPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters'
 Set-ItemProperty -Path $tcpParamsPath -Name 'MaxUserPort' -Value 65534 -Type DWord -Force
 Write-Host "    MaxUserPort = 65534"
+
+

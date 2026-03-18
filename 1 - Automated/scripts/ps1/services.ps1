@@ -35,7 +35,36 @@ function Set-ServiceDwordValue {
         [Parameter(Mandatory)][int]$Value
     )
 
-    New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
+    try {
+        $props = Get-ItemProperty -Path $Path -ErrorAction Stop
+        if ($props.PSObject.Properties.Name -contains $Name) {
+            Set-ItemProperty -Path $Path -Name $Name -Value $Value -Force -ErrorAction Stop
+        } else {
+            New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force -ErrorAction Stop | Out-Null
+        }
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Get-ExactServiceStartupType {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+    try {
+        $props = Get-ItemProperty -Path $serviceKey -ErrorAction Stop
+    } catch {
+        return $null
+    }
+
+    $delayedAutoStart = ($props.PSObject.Properties.Name -contains 'DelayedAutoStart' -and $props.DelayedAutoStart -eq 1)
+    switch ([int]$props.Start) {
+        2 { if ($delayedAutoStart) { return 'AutomaticDelayedStart' } else { return 'Automatic' } }
+        3 { return 'Manual' }
+        4 { return 'Disabled' }
+        default { return $null }
+    }
 }
 
 function Get-ServiceStartupCatalog {
@@ -476,6 +505,7 @@ function Get-ServiceStartupCatalog {
         Automatic              = $automatic
         AutomaticDelayedStart  = $automaticDelayedStart
         TriggerlessDisabled    = @('DoSvc')
+        TriggerlessManual      = @()
         Defaults               = $defaults
         Tracked                = @($disabled + $manual + $automatic + $automaticDelayedStart)
         DiffExcluded           = @('BITS', 'UsoSvc', 'wuauserv')
@@ -489,38 +519,72 @@ function Set-ServiceStartupTypeExact {
     )
 
     $service = Get-Service -Name $Name -ErrorAction SilentlyContinue
-    if (-not $service) { return $false }
+    if (-not $service) {
+        return [PSCustomObject]@{
+            Exists    = $false
+            Applied   = $false
+            Current   = $null
+            Requested = $StartupType
+        }
+    }
 
     $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
 
     switch ($StartupType) {
         'Disabled' {
-            Stop-Service $Name -Force -ErrorAction SilentlyContinue
-            Set-Service $Name -StartupType Disabled -ErrorAction SilentlyContinue
-            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 4
-            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+            try { Stop-Service $Name -Force -ErrorAction SilentlyContinue } catch {}
+            try { Set-Service $Name -StartupType Disabled -ErrorAction SilentlyContinue } catch {}
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 4 | Out-Null
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0 | Out-Null
         }
         'Manual' {
-            Set-Service $Name -StartupType Manual -ErrorAction SilentlyContinue
-            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 3
-            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+            try { Set-Service $Name -StartupType Manual -ErrorAction SilentlyContinue } catch {}
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 3 | Out-Null
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0 | Out-Null
         }
         'Automatic' {
-            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
-            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
-            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+            try { Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue } catch {}
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2 | Out-Null
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0 | Out-Null
         }
         'AutomaticDelayedStart' {
-            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
-            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
-            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 1
+            try { Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue } catch {}
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2 | Out-Null
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 1 | Out-Null
         }
         default {
             throw "Unsupported startup type: $StartupType"
         }
     }
 
-    return $true
+    $current = Get-ExactServiceStartupType -Name $Name
+    return [PSCustomObject]@{
+        Exists    = $true
+        Applied   = ($current -eq $StartupType)
+        Current   = $current
+        Requested = $StartupType
+    }
+}
+
+function Write-ServiceStartupResult {
+    param(
+        [Parameter(Mandatory)]$Result,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$SuccessPrefix
+    )
+
+    if (-not $Result.Exists) {
+        Write-Host "    [NOT FOUND]  $Name" -ForegroundColor Gray
+        return
+    }
+
+    if ($Result.Applied) {
+        Write-Host "    $SuccessPrefix$Name"
+        return
+    }
+
+    $current = if ($Result.Current) { $Result.Current } else { 'Unknown' }
+    Write-Host "    [WARN]       $Name -> current=$current wanted=$($Result.Requested)" -ForegroundColor Yellow
 }
 
 if ($ExportCatalogOnly) {
@@ -532,37 +596,25 @@ $serviceCatalog = Get-ServiceStartupCatalog
 foreach ($svc in $serviceCatalog.Disabled) {
     if ($svc -in $serviceCatalog.TriggerlessDisabled) { continue }
 
-    if (Set-ServiceStartupTypeExact -Name $svc -StartupType 'Disabled') {
-        Write-Host "    [DISABLED]   $svc"
-    } else {
-        Write-Host "    [NOT FOUND]  $svc" -ForegroundColor Gray
-    }
+    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType 'Disabled'
+    Write-ServiceStartupResult -Result $result -Name $svc -SuccessPrefix '[DISABLED]   '
 }
 
 foreach ($svc in $serviceCatalog.Manual) {
     if ($svc -in $serviceCatalog.TriggerlessManual) { continue }
 
-    if (Set-ServiceStartupTypeExact -Name $svc -StartupType 'Manual') {
-        Write-Host "    [MANUAL]     $svc"
-    } else {
-        Write-Host "    [NOT FOUND]  $svc" -ForegroundColor Gray
-    }
+    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType 'Manual'
+    Write-ServiceStartupResult -Result $result -Name $svc -SuccessPrefix '[MANUAL]     '
 }
 
 foreach ($svc in $serviceCatalog.Automatic) {
-    if (Set-ServiceStartupTypeExact -Name $svc -StartupType 'Automatic') {
-        Write-Host "    [AUTO]       $svc"
-    } else {
-        Write-Host "    [NOT FOUND]  $svc" -ForegroundColor Gray
-    }
+    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType 'Automatic'
+    Write-ServiceStartupResult -Result $result -Name $svc -SuccessPrefix '[AUTO]       '
 }
 
 foreach ($svc in $serviceCatalog.AutomaticDelayedStart) {
-    if (Set-ServiceStartupTypeExact -Name $svc -StartupType 'AutomaticDelayedStart') {
-        Write-Host "    [AUTO-DELAY] $svc"
-    } else {
-        Write-Host "    [NOT FOUND]  $svc" -ForegroundColor Gray
-    }
+    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType 'AutomaticDelayedStart'
+    Write-ServiceStartupResult -Result $result -Name $svc -SuccessPrefix '[AUTO-DELAY] '
 }
 
 # DoSvc (Delivery Optimization) special case:
@@ -574,12 +626,19 @@ foreach ($svc in $serviceCatalog.AutomaticDelayedStart) {
 # process from ever running in the background to check for work.
 $doSvc = Get-Service 'DoSvc' -ErrorAction SilentlyContinue
 if ($doSvc) {
-    Set-ServiceStartupTypeExact -Name 'DoSvc' -StartupType 'Disabled' | Out-Null
+    $result = Set-ServiceStartupTypeExact -Name 'DoSvc' -StartupType 'Disabled'
     $triggerPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc\TriggerInfo'
     if (Test-Path $triggerPath) {
         Remove-Item $triggerPath -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Write-Host "    [DISABLED]   DoSvc (TriggerInfo removed)"
+    $current = Get-ExactServiceStartupType -Name 'DoSvc'
+    if ($result.Exists -and $current -eq 'Disabled') {
+        Write-Host "    [DISABLED]   DoSvc (TriggerInfo removed)"
+    } else {
+        $currentLabel = if ($current) { $current } else { 'Unknown' }
+        Write-Host "    [WARN]       DoSvc -> current=$currentLabel wanted=Disabled (TriggerInfo removal attempted)" -ForegroundColor Yellow
+    }
 } else {
     Write-Host "    [NOT FOUND]  DoSvc" -ForegroundColor Gray
 }
+

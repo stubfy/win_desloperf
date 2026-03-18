@@ -94,6 +94,38 @@ function Get-ExactServiceStartupType {
     }
 }
 
+function Get-NagleTargetAdapters {
+    $upAdapters = @(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' })
+    $strict = @($upAdapters | Where-Object { $_.PhysicalMediaType -eq '802.3' })
+    if ($strict.Count -gt 0) {
+        return [PSCustomObject]@{
+            Adapters = $strict
+            Mode     = 'strict'
+            Note     = $null
+        }
+    }
+
+    $fallback = @($upAdapters | Where-Object {
+        $label = ("{0} {1}" -f $_.Name, $_.InterfaceDescription)
+        $isLikelyWired = [bool]$_.HardwareInterface -or $label -match 'Ethernet|PRO/1000|Gigabit|Realtek|PCIe|virtio'
+        $isExcluded = $label -match 'Wi-?Fi|Wireless|WLAN|Bluetooth|Loopback|Teredo|Tunnel|VPN|PPP|WAN Miniport'
+        $isLikelyWired -and -not $isExcluded
+    })
+    if ($fallback.Count -gt 0) {
+        return [PSCustomObject]@{
+            Adapters = $fallback
+            Mode     = 'fallback'
+            Note     = 'no adapter reported PhysicalMediaType=802.3; using compatible active adapter fallback'
+        }
+    }
+
+    return [PSCustomObject]@{
+        Adapters = @()
+        Mode     = 'none'
+        Note     = 'no compatible active wired adapter found'
+    }
+}
+
 # ── Parse reg tweak sources ───────────────────────────────────────────────────
 $regEntries = [ordered]@{}
 foreach ($regFile in $REG_FILES) {
@@ -249,7 +281,8 @@ $netSnap['NLADoNotUse'] = $nlaDoNotUse
 
 $nagleSnap = @{}
 try {
-    $ethernetAdapters = @(Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.PhysicalMediaType -eq '802.3' })
+    $nagleSelection = Get-NagleTargetAdapters
+    $ethernetAdapters = @($nagleSelection.Adapters)
     foreach ($adapter in $ethernetAdapters) {
         $guid      = $adapter.InterfaceGuid
         $ifacePath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid"
@@ -261,10 +294,13 @@ try {
         }
         $nagleSnap[$guid] = $nagleEntry
     }
+    $netSnap['NagleSelectionMode'] = $nagleSelection.Mode
+    $netSnap['NagleSelectionNote'] = $nagleSelection.Note
 } catch {}
 $netSnap['NagleInterfaces'] = $nagleSnap
 
-Write-Host "    Network  : TCP global + QoS + Nagle ($($nagleSnap.Count) interface(s))"
+$nagleModeLabel = if ($netSnap['NagleSelectionMode']) { $netSnap['NagleSelectionMode'] } else { 'unknown' }
+Write-Host "    Network  : TCP global + QoS + Nagle ($($nagleSnap.Count) interface(s), mode: $nagleModeLabel)"
 
 # ── Affinity snapshot ─────────────────────────────────────────────────────────
 $affinitySnap = [ordered]@{}
@@ -307,3 +343,4 @@ try {
 } | ConvertTo-Json -Depth 4 | Set-Content $SNAP_FILE -Encoding UTF8
 
 Write-Host "    Saved    : $SNAP_FILE"
+

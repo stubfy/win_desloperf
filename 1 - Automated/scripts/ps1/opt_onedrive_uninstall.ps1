@@ -17,9 +17,8 @@
 #   7. Apply DisableFileSyncNGSC=1 policy to block reinstallation by Windows.
 #      Note: this policy is also set in privacy_tweaks.reg as a baseline.
 #
-# FILE SAFETY: Local OneDrive files (if sync was active) are preserved in
-# %USERPROFILE%\OneDrive and are NOT deleted. Only the application and its
-# configuration data are removed.
+# FILE SAFETY: If %USERPROFILE%\\OneDrive exists, it is removed together with the
+# application. Back up any local files before running this optional uninstall.
 #
 # Rollback: restore\opt_onedrive_restore.ps1 provides reinstallation guidance.
 # OneDrive can be reinstalled from Microsoft's official download page at any time.
@@ -94,4 +93,5 @@ if (-not (Test-Path $policy)) { New-Item -Path $policy -Force | Out-Null }
 Set-ItemProperty -Path $policy -Name 'DisableFileSyncNGSC' -Value 1 -Type DWord -ErrorAction SilentlyContinue
 
 Write-Host "    OneDrive uninstalled and reinstallation blocked by policy."
-Write-Host "    Note: local OneDrive files (if sync was active) are kept in $env:USERPROFILE\OneDrive"
+Write-Host "    Note: $env:USERPROFILE\OneDrive is removed too if it exists. Back up local files before running this option."
+
