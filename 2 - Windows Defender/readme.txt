@@ -6,15 +6,15 @@ PROCEDURE
 ---------
 1. From normal Windows, run `run_defender.bat` as administrator
 2. Confirm the prompt
-3. The launcher enables Safe Mode, creates `Disable Defender and Return to Normal Mode.bat` on the Desktop, then reboots
-4. In Safe Mode, run the Desktop helper
-5. The helper disables the six Defender services, removes Safe Boot, and reboots back to normal Windows
+3. The launcher enables Safe Mode, then reboots
+4. In Safe Mode, run `run_defender.bat` again
+5. The Safe Mode path disables the six Defender services, removes Safe Boot, and reboots back to normal Windows
 6. Continue with `3 - MSI Utils/`, `4 - NVInspector/`, `5 - Device Manager/`, `6 - Interrupt Affinity/`, then `Tools/`.
 
 If needed later, the quick rerun entry points are also available:
 `7 - DNS/`, `8 - Windows Update/`, and `1 - Automated/scripts/13_firewall.bat`.
 
-If you left the Defender step enabled in the initial `1 - Automated/run_all.bat` menu and then confirmed the final Safe Mode reboot, the Desktop helper is already created for you. In that case, skip `run_defender.bat` and just run the Desktop helper once Safe Mode boots.
+If you left the Defender step enabled in the initial `1 - Automated/run_all.bat` menu and then confirmed the final Safe Mode reboot, just run `2 - Windows Defender/run_defender.bat` once Safe Mode boots.
 
 Note: on some 25H2 configurations, even in Safe Mode, modifications may still be blocked if Smart App Control is active. In that case, disable Smart App Control first via Windows Security > App & browser control.
 
@@ -61,4 +61,5 @@ The script disables these six services by setting their `Start` value to `4` (`D
   WdNisDrv     Network inspection driver                       default: 3
   WdNisSvc     Network inspection service                      default: 3
   WdBoot       Early launch anti-malware driver (ELAM)         default: 0
+
 

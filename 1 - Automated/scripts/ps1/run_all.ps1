@@ -813,7 +813,7 @@ Write-Host 'REMAINING MANUAL STEPS (see README.md at the pack root):' -Foregroun
 
 if ($defenderStep) {
     Write-Host '  1. Confirm the Safe Mode reboot prompt below for the Defender step'
-    Write-Host "  2. In Safe Mode, run the Desktop helper: 'Disable Defender and Return to Normal Mode.bat'" -ForegroundColor Yellow
+    Write-Host '  2. In Safe Mode, run 2 - Windows Defender\run_defender.bat again' -ForegroundColor Yellow
 } else {
     Write-Host '  1. Reboot the PC'
     Write-Host '  2. [Optional / Safe Mode] Disable Windows Defender   (2 - Windows Defender/run_defender.bat)' -ForegroundColor DarkGray
@@ -871,11 +871,17 @@ if ($defenderStep) {
             return
         }
 
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $defenderLauncher -CalledFromRunAll -AutoReboot -LogFile $LOG_FILE
-        if ($LASTEXITCODE -ne 0) {
+        try {
+            & $defenderLauncher -CalledFromRunAll -LogFile $LOG_FILE
+            Write-Host ''
+            Write-Host '  Safe Mode configured. Rebooting now...' -ForegroundColor Yellow
+            Write-Log 'Safe Mode configured; rebooting now from run_all.' 'INFO'
+            Restart-Computer -Force
+        } catch {
             Write-Host ''
             Write-Host '  Defender Safe Mode launcher failed.' -ForegroundColor Red
-            Write-Log "Defender Safe Mode launcher failed with exit code $LASTEXITCODE" 'ERROR'
+            Write-Host "    $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Log ("Defender Safe Mode launcher failed: {0}" -f $_.Exception.Message) 'ERROR'
         }
     } else {
         Write-Host ''
@@ -895,4 +901,8 @@ if ($defenderStep) {
         Write-Log 'Normal reboot skipped by user.' 'INFO'
     }
 }
+
+
+
+
 

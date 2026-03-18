@@ -2,12 +2,12 @@
 [CmdletBinding()]
 param(
     [switch]$CalledFromRunAll,
-    [switch]$AutoReboot,
     [string]$LogFile
 )
 
 $ErrorActionPreference = 'Stop'
-$helperPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Disable Defender and Return to Normal Mode.bat'
+$PACK_ROOT = Split-Path (Split-Path (Split-Path $PSScriptRoot))
+$defenderBatch = Join-Path $PACK_ROOT '2 - Windows Defender\run_defender.bat'
 $defenderScript = Join-Path $PSScriptRoot '1 - DisableDefender.ps1'
 
 function Write-DefenderLog {
@@ -34,17 +34,23 @@ if (-not (Test-Path $defenderScript)) {
     throw 'Missing Defender script.'
 }
 
+if (-not (Test-Path $defenderBatch)) {
+    Write-Host ''
+    Write-Host '  ERROR: Defender batch launcher not found.' -ForegroundColor Red
+    Write-Host "    Expected: $defenderBatch" -ForegroundColor White
+    Write-DefenderLog "Missing Defender batch launcher: $defenderBatch" 'ERROR'
+    throw 'Missing Defender batch launcher.'
+}
+
 if (-not $CalledFromRunAll) {
     Write-Host ''
     Write-Host '  WINDOWS DEFENDER SAFE MODE STEP' -ForegroundColor Cyan
     Write-Host ''
     Write-Host '  This will:' -ForegroundColor White
     Write-Host '    1. Configure Safe Mode (minimal)' -ForegroundColor White
-    Write-Host "    2. Create a Desktop helper: 'Disable Defender and Return to Normal Mode.bat'" -ForegroundColor White
-    Write-Host '    3. Reboot into Safe Mode' -ForegroundColor White
-    Write-Host ''
-    Write-Host '  In Safe Mode, run the Desktop helper. It disables Defender,' -ForegroundColor DarkGray
-    Write-Host '  removes Safe Boot, and reboots back to normal Windows.' -ForegroundColor DarkGray
+    Write-Host '    2. Reboot into Safe Mode' -ForegroundColor White
+    Write-Host '    3. In Safe Mode, run 2 - Windows Defender\run_defender.bat again' -ForegroundColor White
+    Write-Host '    4. That static launcher disables Defender, removes Safe Boot and reboots to normal Windows' -ForegroundColor White
     Write-Host ''
 
     $answer = Read-Host 'Continue? (Y/N) [default: Y]'
@@ -63,57 +69,17 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Failed to enable Safe Mode in BCD.'
 }
 
-@"
-@echo off
-fltmc >nul 2>&1
-if %errorlevel% neq 0 (
-    powershell -Command "Start-Process '%~f0' -Verb RunAs"
-    exit /b
-)
-set "DEFENDER_SCRIPT=$defenderScript"
-echo.
-echo  =========================================================
-echo   win_desloperf -- Disable Defender and Return to Normal Mode
-echo  =========================================================
-echo.
-echo  This will:
-echo    1. Disable Windows Defender (6 services set to Start=4)
-echo    2. Remove Safe Boot flag
-echo    3. Reboot to normal Windows
-echo.
-if not exist "%DEFENDER_SCRIPT%" (
-echo  ERROR: missing Defender script:
-echo    %DEFENDER_SCRIPT%
-echo.
-pause
-exit /b 1
-)
-pause
-PowerShell -NoProfile -ExecutionPolicy Bypass -File "%DEFENDER_SCRIPT%"
-if errorlevel 1 (
-echo.
-echo  Defender script failed. Safe Boot was kept enabled.
-echo  Review the PowerShell error, then run this helper again.
-echo.
-pause
-exit /b 1
-)
-bcdedit /deletevalue {current} safeboot >nul 2>&1
-shutdown /r /t 0
-"@ | Set-Content -Path $helperPath -Encoding ASCII
-
-Write-DefenderLog "Desktop helper created at $helperPath" 'INFO'
 Write-Host ''
 Write-Host '  Safe Mode is now configured.' -ForegroundColor Yellow
 Write-Host ''
 Write-Host '  WHAT TO DO IN SAFE MODE:' -ForegroundColor Cyan
-Write-Host "    Run the shortcut on your Desktop: 'Disable Defender and Return to Normal Mode.bat'" -ForegroundColor White
-Write-Host '    (disables Defender, removes Safe Boot, reboots automatically)' -ForegroundColor DarkGray
+Write-Host '    Run this same launcher again from Safe Mode:' -ForegroundColor White
+Write-Host "    $defenderBatch" -ForegroundColor White
+Write-Host '    It will disable Defender, remove Safe Boot and reboot back to normal Windows.' -ForegroundColor DarkGray
 Write-Host ''
 
-if ($AutoReboot) {
-    Write-DefenderLog 'Rebooting into Safe Mode for Defender step (auto mode).' 'INFO'
-    Restart-Computer -Force
+if ($CalledFromRunAll) {
+    Write-DefenderLog 'Safe Mode configured from run_all; caller will handle final reboot.' 'INFO'
     return
 }
 

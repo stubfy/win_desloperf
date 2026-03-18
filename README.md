@@ -84,7 +84,7 @@ Estimated duration: 5 to 15 minutes. The final reboot is still confirmed at the 
 
 **2. Reboot when prompted at the end**
 
-**3. Follow the manual steps in order (`3 - MSI Utils/`, `4 - NVInspector/`, `5 - Device Manager/`, `6 - Interrupt Affinity/`, then NIC Device Manager tweaks, then `Tools/`). If you skipped the Defender reboot at the end, run `2 - Windows Defender/run_defender.bat` later when needed.**
+**3. Follow the manual steps in order (`3 - MSI Utils/`, `4 - NVInspector/`, `5 - Device Manager/`, `6 - Interrupt Affinity/`, then NIC Device Manager tweaks, then `Tools/`). If you confirmed the Defender Safe Mode reboot, run `2 - Windows Defender/run_defender.bat` again once Safe Mode boots. If you skipped that reboot, run it later when needed.**
 
 Quick reruns are also available when needed:
 `7 - DNS/set_dns.bat`, `8 - Windows Update/set_windows_update.bat`, `1 - Automated/scripts/firewall.bat`.
@@ -405,6 +405,7 @@ Even though the pack has been massively tested, I can't promise it covers absolu
 ## License
 
 MIT
+
 
 
 
