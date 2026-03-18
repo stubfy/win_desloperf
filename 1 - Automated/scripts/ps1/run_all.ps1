@@ -84,6 +84,44 @@ function Write-Step {
     Write-Log $Msg 'STEP'
 }
 
+function Unblock-LaunchFile {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
+        return
+    }
+
+    try {
+        Unblock-File -LiteralPath $Path -ErrorAction Stop
+    } catch {
+    }
+}
+
+function Unblock-PackLaunchFiles {
+    param([string]$RootPath)
+
+    if ([string]::IsNullOrWhiteSpace($RootPath) -or -not (Test-Path $RootPath)) {
+        return
+    }
+
+    try {
+        Get-ChildItem -Path $RootPath -Recurse -File | Where-Object {
+            $_.Extension -in @('.ps1', '.psm1', '.bat', '.cmd')
+        } | ForEach-Object {
+            try {
+                Unblock-File -LiteralPath $_.FullName -ErrorAction Stop
+            } catch {
+            }
+        }
+
+        Write-Log "Checked downloaded script files for MOTW under: $RootPath" 'INFO'
+    } catch {
+        Write-Log ("Unable to scan pack for blocked files: {0}" -f $_.Exception.Message) 'WARN'
+    }
+}
+
+Unblock-PackLaunchFiles -RootPath $PACK_ROOT
+
 function Invoke-Script {
     param([string]$Path, [hashtable]$Params = @{})
     $name = Split-Path $Path -Leaf
@@ -91,6 +129,7 @@ function Invoke-Script {
     Write-Log "Start: $name" 'RUN'
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     try {
+        Unblock-LaunchFile -Path $Path
         & $Path @Params *>&1 | ForEach-Object {
             $line = $_
             if ($line -is [System.Management.Automation.ErrorRecord]) {
@@ -770,7 +809,7 @@ if (Test-Path $msiStateFile) {
         Write-Host "    Created: $($msiMeta.created) on $($msiMeta.machine)" -ForegroundColor DarkGray
 
         $restoreScript = "$SCRIPTS\msi_restore.ps1"
-        & $restoreScript -StateFile $msiStateFile -DataDir $MSI_UTILS_DIR -SkipConfirm
+        Invoke-Script $restoreScript @{ StateFile = $msiStateFile; DataDir = $MSI_UTILS_DIR; SkipConfirm = $true }
         Write-Log "MSI state restored from snapshot: $msiStateFile" 'OK'
         $msiStateApplied = $true
     } else {
@@ -803,7 +842,7 @@ if ($uninstallEdge) {
 }
 
 Write-Step 'PHASE C - Recap (what actually changed vs before)'
-& "$SCRIPTS\show_diff.ps1"
+Invoke-Script "$SCRIPTS\show_diff.ps1"
 Write-Host ''
 Write-Host '================================================' -ForegroundColor Green
 Write-Host '   AUTOMATED TWEAKS COMPLETE                    ' -ForegroundColor Green
@@ -872,6 +911,7 @@ if ($defenderStep) {
         }
 
         try {
+            Unblock-LaunchFile -Path $defenderLauncher
             & $defenderLauncher -CalledFromRunAll -LogFile $LOG_FILE
             Write-Host ''
             Write-Host '  Safe Mode configured. Rebooting now...' -ForegroundColor Yellow
