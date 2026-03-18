@@ -9,6 +9,16 @@ $defaults = [ordered]@{
     Public  = $true
 }
 
+function Convert-ToFirewallEnabledArgument {
+    param([bool]$Enabled)
+
+    if ($Enabled) {
+        return 'True'
+    }
+
+    return 'False'
+}
+
 if (Test-Path $stateFile) {
     $saved = Get-Content $stateFile -Encoding UTF8 | ConvertFrom-Json
     foreach ($prop in $saved.PSObject.Properties) {
@@ -21,9 +31,17 @@ if (Test-Path $stateFile) {
 
 foreach ($profileName in $defaults.Keys) {
     try {
-        Set-NetFirewallProfile -Profile $profileName -Enabled $defaults[$profileName] -ErrorAction Stop
+        $enabledArgument = Convert-ToFirewallEnabledArgument -Enabled $defaults[$profileName]
+        Set-NetFirewallProfile -Profile $profileName -Enabled $enabledArgument -ErrorAction Stop
+        $currentState = (Get-NetFirewallProfile -Profile $profileName -ErrorAction Stop).Enabled
+        $currentEnabled = "$currentState" -ieq 'True'
         $stateLabel = if ($defaults[$profileName]) { 'Enabled' } else { 'Disabled' }
-        Write-Host "    [RESTORED]  $profileName -> $stateLabel"
+        if ($currentEnabled -eq $defaults[$profileName]) {
+            Write-Host "    [RESTORED]  $profileName -> $stateLabel"
+        } else {
+            $currentLabel = if ($currentEnabled) { 'Enabled' } else { 'Disabled' }
+            Write-Host "    [WARN] Unable to verify $profileName firewall profile: current=$currentLabel wanted=$stateLabel" -ForegroundColor Yellow
+        }
     } catch {
         Write-Host "    [WARN] Unable to restore $profileName firewall profile: $($_.Exception.Message)" -ForegroundColor Yellow
     }

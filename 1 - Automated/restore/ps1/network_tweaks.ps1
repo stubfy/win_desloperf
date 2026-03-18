@@ -47,21 +47,50 @@ function Get-NagleTargetAdapters {
     }
 }
 
+$networkFailures = [System.Collections.Generic.List[string]]::new()
+
+function Invoke-NetshRestore {
+    param(
+        [Parameter(Mandatory)][string[]]$Arguments,
+        [string]$FailureLabel
+    )
+
+    & netsh @Arguments 2>&1 | ForEach-Object { Write-Host "    $_" }
+    if ($LASTEXITCODE -ne 0) {
+        $label = if ($FailureLabel) { $FailureLabel } else { "netsh $($Arguments -join ' ')" }
+        $networkFailures.Add("$label (exit code $LASTEXITCODE)")
+        Write-Host "    [WARN] $label failed with exit code $LASTEXITCODE" -ForegroundColor Yellow
+        return $false
+    }
+
+    return $true
+}
+
 # ── Teredo ────────────────────────────────────────────────────────────────────
-netsh interface teredo set state default 2>&1 | ForEach-Object { Write-Host "    $_" }
-Write-Host "    Teredo restored (default state)"
+if (Invoke-NetshRestore -Arguments @('interface', 'teredo', 'set', 'state', 'default') -FailureLabel 'Teredo restore') {
+    Write-Host "    Teredo restored (default state)"
+}
 
 # ── TCP global stack ──────────────────────────────────────────────────────────
-netsh int tcp set global autotuninglevel=normal 2>&1 | ForEach-Object { Write-Host "    $_" }
-netsh int tcp set heuristics enabled 2>&1 | ForEach-Object { Write-Host "    $_" }
-netsh int tcp set global rss=enabled 2>&1 | ForEach-Object { Write-Host "    $_" }
-netsh int tcp set global ecncapability=default 2>&1 | ForEach-Object { Write-Host "    $_" }
-netsh int tcp set global rsc=enabled 2>&1 | ForEach-Object { Write-Host "    $_" }
-netsh int tcp set global nonsackrttresiliency=enabled 2>&1 | ForEach-Object { Write-Host "    $_" }
-netsh int tcp set global maxsynretransmissions=2 2>&1 | ForEach-Object { Write-Host "    $_" }
-netsh int tcp set global minrto=300 2>&1 | ForEach-Object { Write-Host "    $_" }
-netsh int tcp set global congestionprovider=cubic 2>&1 | ForEach-Object { Write-Host "    $_" }
-Write-Host "    TCP global stack restored"
+$tcpRestoreOk = $true
+$tcpCommands = @(
+    [PSCustomObject]@{ Arguments = @('int', 'tcp', 'set', 'global', 'autotuninglevel=normal'); FailureLabel = 'TCP autotuninglevel restore' },
+    [PSCustomObject]@{ Arguments = @('int', 'tcp', 'set', 'heuristics', 'enabled'); FailureLabel = 'TCP heuristics restore' },
+    [PSCustomObject]@{ Arguments = @('int', 'tcp', 'set', 'global', 'rss=default'); FailureLabel = 'TCP RSS restore' },
+    [PSCustomObject]@{ Arguments = @('int', 'tcp', 'set', 'global', 'ecncapability=default'); FailureLabel = 'TCP ECN restore' },
+    [PSCustomObject]@{ Arguments = @('int', 'tcp', 'set', 'global', 'rsc=default'); FailureLabel = 'TCP RSC restore' },
+    [PSCustomObject]@{ Arguments = @('int', 'tcp', 'set', 'global', 'nonsackrttresiliency=default'); FailureLabel = 'TCP non-sack RTT restore' },
+    [PSCustomObject]@{ Arguments = @('int', 'tcp', 'set', 'global', 'maxsynretransmissions=2'); FailureLabel = 'TCP max SYN retransmissions restore' },
+    [PSCustomObject]@{ Arguments = @('int', 'tcp', 'set', 'global', 'initialrto=3000'); FailureLabel = 'TCP initial RTO restore' }
+)
+foreach ($tcpCommand in $tcpCommands) {
+    if (-not (Invoke-NetshRestore -Arguments $tcpCommand.Arguments -FailureLabel $tcpCommand.FailureLabel)) {
+        $tcpRestoreOk = $false
+    }
+}
+if ($tcpRestoreOk) {
+    Write-Host "    TCP global stack restored"
+}
 
 # ── LSO re-enable ─────────────────────────────────────────────────────────────
 $activeAdapters = @(Get-NetAdapter | Where-Object { $_.Status -eq 'Up' })
@@ -105,4 +134,6 @@ $pschedPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched'
 Remove-ItemProperty -Path $pschedPath -Name 'NonBestEffortLimit' -ErrorAction SilentlyContinue
 Write-Host "    QoS NonBestEffortLimit key removed"
 
-
+if ($networkFailures.Count -gt 0) {
+    throw "Network restore completed with failures: $($networkFailures -join '; ')"
+}

@@ -11,7 +11,36 @@ function Set-ServiceDwordValue {
         [Parameter(Mandatory)][int]$Value
     )
 
-    New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
+    try {
+        $props = Get-ItemProperty -Path $Path -ErrorAction Stop
+        if ($props.PSObject.Properties.Name -contains $Name) {
+            Set-ItemProperty -Path $Path -Name $Name -Value $Value -Force -ErrorAction Stop
+        } else {
+            New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force -ErrorAction Stop | Out-Null
+        }
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Get-ExactServiceStartupType {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+    try {
+        $props = Get-ItemProperty -Path $serviceKey -ErrorAction Stop
+    } catch {
+        return $null
+    }
+
+    $delayedAutoStart = ($props.PSObject.Properties.Name -contains 'DelayedAutoStart' -and $props.DelayedAutoStart -eq 1)
+    switch ([int]$props.Start) {
+        2 { if ($delayedAutoStart) { return 'AutomaticDelayedStart' } else { return 'Automatic' } }
+        3 { return 'Manual' }
+        4 { return 'Disabled' }
+        default { return $null }
+    }
 }
 
 function Set-ServiceStartupTypeExact {
@@ -21,38 +50,86 @@ function Set-ServiceStartupTypeExact {
     )
 
     $service = Get-Service -Name $Name -ErrorAction SilentlyContinue
-    if (-not $service) { return $false }
+    if (-not $service) {
+        return [PSCustomObject]@{
+            Exists    = $false
+            Applied   = $false
+            Current   = $null
+            Requested = $StartupType
+        }
+    }
 
     $serviceKey = "HKLM:\SYSTEM\CurrentControlSet\Services\$Name"
+    $scStartValue = $null
 
     switch ($StartupType) {
         'Disabled' {
-            Stop-Service $Name -Force -ErrorAction SilentlyContinue
-            Set-Service $Name -StartupType Disabled -ErrorAction SilentlyContinue
-            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 4
-            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+            $scStartValue = 'disabled'
+            try { Stop-Service $Name -Force -ErrorAction SilentlyContinue } catch {}
+            try { Set-Service $Name -StartupType Disabled -ErrorAction SilentlyContinue } catch {}
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 4 | Out-Null
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0 | Out-Null
         }
         'Manual' {
-            Set-Service $Name -StartupType Manual -ErrorAction SilentlyContinue
-            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 3
-            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+            $scStartValue = 'demand'
+            try { Set-Service $Name -StartupType Manual -ErrorAction SilentlyContinue } catch {}
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 3 | Out-Null
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0 | Out-Null
         }
         'Automatic' {
-            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
-            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
-            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0
+            $scStartValue = 'auto'
+            try { Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue } catch {}
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2 | Out-Null
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 0 | Out-Null
         }
         'AutomaticDelayedStart' {
-            Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue
-            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2
-            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 1
+            $scStartValue = 'delayed-auto'
+            try { Set-Service $Name -StartupType Automatic -ErrorAction SilentlyContinue } catch {}
+            Set-ServiceDwordValue -Path $serviceKey -Name 'Start' -Value 2 | Out-Null
+            Set-ServiceDwordValue -Path $serviceKey -Name 'DelayedAutoStart' -Value 1 | Out-Null
         }
         default {
             throw "Unsupported startup type: $StartupType"
         }
     }
 
-    return $true
+    if ($scStartValue) {
+        try { & sc.exe config $Name start= $scStartValue 2>$null | Out-Null } catch {}
+    }
+
+    $current = Get-ExactServiceStartupType -Name $Name
+    if ($Name -eq 'IKEEXT' -and $current -ne $StartupType -and $scStartValue) {
+        try { & sc.exe config $Name start= $scStartValue 2>$null | Out-Null } catch {}
+        Start-Sleep -Milliseconds 250
+        $current = Get-ExactServiceStartupType -Name $Name
+    }
+
+    return [PSCustomObject]@{
+        Exists    = $true
+        Applied   = ($current -eq $StartupType)
+        Current   = $current
+        Requested = $StartupType
+    }
+}
+
+function Write-ServiceStartupResult {
+    param(
+        [Parameter(Mandatory)]$Result,
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    if (-not $Result.Exists) {
+        Write-Host "    [NOT FOUND] $Name" -ForegroundColor Gray
+        return
+    }
+
+    if ($Result.Applied) {
+        Write-Host "    [RESTORED]  $Name -> $($Result.Requested)"
+        return
+    }
+
+    $current = if ($Result.Current) { $Result.Current } else { 'Unknown' }
+    Write-Host "    [WARN]      $Name -> current=$current wanted=$($Result.Requested)" -ForegroundColor Yellow
 }
 
 # Reference fallback values if no backup is available
@@ -74,14 +151,11 @@ if (Test-Path $stateFile) {
 
 foreach ($svc in $defaults.Keys) {
     $startupType = $defaults[$svc]
-    if (Set-ServiceStartupTypeExact -Name $svc -StartupType $startupType) {
-        if ($startupType -eq 'Automatic') {
-            Start-Service $svc -ErrorAction SilentlyContinue
-        }
-        Write-Host "    [RESTORED]  $svc -> $startupType"
-    } else {
-        Write-Host "    [NOT FOUND] $svc" -ForegroundColor Gray
+    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType $startupType
+    if ($result.Exists -and $result.Applied -and $startupType -eq 'Automatic') {
+        Start-Service $svc -ErrorAction SilentlyContinue
     }
+    Write-ServiceStartupResult -Result $result -Name $svc
 }
 
 # DoSvc can be restored to its startup type, but TriggerInfo is not recreated here.
