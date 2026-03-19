@@ -47,14 +47,19 @@ $ADDITIONAL_TRACKED_REG_VALUES = @(
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI';                               Name='DisableAIDataAnalysis'; Desired=1;   Type='DWORD' }
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI';                               Name='AllowRecallEnablement'; Desired=0;   Type='DWORD' }
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI';                               Name='DisableClickToDo';      Desired=1;   Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI';                               Name='DisableSettingsAgent'; Desired=1;   Type='DWORD' }
     @{ Path='HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ClickToDo';        Name='DisableClickToDo';      Desired=1;   Type='DWORD' }
     # privacy.ps1 - Paint AI features
-    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableCocreator';        Desired=1; Type='DWORD' }
-    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableGenerativeFill';   Desired=1; Type='DWORD' }
-    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableImageCreator';     Desired=1; Type='DWORD' }
-    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableGenerativeErase';  Desired=1; Type='DWORD' }
-    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';  Name='DisableRemoveBackground'; Desired=1; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint'; Name='DisableCocreator';        Desired=1; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint'; Name='DisableGenerativeFill';   Desired=1; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint'; Name='DisableImageCreator';     Desired=1; Type='DWORD' }
+    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';                     Name='DisableCocreator';        Desired=1; Type='DWORD' }
+    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';                     Name='DisableGenerativeFill';   Desired=1; Type='DWORD' }
+    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';                     Name='DisableImageCreator';     Desired=1; Type='DWORD' }
+    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';                     Name='DisableGenerativeErase';  Desired=1; Type='DWORD' }
+    @{ Path='HKCU:\Software\Microsoft\MSPaint\Settings';                     Name='DisableRemoveBackground'; Desired=1; Type='DWORD' }
     # privacy.ps1 - Notepad AI features
+    @{ Path='HKLM:\SOFTWARE\Policies\WindowsNotepad';      Name='DisableAIFeatures'; Desired=1; Type='DWORD' }
     @{ Path='HKCU:\Software\Microsoft\Notepad\Settings';  Name='DisableAIFeatures'; Desired=1; Type='DWORD' }
     # set_windows_update.ps1 Profile 2/3 - anti-forced-reboot
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'; Name='NoAutoRebootWithLoggedOnUsers'; Desired=1; Type='DWORD' }

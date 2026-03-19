@@ -68,6 +68,7 @@ $policies = @{
         'DisableAIDataAnalysis' = 1
         'AllowRecallEnablement' = 0
         'DisableClickToDo'      = 1
+        'DisableSettingsAgent'  = 1
     }
 
     # ---- Click to Do (user-level override) ----
@@ -79,10 +80,15 @@ $policies = @{
     }
 
     # ---- Paint AI features ----
-    # Windows 11 25H2 Paint ships with several generative AI features: Cocreator
-    # (image generation), Generative Fill, Image Creator (DALL-E integration),
-    # Generative Erase and Remove Background. All make outbound API calls to
-    # Microsoft/Azure services. Setting these to 1 disables them at the app level.
+    # Official machine-wide Paint policies documented by Microsoft for the main
+    # generative features exposed on current Windows 11 builds.
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint' = @{
+        'DisableCocreator'      = 1
+        'DisableGenerativeFill' = 1
+        'DisableImageCreator'   = 1
+    }
+    # Additional user-level Paint flags kept as best-effort coverage for app-side
+    # toggles that aren't exposed through the documented HKLM Paint policy set.
     'HKCU:\Software\Microsoft\MSPaint\Settings' = @{
         'DisableCocreator'        = 1
         'DisableGenerativeFill'   = 1
@@ -92,9 +98,14 @@ $policies = @{
     }
 
     # ---- Notepad AI features ----
-    # Windows 11 25H2 Notepad can offer AI-powered text suggestions and rewrites
-    # via Microsoft's cloud backend. DisableAIFeatures=1 turns off the entire
-    # AI subsystem in Notepad, preventing outbound calls and the AI sidebar.
+    # Official ADMX-backed machine policy for Notepad AI. Microsoft documents
+    # HKLM:\SOFTWARE\Policies\WindowsNotepad\DisableAIFeatures=1 as the
+    # supported control to disable Copilot-backed features in Notepad.
+    'HKLM:\SOFTWARE\Policies\WindowsNotepad' = @{
+        'DisableAIFeatures' = 1
+    }
+    # Legacy user-level flag kept as a best-effort fallback on builds that still
+    # read the per-user settings hive.
     'HKCU:\Software\Microsoft\Notepad\Settings' = @{
         'DisableAIFeatures' = 1
     }

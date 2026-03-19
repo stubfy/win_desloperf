@@ -33,9 +33,10 @@ $paths = @(
     'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization'
     # Additional Copilot keys
     'HKLM:\SOFTWARE\Microsoft\Windows\Shell\Copilot\BingChat'
-    # Paint and Notepad AI settings (user-level, safe to delete entire key)
+    # Paint and Notepad AI settings
     'HKCU:\Software\Microsoft\MSPaint\Settings'
     'HKCU:\Software\Microsoft\Notepad\Settings'
+    'HKLM:\SOFTWARE\Policies\WindowsNotepad'
 )
 
 foreach ($path in $paths) {
@@ -52,6 +53,7 @@ $values = @(
     @{ Path = 'HKLM:\SOFTWARE\Microsoft\Windows\Shell\Copilot';             Name = 'IsCopilotAvailable'  }
     @{ Path = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsCopilot'; Name = 'AllowCopilotRuntime' }
     @{ Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System';           Name = 'EnableCdp'           }
+    @{ Path = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI';         Name = 'DisableSettingsAgent' }
     # Click to Do user-level key (HKCU shared path - remove value only)
     @{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ClickToDo'; Name = 'DisableClickToDo' }
     # Edge AI features (shared key - remove individual values only, not the entire key)
