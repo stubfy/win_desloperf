@@ -40,6 +40,12 @@ $edgeRoots = @(
     "${env:ProgramFiles(x86)}\Microsoft\Edge\Application"
     "$env:ProgramFiles\Microsoft\Edge\Application"
     "$env:LOCALAPPDATA\Microsoft\Edge\Application"
+    # EdgeCore split-install layout introduced in recent Windows 11 builds:
+    # Microsoft moved versioned binaries (msedge.exe) out of Edge\Application
+    # into a sibling EdgeCore\ directory, leaving Edge\Application empty/absent.
+    "${env:ProgramFiles(x86)}\Microsoft\EdgeCore"
+    "$env:ProgramFiles\Microsoft\EdgeCore"
+    "$env:LOCALAPPDATA\Microsoft\EdgeCore"
 )
 $edgeUninstallKeys = @(
     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge'
@@ -120,6 +126,10 @@ function Get-EdgeSetupCandidates {
         "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\*\Installer\setup.exe"
         "$env:ProgramFiles\Microsoft\Edge\Application\*\Installer\setup.exe"
         "$env:LOCALAPPDATA\Microsoft\Edge\Application\*\Installer\setup.exe"
+        # EdgeCore split-install layout
+        "${env:ProgramFiles(x86)}\Microsoft\EdgeCore\*\Installer\setup.exe"
+        "$env:ProgramFiles\Microsoft\EdgeCore\*\Installer\setup.exe"
+        "$env:LOCALAPPDATA\Microsoft\EdgeCore\*\Installer\setup.exe"
     )
 
     return Get-ChildItem -Path $patterns -ErrorAction SilentlyContinue |
