@@ -20,6 +20,10 @@
 # backed up). To reinstall: Settings > Apps > Get more apps, or
 # Get-AppxPackage -AllUsers | Remove-AppxPackage -AllUsers (full reinstall via Store).
 # restore\debloat_restore.ps1 provides reinstall guidance.
+#
+# System packages marked NonRemovable are skipped explicitly. This keeps the log
+# accurate when a package is visible in Installed apps but cannot be removed via
+# Remove-AppxPackage on the current Windows build.
 
 $appsToRemove = @(
     # ----- Xbox / Gaming Overlay -----
@@ -63,6 +67,7 @@ $appsToRemove = @(
     'Microsoft.PowerAutomateDesktop'    # Power Automate Desktop (RPA tool)
     'Microsoft.Copilot'                 # Copilot AI assistant UWP package
     'Microsoft.OutlookForWindows'       # New Outlook (web-wrapped)
+    'Microsoft.Windows.StartMenuExperienceHost' # Start Experiences App / Start menu host
 
     # ----- Widgets -----
     # Also disabled via AllowNewsAndInterests policy in registry.ps1.
@@ -118,6 +123,7 @@ $removedPackages       = 0
 $removedProvisioned    = 0
 $errors                = 0
 $notFound              = 0
+$skippedNonRemovable   = 0
 $perAppTimeoutSeconds  = 30
 $perProvTimeoutSeconds = 45
 
@@ -199,10 +205,21 @@ foreach ($appName in $appsToRemove) {
 
     $packages    = @(Get-AppxRemovalTargets -AppName $appName)
     $provisioned = @($script:provisionedCache | Where-Object { $_.DisplayName -eq $appName })
+    $nonRemovablePackages = @($packages | Where-Object { $_.NonRemovable })
+    $packages = @($packages | Where-Object { -not $_.NonRemovable })
 
-    if ($packages.Count -eq 0 -and $provisioned.Count -eq 0) {
+    if ($packages.Count -eq 0 -and $provisioned.Count -eq 0 -and $nonRemovablePackages.Count -eq 0) {
         $notFound++
         Write-Host "    [NOT FOUND] $appName" -ForegroundColor Gray
+        continue
+    }
+
+    foreach ($pkg in $nonRemovablePackages) {
+        $skippedNonRemovable++
+        Write-Host "    [SKIP]    $($pkg.PackageFullName) - system package marked NonRemovable" -ForegroundColor DarkYellow
+    }
+
+    if ($packages.Count -eq 0 -and $provisioned.Count -eq 0) {
         continue
     }
 
@@ -239,4 +256,4 @@ foreach ($appName in $appsToRemove) {
     }
 }
 
-Write-Host "    Summary: $removedPackages installed package(s) removed, $removedProvisioned provisioned package(s) removed, $errors error(s), $notFound app id(s) not found"
+Write-Host "    Summary: $removedPackages installed package(s) removed, $removedProvisioned provisioned package(s) removed, $skippedNonRemovable non-removable package(s) skipped, $errors error(s), $notFound app id(s) not found"

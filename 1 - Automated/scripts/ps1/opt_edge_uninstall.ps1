@@ -135,6 +135,34 @@ function Get-EdgeSetupCandidates {
         Sort-Object FullName -Unique
 }
 
+function Get-EdgePresenceEvidence {
+    $evidence = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($root in $edgeRoots) {
+        if (-not (Test-Path $root)) { continue }
+
+        if (Test-Path (Join-Path $root 'msedge.exe')) {
+            $evidence.Add("launcher under $root")
+        }
+
+        $exe = Get-ChildItem -Path $root -Filter 'msedge.exe' -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($exe) {
+            $evidence.Add("binary $($exe.FullName)")
+        }
+    }
+
+    foreach ($setup in Get-EdgeSetupCandidates) {
+        $evidence.Add("installer $($setup.FullName)")
+    }
+
+    if (Get-UninstallEntryByName -DisplayNamePattern 'Microsoft Edge*') {
+        $evidence.Add('uninstall entry Microsoft Edge')
+    }
+
+    return @($evidence | Select-Object -Unique)
+}
+
 function Get-WebView2PresenceEvidence {
     $evidence = [System.Collections.Generic.List[string]]::new()
 
@@ -260,14 +288,38 @@ function Remove-EdgeShortcuts {
 function Invoke-InstallerCommand {
     param([Parameter(Mandatory = $true)][string]$CommandLine)
 
-    Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" `
-        -ArgumentList "/c start /wait `"`" $CommandLine" `
-        -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
+    $trimmed = $CommandLine.Trim()
+    $exePath = $null
+    $arguments = ''
+
+    if ($trimmed.StartsWith('"')) {
+        $endQuote = $trimmed.IndexOf('"', 1)
+        if ($endQuote -gt 1) {
+            $exePath = $trimmed.Substring(1, $endQuote - 1)
+            $arguments = $trimmed.Substring($endQuote + 1).Trim()
+        }
+    } else {
+        $match = [regex]::Match($trimmed, '^(?<exe>\S+\.exe)\s*(?<args>.*)$', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        if ($match.Success) {
+            $exePath = $match.Groups['exe'].Value
+            $arguments = $match.Groups['args'].Value.Trim()
+        }
+    }
+
+    if (-not $exePath) {
+        throw "Unable to parse installer command line: $CommandLine"
+    }
+    if (-not (Test-Path -LiteralPath $exePath)) {
+        throw "Installer not found: $exePath"
+    }
+
+    Start-Process -FilePath $exePath -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
 }
 
 function Uninstall-Edge {
     $uninstallInfo = Get-EdgeUninstallInfo
     $msiChecked = $false
+    $edgeExitCodes = [System.Collections.Generic.List[int]]::new()
 
     try {
         foreach ($key in $edgeUpdateDevKeys) {
@@ -311,6 +363,7 @@ function Uninstall-Edge {
 
             Write-Host "    Launching Edge uninstall..."
             $proc = Invoke-InstallerCommand -CommandLine $commandLine
+            $edgeExitCodes.Add([int]$proc.ExitCode)
             Write-Host "    Exit code      : $($proc.ExitCode)"
             # Cancel any pending OS reboot that setup.exe may have scheduled so the
             # parent script can continue to the Defender prompt at the end.
@@ -324,6 +377,7 @@ function Uninstall-Edge {
 
                 Write-Host "    Fallback setup : $($setup.FullName)"
                 $proc = Invoke-InstallerCommand -CommandLine $commandLine
+                $edgeExitCodes.Add([int]$proc.ExitCode)
                 Write-Host "    Exit code      : $($proc.ExitCode)"
                 & shutdown.exe /a 2>$null
 
@@ -341,6 +395,18 @@ function Uninstall-Edge {
         if (-not $msiChecked) {
             Write-Host "              MSI-based uninstall was not attempted." -ForegroundColor Yellow
         }
+        if ($edgeExitCodes.Count -gt 0 -and ($edgeExitCodes | Select-Object -Unique) -contains 0) {
+            Write-Host "              Installer exited 0, but Edge is still detected." -ForegroundColor Yellow
+        }
+
+        $presenceEvidence = @(Get-EdgePresenceEvidence)
+        foreach ($item in ($presenceEvidence | Select-Object -First 3)) {
+            Write-Host "              Still detected via: $item" -ForegroundColor Yellow
+        }
+        if ($presenceEvidence.Count -gt 3) {
+            Write-Host "              (+$($presenceEvidence.Count - 3) more evidence point(s))" -ForegroundColor Yellow
+        }
+
         Write-Host "              You can retry removal manually from Settings > Apps." -ForegroundColor Yellow
         return $false
     }

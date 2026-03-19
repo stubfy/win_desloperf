@@ -55,6 +55,19 @@ function Get-ExactServiceStartupType {
     }
 }
 
+function Resolve-TrackedServiceNames {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $resolved = @(Get-Service -Name $Name, "$Name_*" -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty Name -Unique)
+
+    if ($resolved.Count -gt 0) {
+        return @($resolved | Sort-Object -Unique)
+    }
+
+    return @($Name)
+}
+
 # System restore point
 Write-Host "    Creating restore point... " -NoNewline
 $restorePointCreated = $false
@@ -80,8 +93,10 @@ try {
 # Export service states (for precise rollback)
 $serviceState = @{}
 foreach ($svc in $serviceCatalog.Tracked) {
-    $startupType = Get-ExactServiceStartupType -Name $svc
-    if ($startupType) { $serviceState[$svc] = $startupType }
+    foreach ($resolvedSvc in (Resolve-TrackedServiceNames -Name $svc)) {
+        $startupType = Get-ExactServiceStartupType -Name $resolvedSvc
+        if ($startupType) { $serviceState[$resolvedSvc] = $startupType }
+    }
 }
 $serviceState | ConvertTo-Json | Set-Content "$BACKUP_DIR\services_state.json" -Encoding UTF8
 Write-Host "    Service states saved -> backup\services_state.json"
@@ -161,4 +176,3 @@ Set-ItemProperty -Path $cmPath -Name 'BackupCount'          -Value 2 -Type DWord
 Write-Host "    Automatic daily registry backup enabled (2 copies)"
 
 Write-Host "    Backup complete: $BACKUP_DIR"
-

@@ -94,6 +94,19 @@ function Get-ExactServiceStartupType {
     }
 }
 
+function Resolve-TrackedServiceNames {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $resolved = @(Get-Service -Name $Name, "$Name_*" -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty Name -Unique)
+
+    if ($resolved.Count -gt 0) {
+        return @($resolved | Sort-Object -Unique)
+    }
+
+    return @($Name)
+}
+
 function Get-NagleTargetAdapters {
     $upAdapters = @(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' })
     $usable = @($upAdapters | Where-Object {
@@ -237,9 +250,11 @@ Write-Host "    Registry : $($regArray.Count) trackable values"
 
 # ── Services snapshot ──────────────────────────────────────────────────────────
 $svcSnap = [ordered]@{}
-foreach ($n in $serviceCatalog.Tracked) {
-    $startupType = Get-ExactServiceStartupType -Name $n
-    if ($startupType) { $svcSnap[$n] = $startupType }
+foreach ($svc in $serviceCatalog.Tracked) {
+    foreach ($resolvedSvc in (Resolve-TrackedServiceNames -Name $svc)) {
+        $startupType = Get-ExactServiceStartupType -Name $resolvedSvc
+        if ($startupType) { $svcSnap[$resolvedSvc] = $startupType }
+    }
 }
 Write-Host "    Services : $($svcSnap.Count) services"
 
@@ -358,4 +373,3 @@ try {
 } | ConvertTo-Json -Depth 4 | Set-Content $SNAP_FILE -Encoding UTF8
 
 Write-Host "    Saved    : $SNAP_FILE"
-

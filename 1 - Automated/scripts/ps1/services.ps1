@@ -67,6 +67,19 @@ function Get-ExactServiceStartupType {
     }
 }
 
+function Resolve-TrackedServiceNames {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $resolved = @(Get-Service -Name $Name, "$Name_*" -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty Name -Unique)
+
+    if ($resolved.Count -gt 0) {
+        return @($resolved | Sort-Object -Unique)
+    }
+
+    return @($Name)
+}
+
 function Get-ServiceStartupCatalog {
     # ---- DISABLED ----
     # Services that provide no benefit on a gaming PC and are stopped entirely.
@@ -95,6 +108,10 @@ function Get-ServiceStartupCatalog {
         'DiagTrack'
         'dmwappushservice'
         'DoSvc'
+        'CDPSvc'            # Connected Devices Platform: Nearby Sharing / shared experiences
+        'CDPUserSvc'        # Per-user CDP instance backing Nearby and cross-device features
+        'DevicePickerUserSvc' # Per-user device picker used by Nearby / cast / share UX
+        'DevicesFlowUserSvc'  # Per-user Devices Flow broker for Nearby device discovery
         'DPS'
         'lfsvc'
         'MapsBroker'
@@ -137,9 +154,6 @@ function Get-ServiceStartupCatalog {
 
         # --- Camera ---
         'camsvc'          # Camera capabilities and privacy access broker
-
-        # --- Connected Devices / CDP ---
-        'CDPSvc'          # Connected Devices Platform: cross-device features (Timeline, Nearby Sharing)
 
         # --- Certificates ---
         'CertPropSvc'     # Certificate Propagation: pushes smart card certs to the cert store
@@ -450,6 +464,9 @@ function Get-ServiceStartupCatalog {
         'AssignedAccessManagerSvc'      = 'Manual'
         'BITS'                          = 'Automatic'
         'CDPSvc'                        = 'Automatic'
+        'CDPUserSvc'                    = 'Automatic'
+        'DevicePickerUserSvc'           = 'Manual'
+        'DevicesFlowUserSvc'            = 'Manual'
         'DeviceAssociationService'      = 'Manual'
         'DiagTrack'                     = 'Automatic'
         'dmwappushservice'              = 'Manual'
@@ -611,25 +628,33 @@ $serviceCatalog = Get-ServiceStartupCatalog
 foreach ($svc in $serviceCatalog.Disabled) {
     if ($svc -in $serviceCatalog.TriggerlessDisabled) { continue }
 
-    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType 'Disabled'
-    Write-ServiceStartupResult -Result $result -Name $svc -SuccessPrefix '[DISABLED]   '
+    foreach ($resolvedSvc in (Resolve-TrackedServiceNames -Name $svc)) {
+        $result = Set-ServiceStartupTypeExact -Name $resolvedSvc -StartupType 'Disabled'
+        Write-ServiceStartupResult -Result $result -Name $resolvedSvc -SuccessPrefix '[DISABLED]   '
+    }
 }
 
 foreach ($svc in $serviceCatalog.Manual) {
     if ($svc -in $serviceCatalog.TriggerlessManual) { continue }
 
-    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType 'Manual'
-    Write-ServiceStartupResult -Result $result -Name $svc -SuccessPrefix '[MANUAL]     '
+    foreach ($resolvedSvc in (Resolve-TrackedServiceNames -Name $svc)) {
+        $result = Set-ServiceStartupTypeExact -Name $resolvedSvc -StartupType 'Manual'
+        Write-ServiceStartupResult -Result $result -Name $resolvedSvc -SuccessPrefix '[MANUAL]     '
+    }
 }
 
 foreach ($svc in $serviceCatalog.Automatic) {
-    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType 'Automatic'
-    Write-ServiceStartupResult -Result $result -Name $svc -SuccessPrefix '[AUTO]       '
+    foreach ($resolvedSvc in (Resolve-TrackedServiceNames -Name $svc)) {
+        $result = Set-ServiceStartupTypeExact -Name $resolvedSvc -StartupType 'Automatic'
+        Write-ServiceStartupResult -Result $result -Name $resolvedSvc -SuccessPrefix '[AUTO]       '
+    }
 }
 
 foreach ($svc in $serviceCatalog.AutomaticDelayedStart) {
-    $result = Set-ServiceStartupTypeExact -Name $svc -StartupType 'AutomaticDelayedStart'
-    Write-ServiceStartupResult -Result $result -Name $svc -SuccessPrefix '[AUTO-DELAY] '
+    foreach ($resolvedSvc in (Resolve-TrackedServiceNames -Name $svc)) {
+        $result = Set-ServiceStartupTypeExact -Name $resolvedSvc -StartupType 'AutomaticDelayedStart'
+        Write-ServiceStartupResult -Result $result -Name $resolvedSvc -SuccessPrefix '[AUTO-DELAY] '
+    }
 }
 
 # DoSvc (Delivery Optimization) special case:
@@ -656,5 +681,3 @@ if ($doSvc) {
 } else {
     Write-Host "    [NOT FOUND]  DoSvc" -ForegroundColor Gray
 }
-
-
