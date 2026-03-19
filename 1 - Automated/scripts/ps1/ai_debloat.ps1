@@ -194,8 +194,15 @@ function Invoke-AsSystemScript {
 function Remove-MatchedItem {
     param([Parameter(Mandatory)][string]$LiteralPath)
 
-    if (Test-Path -LiteralPath $LiteralPath) {
-        Remove-Item -LiteralPath $LiteralPath -Recurse -Force -ErrorAction SilentlyContinue
+    if (-not (Test-Path -LiteralPath $LiteralPath)) {
+        return $false
+    }
+
+    try {
+        Remove-Item -LiteralPath $LiteralPath -Recurse -Force -ErrorAction Stop
+        return (-not (Test-Path -LiteralPath $LiteralPath))
+    } catch {
+        return $false
     }
 }
 
@@ -442,38 +449,112 @@ function Remove-AiCbsPackages {
         return
     }
 
+    $systemRetry = [System.Collections.Generic.List[string]]::new()
     foreach ($target in $targets) {
         try {
             Remove-WindowsPackage -Online -PackageName $target.PSChildName -NoRestart -ErrorAction Stop | Out-Null
             Write-Ok "Removed CBS package $($target.PSChildName)"
         } catch {
             Write-Warn "Failed to remove CBS package $($target.PSChildName): $($_.Exception.Message)"
+            if ($_.Exception.Message -match '(?i)access is denied') {
+                [void]$systemRetry.Add($target.PSChildName)
+            }
         }
+    }
+
+    if ($systemRetry.Count -eq 0) {
+        return
+    }
+
+    $quotedPackages = ($systemRetry | Select-Object -Unique | ForEach-Object { "'" + ($_.Replace("'", "''")) + "'" }) -join ', '
+    $systemScript = @"
+`$packages = @($quotedPackages)
+foreach (`$package in `$packages) {
+    try {
+        Remove-WindowsPackage -Online -PackageName `$package -NoRestart -ErrorAction Stop | Out-Null
+        Write-Output ("Removed CBS package as SYSTEM: {0}" -f `$package)
+        continue
+    } catch {
+    }
+    try {
+        & dism.exe /Online /Remove-Package /PackageName:`$package /NoRestart | Out-Null
+        Write-Output ("Requested CBS removal via DISM as SYSTEM: {0}" -f `$package)
+    } catch {
+        Write-Output ("CBS removal warning for {0}: {1}" -f `$package, `$_.Exception.Message)
+    }
+}
+"@
+
+    try {
+        Invoke-AsSystemScript -Name 'remove-ai-cbs' -ScriptBody $systemScript -TimeoutSeconds 600
+        Write-Ok 'Retried AI CBS package removal as SYSTEM'
+    } catch {
+        Write-Warn "SYSTEM retry for AI CBS packages failed: $($_.Exception.Message)"
     }
 }
 
 function Remove-AiFiles {
     $patterns = @(
-        Join-Path $env:ProgramFiles 'WindowsApps\MicrosoftWindows.Client.AIX*',
-        Join-Path $env:ProgramFiles 'WindowsApps\MicrosoftWindows.Client.CoPilot*',
-        Join-Path $env:ProgramFiles 'WindowsApps\Microsoft.Windows.Ai.Copilot.Provider*',
-        Join-Path $env:ProgramFiles 'WindowsApps\MicrosoftWindows.Client.CoreAI*',
-        Join-Path $env:ProgramFiles 'WindowsApps\Microsoft.Office.ActionsServer*',
-        Join-Path $env:ProgramFiles 'WindowsApps\aimgr*',
-        Join-Path $env:ProgramFiles 'WindowsApps\Microsoft.WritingAssistant*',
-        Join-Path $env:ProgramFiles 'WindowsApps\WindowsWorkload.*'
+        "$env:ProgramFiles\WindowsApps\MicrosoftWindows.Client.AIX*",
+        "$env:ProgramFiles\WindowsApps\MicrosoftWindows.Client.CoPilot*",
+        "$env:ProgramFiles\WindowsApps\Microsoft.Windows.Ai.Copilot.Provider*",
+        "$env:ProgramFiles\WindowsApps\MicrosoftWindows.Client.CoreAI*",
+        "$env:ProgramFiles\WindowsApps\Microsoft.Office.ActionsServer*",
+        "$env:ProgramFiles\WindowsApps\aimgr*",
+        "$env:ProgramFiles\WindowsApps\Microsoft.WritingAssistant*",
+        "$env:ProgramFiles\WindowsApps\MicrosoftWindows.*.InpApp*",
+        "$env:ProgramFiles\WindowsApps\MicrosoftWindows.*.Filons*",
+        "$env:ProgramFiles\WindowsApps\MicrosoftWindows.*.Voiess*",
+        "$env:ProgramFiles\WindowsApps\WindowsWorkload.*"
     )
 
     $removed = 0
+    $systemRetry = [System.Collections.Generic.List[string]]::new()
     foreach ($pattern in $patterns) {
         foreach ($item in @(Get-ChildItem -Path $pattern -Force -ErrorAction SilentlyContinue)) {
             try {
-                Remove-MatchedItem -LiteralPath $item.FullName
-                $removed++
-                Write-Ok "Removed AI file path $($item.FullName)"
+                if (Remove-MatchedItem -LiteralPath $item.FullName) {
+                    $removed++
+                    Write-Ok "Removed AI file path $($item.FullName)"
+                } else {
+                    [void]$systemRetry.Add($item.FullName)
+                    Write-Warn "Direct removal failed for $($item.FullName), queued SYSTEM retry"
+                }
             } catch {
+                [void]$systemRetry.Add($item.FullName)
                 Write-Warn "Failed to remove $($item.FullName): $($_.Exception.Message)"
             }
+        }
+    }
+
+    if ($systemRetry.Count -gt 0) {
+        $targets = @($systemRetry | Select-Object -Unique)
+        $quotedTargets = ($targets | ForEach-Object { "'" + ($_.Replace("'", "''")) + "'" }) -join ', '
+        $systemScript = @"
+`$targets = @($quotedTargets)
+foreach (`$target in `$targets) {
+    try {
+        if (Test-Path -LiteralPath `$target) {
+            Remove-Item -LiteralPath `$target -Recurse -Force -ErrorAction Stop
+        }
+        Write-Output ("SYSTEM file cleanup attempted: {0}" -f `$target)
+    } catch {
+        Write-Output ("SYSTEM file cleanup warning for {0}: {1}" -f `$target, `$_.Exception.Message)
+    }
+}
+"@
+        try {
+            Invoke-AsSystemScript -Name 'remove-ai-files' -ScriptBody $systemScript -TimeoutSeconds 600
+            foreach ($target in $targets) {
+                if (-not (Test-Path -LiteralPath $target)) {
+                    $removed++
+                    Write-Ok "Removed AI file path via SYSTEM $target"
+                } else {
+                    Write-Warn "Residual AI file path still present: $target"
+                }
+            }
+        } catch {
+            Write-Warn "SYSTEM retry for AI file cleanup failed: $($_.Exception.Message)"
         }
     }
 
