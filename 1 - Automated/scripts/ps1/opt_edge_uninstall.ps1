@@ -657,6 +657,16 @@ foreach ($procName in @('msedge', 'MicrosoftEdgeUpdate', 'widgets', 'msedgewebvi
     Get-Process -Name $procName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
+# Stop EdgeUpdate services so they cannot re-protect files or restart processes during uninstall
+foreach ($svcName in @('edgeupdate', 'edgeupdatem')) {
+    $svc = Get-Service -Name $svcName -ErrorAction SilentlyContinue
+    if ($svc) {
+        Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue
+        Set-Service  -Name $svcName -StartupType Disabled -ErrorAction SilentlyContinue
+        Write-Host "    Service stopped: $svcName"
+    }
+}
+
 # Apply EdgeUpdate blocking policies early so they survive a reboot triggered by Edge's setup.exe.
 # If setup.exe reboots the system mid-uninstall, these policies prevent Edge/WebView2 from
 # reinstalling on the next boot before the script can complete.
