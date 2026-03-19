@@ -97,7 +97,7 @@ function Get-ExactServiceStartupType {
 function Resolve-TrackedServiceNames {
     param([Parameter(Mandatory)][string]$Name)
 
-    $resolved = @(Get-Service -Name $Name, "$Name_*" -ErrorAction SilentlyContinue |
+    $resolved = @(Get-Service -Name $Name, "${Name}_*" -ErrorAction SilentlyContinue |
         Select-Object -ExpandProperty Name -Unique)
 
     if ($resolved.Count -gt 0) {
