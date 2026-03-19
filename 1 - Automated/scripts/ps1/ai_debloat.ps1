@@ -309,6 +309,7 @@ function Remove-AdvancedAiAppxPackages {
 
     $installed = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.Name })
     $provisioned = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.DisplayName })
+    $systemRetry = [System.Collections.Generic.List[object]]::new()
 
     foreach ($pkg in $installed) {
         Prepare-AiAppxForRemoval -PackageFamilyName $pkg.PackageFamilyName
@@ -317,9 +318,19 @@ function Remove-AdvancedAiAppxPackages {
     foreach ($pkg in $installed) {
         try {
             Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
-            Write-Ok "Removed AppX package $($pkg.Name)"
         } catch {
             Write-Warn "Remove-AppxPackage failed for $($pkg.PackageFullName): $($_.Exception.Message)"
+        }
+
+        $stillPresent = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object { $_.PackageFullName -eq $pkg.PackageFullName })
+        if ($stillPresent.Count -eq 0) {
+            Write-Ok "Removed AppX package $($pkg.Name)"
+        } else {
+            [void]$systemRetry.Add([pscustomobject]@{
+                Name        = $pkg.Name
+                PackageFull = $pkg.PackageFullName
+                Family      = $pkg.PackageFamilyName
+            })
         }
     }
 
@@ -332,11 +343,46 @@ function Remove-AdvancedAiAppxPackages {
         }
     }
 
+    if ($systemRetry.Count -gt 0) {
+        $json = ($systemRetry | Select-Object -Unique PackageFull, Family, Name | ConvertTo-Json -Depth 4 -Compress).Replace("'", "''")
+        $systemScript = @"
+`$targets = '$json' | ConvertFrom-Json
+foreach (`$target in @(`$targets)) {
+    try { & dism.exe /Online /Set-NonRemovableAppsPolicy /PackageFamily:`$target.Family /NonRemovable:0 | Out-Null } catch {}
+    try { & dism.exe /Online /Set-NonRemovableAppsPolicy /PackageFamilyName:`$target.Family /NonRemovable:0 | Out-Null } catch {}
+    try {
+        Remove-AppxPackage -Package `$target.PackageFull -AllUsers -ErrorAction Stop
+        Write-Output ("Retried AppX removal as SYSTEM: {0}" -f `$target.PackageFull)
+        continue
+    } catch {}
+    try {
+        Get-AppxPackage -AllUsers -Name `$target.Name -ErrorAction SilentlyContinue | ForEach-Object {
+            Remove-AppxPackage -Package `$_.PackageFullName -AllUsers -ErrorAction SilentlyContinue
+        }
+    } catch {}
+    Write-Output ("AppX still needed retry: {0}" -f `$target.PackageFull)
+}
+"@
+        try {
+            Invoke-AsSystemScript -Name 'remove-ai-appx' -ScriptBody $systemScript -TimeoutSeconds 600
+        } catch {
+            Write-Warn "SYSTEM retry for AppX removal failed: $($_.Exception.Message)"
+        }
+
+        foreach ($target in $systemRetry) {
+            $stillPresent = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object { $_.PackageFullName -eq $target.PackageFull })
+            if ($stillPresent.Count -eq 0) {
+                Write-Ok "Removed AppX package after SYSTEM retry $($target.Name)"
+            } else {
+                Write-Warn "AppX package still present after retry: $($target.PackageFull)"
+            }
+        }
+    }
+
     if ($installed.Count -eq 0 -and $provisioned.Count -eq 0) {
         Write-Info 'No additional AI AppX packages found'
     }
 }
-
 function Remove-RecallOptionalFeature {
     $features = @(Get-WindowsOptionalFeature -Online -ErrorAction SilentlyContinue | Where-Object {
         $_.FeatureName -match 'Recall'
@@ -391,20 +437,16 @@ function Remove-AiCbsPackages {
         }
     }
 
-    if ($systemRetry.Count -eq 0) {
-        return
-    }
-
-    $quotedPackages = ($systemRetry | Select-Object -Unique | ForEach-Object { "'" + ($_.Replace("'", "''")) + "'" }) -join ', '
-    $systemScript = @"
+    if ($systemRetry.Count -gt 0) {
+        $quotedPackages = ($systemRetry | Select-Object -Unique | ForEach-Object { "'" + ($_.Replace("'", "''")) + "'" }) -join ', '
+        $systemScript = @"
 `$packages = @($quotedPackages)
 foreach (`$package in `$packages) {
     try {
         Remove-WindowsPackage -Online -PackageName `$package -NoRestart -ErrorAction Stop | Out-Null
         Write-Output ("Removed CBS package as SYSTEM: {0}" -f `$package)
         continue
-    } catch {
-    }
+    } catch {}
     try {
         & dism.exe /Online /Remove-Package /PackageName:`$package /NoRestart | Out-Null
         Write-Output ("Requested CBS removal via DISM as SYSTEM: {0}" -f `$package)
@@ -413,15 +455,21 @@ foreach (`$package in `$packages) {
     }
 }
 "@
+        try {
+            Invoke-AsSystemScript -Name 'remove-ai-cbs' -ScriptBody $systemScript -TimeoutSeconds 600
+        } catch {
+            Write-Warn "SYSTEM retry for AI CBS packages failed: $($_.Exception.Message)"
+        }
+    }
 
-    try {
-        Invoke-AsSystemScript -Name 'remove-ai-cbs' -ScriptBody $systemScript -TimeoutSeconds 600
-        Write-Ok 'Retried AI CBS package removal as SYSTEM'
-    } catch {
-        Write-Warn "SYSTEM retry for AI CBS packages failed: $($_.Exception.Message)"
+    foreach ($package in ($targets | Select-Object -ExpandProperty PSChildName -Unique)) {
+        if (Test-Path -LiteralPath (Join-Path $cbsRoot $package)) {
+            Write-Warn "CBS package still present after retry: $package"
+        } else {
+            Write-Ok "Removed CBS package after retry $package"
+        }
     }
 }
-
 function Remove-AiFiles {
     $patterns = @(
         "$env:ProgramFiles\WindowsApps\MicrosoftWindows.Client.AIX*",
@@ -524,10 +572,14 @@ foreach (`$pattern in `$patterns) {
         Invoke-AsSystemScript -Name 'remove-recall-tasks' -ScriptBody $systemScript -TimeoutSeconds 180
         Write-Ok 'Aggressive Recall/Copilot task cleanup completed'
     } catch {
-        Write-Warn "Recall/Copilot task cleanup failed: $($_.Exception.Message)"
+        $remaining = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { ("{0}{1}" -f $_.TaskPath, $_.TaskName) -match 'Recall|Copilot|ClickToDo' })
+        if ($remaining.Count -eq 0) {
+            Write-Ok 'Aggressive Recall/Copilot task cleanup completed (verified after retry)'
+        } else {
+            Write-Warn "Recall/Copilot task cleanup failed: $($_.Exception.Message)"
+        }
     }
 }
-
 function Disable-GamingCopilot {
     $settingsPath = Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.XboxGamingOverlay_8wekyb3d8bbwe\LocalState\profileDataSettings.txt'
     if (-not (Test-Path -LiteralPath $settingsPath)) {
@@ -578,6 +630,7 @@ function Write-Summary {
 
 Ensure-Directory -Path $BACKUP_DIR
 $state = Load-State
+$script:StateRef = $state
 
 Write-Host ''
 Write-Host '>>> AI deep debloat' -ForegroundColor Yellow
