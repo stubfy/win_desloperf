@@ -175,6 +175,18 @@ $policies = @{
     'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' = @{
         'EnableCdp' = 0
     }
+
+    # ---- Nearby Sharing / Drag Tray ----
+    # FeatureManagement override used on recent Windows 11 builds to suppress
+    # the Drag Tray / Nearby Sharing surface tied to cross-device sharing.
+    'HKLM:\SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\14\3895955085' = @{
+        'EnabledState' = 1
+        'EnabledStateOptions' = 0
+    }
+    'HKLM:\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\14\3895955085' = @{
+        'EnabledState' = 1
+        'EnabledStateOptions' = 0
+    }
 }
 
 foreach ($path in $policies.Keys) {
