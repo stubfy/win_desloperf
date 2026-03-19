@@ -47,9 +47,10 @@ $SCRIPTS               = $PSScriptRoot
 $BACKUP_DIR            = Join-Path $ROOT 'backup'
 $MSI_UTILS_DIR         = Join-Path $PACK_ROOT '3 - MSI Utils'
 $NVINSPECTOR_DIR       = Join-Path $PACK_ROOT '4 - NVInspector'
-$RUN_ALL_OPTIONS_FILE  = Join-Path $BACKUP_DIR 'run_all_options.json'
-$MSI_STATE_FILE        = Join-Path $BACKUP_DIR 'msi_state.json'
-$LEGACY_MSI_STATE_FILE = Join-Path $MSI_UTILS_DIR 'msi_state.json'
+$RUN_ALL_OPTIONS_FILE   = Join-Path $BACKUP_DIR 'run_all_options.json'
+$MSI_DEFAULT_STATE_FILE = Join-Path $BACKUP_DIR 'msi_state_default.json'
+$MSI_STATE_FILE         = Join-Path $MSI_UTILS_DIR 'msi_state.json'
+$LEGACY_MSI_STATE_FILE  = Join-Path $BACKUP_DIR 'msi_state.json'
 $LOG_DIR               = Join-Path $env:APPDATA 'win_desloperf\logs'
 $LOG_FILE              = Join-Path $LOG_DIR 'win_desloperf.log'
 
@@ -276,14 +277,14 @@ function Resolve-MsiStateFile {
 
     try {
         Ensure-DirectoryExists -Path (Split-Path $CanonicalPath -Parent)
-        Copy-Item -LiteralPath $LegacyPath -Destination $CanonicalPath -Force
-        Write-Host "  Migrated legacy MSI snapshot to $CanonicalPath" -ForegroundColor DarkGray
-        Write-Log "Migrated legacy MSI snapshot from $LegacyPath to $CanonicalPath" 'WARN'
+        Move-Item -LiteralPath $LegacyPath -Destination $CanonicalPath -Force
+        Write-Host "  Migrated saved MSI snapshot to $CanonicalPath" -ForegroundColor DarkGray
+        Write-Log "Migrated saved MSI snapshot from $LegacyPath to $CanonicalPath" 'WARN'
         return $CanonicalPath
     } catch {
-        Write-Host '  WARN: Could not migrate legacy MSI snapshot, using old path for this run.' -ForegroundColor Yellow
+        Write-Host '  WARN: Could not migrate saved MSI snapshot, using old path for this run.' -ForegroundColor Yellow
         Write-Host "        $($_.Exception.Message)" -ForegroundColor DarkGray
-        Write-Log ("Failed to migrate legacy MSI snapshot from {0} to {1}: {2}" -f $LegacyPath, $CanonicalPath, $_.Exception.Message) 'WARN'
+        Write-Log ("Failed to migrate saved MSI snapshot from {0} to {1}: {2}" -f $LegacyPath, $CanonicalPath, $_.Exception.Message) 'WARN'
         return $LegacyPath
     }
 }
@@ -732,22 +733,23 @@ if (Test-Path $msiStateFile) {
         Write-Host "    Snapshot found: $msiStateFile" -ForegroundColor Cyan
         Write-Host "    Created: $($msiMeta.created) on $($msiMeta.machine)" -ForegroundColor DarkGray
 
-        $restoreScript = "$SCRIPTS\msi_restore.ps1"
-        Invoke-Script $restoreScript @{ StateFile = $msiStateFile; DataDir = $MSI_UTILS_DIR; SkipConfirm = $true }
-        Write-Log "MSI state restored from snapshot: $msiStateFile" 'OK'
+        $applyScript = "$SCRIPTS\msi_apply.ps1"
+        Invoke-Script $applyScript @{ StateFile = $msiStateFile; DefaultStateFile = $MSI_DEFAULT_STATE_FILE; SkipConfirm = $true }
+        Write-Log "MSI state applied from saved snapshot: $msiStateFile" 'OK'
         $msiStateApplied = $true
     } else {
         Write-Step 'PHASE B.13 - MSI interrupt mode (skipped)'
         Write-Host "    Snapshot found but skipped by launch choice: $msiStateFile" -ForegroundColor Yellow
-        Write-Host '    Run 3 - MSI Utils\msi_restore.bat manually if you want to replay it later.' -ForegroundColor DarkGray
-        Write-Log 'Skipped: MSI restore (launch choice disabled saved MSI replay)' 'INFO'
+        Write-Host '    Run 3 - MSI Utils\msi_apply.bat manually if you want to replay it later.' -ForegroundColor DarkGray
+        Write-Log 'Skipped: MSI apply (launch choice disabled saved MSI replay)' 'INFO'
     }
 } else {
     Write-Step 'PHASE B.13 - MSI interrupt mode (no snapshot found)'
-    Write-Host '    No saved msi_state.json found in 1 - Automated\backup/.' -ForegroundColor DarkGray
+    Write-Host '    No saved msi_state.json found in 3 - MSI Utils/.' -ForegroundColor DarkGray
     Write-Host '    Configure MSI manually via MSI_util_v3.exe, then run msi_snapshot.bat to save' -ForegroundColor DarkGray
-    Write-Host '    your settings -- next time run_all.bat runs, it can apply them automatically.' -ForegroundColor DarkGray
-    Write-Log 'Skipped: MSI restore (no saved msi_state.json found)' 'INFO'
+    Write-Host '    your settings to 3 - MSI Utils\msi_state.json -- next time run_all.bat runs,' -ForegroundColor DarkGray
+    Write-Host '    it can apply them automatically and create 1 - Automated\backup\msi_state_default.json.' -ForegroundColor DarkGray
+    Write-Log 'Skipped: MSI apply (no saved MSI snapshot found in 3 - MSI Utils)' 'INFO'
 }
 
 if ($installNvInspector) {
@@ -783,9 +785,9 @@ if ($defenderStep) {
 }
 
 if ($msiStateApplied) {
-    Write-Host '  3. MSI Utils - snapshot applied automatically. Verify devices, reboot if needed.' -ForegroundColor Green
+    Write-Host '  3. MSI Utils - saved snapshot applied automatically. Verify devices, reboot if needed.' -ForegroundColor Green
 } elseif (Test-Path $msiStateFile) {
-    Write-Host '  3. MSI Utils - saved snapshot available but not applied. Run msi_restore.bat if needed.' -ForegroundColor Yellow
+    Write-Host '  3. MSI Utils - saved snapshot available but not applied. Run msi_apply.bat if needed.' -ForegroundColor Yellow
 } else {
     Write-Host '  3. MSI Utils - enable MSI on GPU/NIC/NVMe   (3 - MSI Utils/)' -ForegroundColor Yellow
     Write-Host '     -> After configuring, run msi_snapshot.bat to save settings for next time.' -ForegroundColor DarkGray

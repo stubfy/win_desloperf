@@ -79,7 +79,7 @@ Before anything runs, `run_all.bat` shows a summary of the current optional choi
 - answer **N** to review the same optional choices one by one through sequential prompts
 - validated optional choices are saved back to `1 - Automated/backup/run_all_options.json` for future runs
 - the core automated phases still run automatically; these are only the optional choices shown up front
-- **Apply saved MSI snapshot** appears in the flow when `1 - Automated/backup/msi_state.json` exists
+- **Apply saved MSI snapshot** appears in the flow when `3 - MSI Utils/msi_state.json` exists
 
 Estimated duration: 5 to 15 minutes. The final reboot is still confirmed at the end:
 - if Defender stayed enabled, the script offers a Safe Mode reboot for the Defender step, default: Yes
@@ -112,7 +112,7 @@ The updater:
 - shows the changelog tag by tag before asking for confirmation
 - updates the pack **in place** so the folder path stays the same
 - keeps a backup of the previous pack next to the current folder
-- preserves `1 - Automated/backup/` (including saved `run_all` choices and the canonical MSI snapshot) and MSI auxiliary JSON files in `3 - MSI Utils/`
+- preserves `1 - Automated/backup/` (including saved `run_all` choices and any `msi_state_default.json`) plus the saved MSI replay snapshot in `3 - MSI Utils/msi_state.json`
 
 If a tag has no published GitHub Release notes yet, the updater shows:
 
@@ -301,22 +301,22 @@ re-run later without launching the full `run_all.bat` flow again.
 
 ### MSI Utils
 
-Which devices get MSI enabled is a judgment call, you have to look at the list and decide. That part stays manual. But once it's configured, `msi_snapshot.bat` saves the registry state of every PCI device to `msi_state.json`. After a reformat, `run_all.bat` picks it up and applies it automatically -- no need to go through the GUI again.
+Which devices get MSI enabled is a judgment call, you have to look at the list and decide. That part stays manual. But once it's configured, `msi_snapshot.bat` saves the registry state of every PCI device to `msi_state.json`. After a reformat, `run_all.bat` can pick it up and apply it automatically, or you can run `msi_apply.bat` manually.
 
 **First time:**
 
 1. `PCIutil.exe` as administrator, close it right away (loads the kernel driver `MSI_util_v3.exe` needs)
 2. `MSI_util_v3.exe` as administrator (important), enable MSI on GPU, NIC, NVMe. See `readme.txt` for what to avoid
-3. `msi_snapshot.bat` saves the canonical replay snapshot to `1 - Automated/backup/msi_state.json` before rebooting
-4. Reboot, check nothing broke. If you missed something you get a BSOD, which can be fixed by running `msi_restore.bat` in Safe Mode.
+3. `msi_snapshot.bat` saves the replay snapshot to `3 - MSI Utils/msi_state.json` before rebooting
+4. Reboot, check nothing broke. If a custom MSI setup causes instability or a BSOD later, `msi_restore.bat` in Safe Mode replays `1 - Automated/backup/msi_state_default.json`.
 
 **After a reformat:**
 
-If `1 - Automated/backup/msi_state.json` exists, `run_all.bat` exposes **Apply saved MSI snapshot** directly in the initial launch menu. There is no separate MSI prompt later in the run anymore.
+If `3 - MSI Utils/msi_state.json` exists, `run_all.bat` exposes **Apply saved MSI snapshot** directly in the initial launch menu. On the first apply, it also creates `1 - Automated/backup/msi_state_default.json` as the rollback state.
 
 If a device changed PCI slot since the snapshot, its InstanceId will differ and it gets skipped with a warning, configure it manually and re-run `msi_snapshot.bat` to update.
 
-`msi_restore.bat` does the same thing standalone, and saves the current state to `msi_state_pre_restore.json` in `3 - MSI Utils/` before touching anything.
+`msi_apply.bat` does the same thing standalone as the automatic replay path and creates `1 - Automated/backup/msi_state_default.json` if needed. `msi_restore.bat` is the Safe Mode rollback that reapplies only `msi_state_default.json`.
 
 > Do not enable MSI on audio controllers, capture cards (ELGATO), or legacy USB, BSOD risk. See `readme.txt` for the full list.
 

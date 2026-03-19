@@ -96,19 +96,26 @@ After configuring MSI mode with the GUI tools, save the state for replay
 
   Snapshot (run once, after MSI configuration):
     msi_snapshot.bat
-    Creates a backup of the current state, then captures MSI settings
-    of all PCI devices to msi_state.json.
+    Captures the configured MSI settings of all PCI devices to
+    3 - MSI Utils\msi_state.json.
 
-  Restore (run after reformat / fresh install):
-    msi_restore.bat
-    Creates a backup of the current state, then reapplies MSI settings
-    from msi_state.json.
+  Apply saved snapshot (fresh install / manual replay):
+    msi_apply.bat
+    Saves the live default state to
+    1 - Automated\backup\msi_state_default.json if it does not
+    already exist, then reapplies 3 - MSI Utils\msi_state.json.
     Devices no longer present on the system are skipped with a warning.
     Reboot required afterward.
 
+  Restore default state (Safe Mode rollback):
+    msi_restore.bat
+    Reapplies 1 - Automated\backup\msi_state_default.json only.
+    Use this if a custom MSI setup caused instability or a BSOD.
+
   Automatic integration:
-    If msi_state.json exists when running the main pack (run_all.bat),
-    you will be prompted to apply it automatically (default: Yes).
+    If 3 - MSI Utils\msi_state.json exists when running the main pack
+    (run_all.bat), you will be prompted to apply it automatically.
+    The first apply creates 1 - Automated\backup\msi_state_default.json.
 
   msi_state.json is human-readable and can be edited manually if needed.
 

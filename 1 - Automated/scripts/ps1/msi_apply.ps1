@@ -1,9 +1,11 @@
 #Requires -RunAsAdministrator
-# msi_restore.ps1 - Restore the default MSI safety backup.
+# msi_apply.ps1 - Apply the saved MSI replay snapshot.
+# Saved replay snapshot: 3 - MSI Utils\msi_state.json
 # Default safety backup: 1 - Automated\backup\msi_state_default.json
 
 param(
     [string]$StateFile = '',
+    [string]$DefaultStateFile = '',
     [switch]$SkipConfirm
 )
 
@@ -41,9 +43,11 @@ function Get-PciDevices {
 }
 
 $PACK_ROOT = Split-Path (Split-Path (Split-Path $PSScriptRoot))
-if ($StateFile -eq '') { $StateFile = Join-Path $PACK_ROOT '1 - Automated\backup\msi_state_default.json' }
+if ($StateFile -eq '') { $StateFile = Join-Path $PACK_ROOT '3 - MSI Utils\msi_state.json' }
+if ($DefaultStateFile -eq '') { $DefaultStateFile = Join-Path $PACK_ROOT '1 - Automated\backup\msi_state_default.json' }
 $StateFile = Resolve-FullPath $StateFile
-$LEGACY_STATE_FILE = Resolve-FullPath (Join-Path $PACK_ROOT '3 - MSI Utils\msi_state_pre_restore.json')
+$DefaultStateFile = Resolve-FullPath $DefaultStateFile
+$LEGACY_STATE_FILE = Resolve-FullPath (Join-Path $PACK_ROOT '1 - Automated\backup\msi_state.json')
 
 function Write-Info($msg) { Write-Host "    $msg" }
 function Write-Ok($msg) { Write-Host "    [OK] $msg" -ForegroundColor Green }
@@ -62,26 +66,27 @@ function Resolve-StateFile {
     try {
         Ensure-Dir (Split-Path -Path $StateFile -Parent)
         Move-Item -LiteralPath $LEGACY_STATE_FILE -Destination $StateFile -Force
-        Write-Warn "Legacy default MSI backup moved -> $StateFile"
+        Write-Warn "Legacy saved snapshot moved -> $StateFile"
         return $StateFile
     } catch {
-        Write-Warn "Could not move legacy default MSI backup: $($_.Exception.Message)"
+        Write-Warn "Could not move legacy saved snapshot: $($_.Exception.Message)"
         return $LEGACY_STATE_FILE
     }
 }
 
 Write-Host ''
 Write-Host '================================================' -ForegroundColor Cyan
-Write-Host '   MSI RESTORE                                  ' -ForegroundColor Cyan
+Write-Host '   MSI APPLY                                    ' -ForegroundColor Cyan
 Write-Host '================================================' -ForegroundColor Cyan
 Write-Host ''
 
 Ensure-Dir (Split-Path -Path $StateFile -Parent)
+Ensure-Dir (Split-Path -Path $DefaultStateFile -Parent)
 $ResolvedStateFile = Resolve-StateFile
 
 if (-not (Test-Path -LiteralPath $ResolvedStateFile)) {
-    Write-Err "Default MSI backup not found: $ResolvedStateFile"
-    Write-Info 'A default MSI backup is created the first time a saved MSI snapshot is applied.'
+    Write-Err "Saved MSI snapshot not found: $ResolvedStateFile"
+    Write-Info 'Run msi_snapshot.bat first to create 3 - MSI Utils\msi_state.json.'
     Write-Host ''
     exit 1
 }
@@ -89,18 +94,51 @@ if (-not (Test-Path -LiteralPath $ResolvedStateFile)) {
 try {
     $raw = Get-Content -LiteralPath $ResolvedStateFile -Encoding UTF8 | ConvertFrom-Json
     $metaObj = $raw._meta
-    Write-Info "Default backup: $ResolvedStateFile"
-    Write-Info "Created      : $($metaObj.created) on $($metaObj.machine)"
-    Write-Info "OS           : $($metaObj.os)"
+    Write-Info "Snapshot: $ResolvedStateFile"
+    Write-Info "Created : $($metaObj.created) on $($metaObj.machine)"
+    Write-Info "OS      : $($metaObj.os)"
 } catch {
-    Write-Err "Failed to read default MSI backup: $($_.Exception.Message)"
+    Write-Err "Failed to read saved MSI snapshot: $($_.Exception.Message)"
     Write-Host ''
     exit 1
 }
 
 Write-Host ''
-$currentDeviceIds = @{}
+Write-Info 'Saving current live MSI state as the default safety backup...'
+$defaultBackup = [ordered]@{}
+$defaultBackup['_meta'] = [ordered]@{
+    created = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+    machine = $env:COMPUTERNAME
+    os = (Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).Caption
+}
+
 $allPciDevices = Get-PciDevices
+foreach ($dev in $allPciDevices) {
+    $msiPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
+    if (Test-Path -LiteralPath $msiPath) {
+        $props = Get-ItemProperty -LiteralPath $msiPath -ErrorAction SilentlyContinue
+        $defaultBackup[$dev.InstanceId] = [ordered]@{
+            FriendlyName = $dev.FriendlyName
+            Class = $dev.Class
+            MSISupported = $props.MSISupported
+            MessageNumberLimit = $props.MessageNumberLimit
+        }
+    }
+}
+
+if (Test-Path -LiteralPath $DefaultStateFile) {
+    Write-Info "Default MSI backup already present -> $DefaultStateFile"
+} else {
+    try {
+        $defaultBackup | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $DefaultStateFile -Encoding UTF8
+        Write-Ok 'Default live state saved -> msi_state_default.json'
+    } catch {
+        Write-Warn "Could not write msi_state_default.json: $($_.Exception.Message)"
+    }
+}
+
+Write-Host ''
+$currentDeviceIds = @{}
 foreach ($dev in $allPciDevices) { $currentDeviceIds[$dev.InstanceId] = $dev }
 
 $toApply = @()
@@ -111,18 +149,9 @@ foreach ($id in $propsNames) {
     if ($null -ne $entry.MSISupported) { $toApply += $id }
 }
 
-Write-Info "$($toApply.Count) device(s) from the default MSI backup will be restored."
+Write-Info "$($toApply.Count) device(s) with MSI state to apply (null entries will be skipped)."
 Write-Host ''
 
-if (-not $SkipConfirm) {
-    $ans = Read-Host '  Continue? (Y/N) [default: N]'
-    if ($ans -notin @('Y', 'y')) {
-        Write-Info 'Aborted by user.'
-        Write-Host ''
-        exit 0
-    }
-    Write-Host ''
-}
 
 $countApplied = 0
 $countSkipped = 0
@@ -161,14 +190,15 @@ foreach ($id in $propsNames) {
 }
 
 Write-Host ''
-Write-Host ("    Restored: {0}  |  Skipped (no key): {1}  |  Not found: {2}  |  Errors: {3}" -f $countApplied, $countSkipped, $countNotFound, $countErrors) -ForegroundColor Cyan
+Write-Host ("    Applied: {0}  |  Skipped (no key): {1}  |  Not found: {2}  |  Errors: {3}" -f $countApplied, $countSkipped, $countNotFound, $countErrors) -ForegroundColor Cyan
 Write-Host ''
-Write-Host "    Default safety backup: $ResolvedStateFile" -ForegroundColor DarkGray
+Write-Host "    Saved replay snapshot : $ResolvedStateFile" -ForegroundColor DarkGray
+Write-Host "    Default safety backup : $DefaultStateFile" -ForegroundColor DarkGray
 Write-Host ''
 
 if ($countNotFound -gt 0) {
     Write-Warn 'Some devices were not found. They may have changed PCI slot or InstanceId.'
-    Write-Warn 'Open MSI_util_v3.exe to configure them manually if needed.'
+    Write-Warn 'Open MSI_util_v3.exe to configure them manually.'
     Write-Host ''
 }
 
