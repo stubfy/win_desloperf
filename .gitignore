@@ -22,3 +22,6 @@ AGENTS.md
 .claude/
 
 
+# Lanceurs locaux CLI
+claude_resume.bat
+codex_resume.bat
