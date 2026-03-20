@@ -189,6 +189,56 @@ function Get-AppxRemovalTargets {
 
     return @($script:packageCache | Where-Object { $_.Name -eq $AppName -and -not $_.IsBundle })
 }
+
+function Remove-StartExperiencesApp {
+    $removed = $false
+
+    $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if ($winget) {
+        try {
+            $result = Start-Process -FilePath $winget.Source -ArgumentList 'uninstall --exact --name "Start Experiences App" --silent --accept-source-agreements' -Wait -PassThru -WindowStyle Hidden
+            if ($result.ExitCode -eq 0) {
+                $removed = $true
+                Write-Host '    [REMOVED] Start Experiences App via winget'
+            } else {
+                Write-Host "    [WARN]    winget uninstall for Start Experiences App exited with code $($result.ExitCode)" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "    [WARN]    winget uninstall for Start Experiences App failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    $packages = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -match '(?i)Experiences' -and $_.Name -notmatch 'StartMenuExperienceHost'
+    })
+    foreach ($pkg in $packages) {
+        try {
+            Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
+            $removed = $true
+            Write-Host "    [REMOVED] $($pkg.PackageFullName)"
+        } catch {
+            Write-Host "    [WARN]    Remove-AppxPackage failed for $($pkg.PackageFullName): $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    $provisioned = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object {
+        $_.DisplayName -match '(?i)Experiences'
+    })
+    foreach ($prov in $provisioned) {
+        try {
+            Remove-AppxProvisionedPackage -Online -PackageName $prov.PackageName -ErrorAction Stop | Out-Null
+            $removed = $true
+            Write-Host "    [REMOVED] $($prov.PackageName)"
+        } catch {
+            Write-Host "    [WARN]    Remove-AppxProvisionedPackage failed for $($prov.PackageName): $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    if (-not $removed) {
+        Hide-StartExperiencesInstalledAppsEntry
+    }
+}
+
 function Hide-StartExperiencesInstalledAppsEntry {
     $paths = @(
         'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
@@ -219,7 +269,6 @@ function Hide-StartExperiencesInstalledAppsEntry {
         }
     }
 }
-
 # Upfront cache: single queries for all installed and provisioned packages.
 # Avoids repeated WMI/DISM calls that are slow on large package sets.
 Write-Host "    [CACHE]   Loading installed packages..." -ForegroundColor DarkGray
@@ -286,6 +335,6 @@ foreach ($appName in $appsToRemove) {
     }
 }
 
-Hide-StartExperiencesInstalledAppsEntry
+Remove-StartExperiencesApp
 
 Write-Host "    Summary: $removedPackages installed package(s) removed, $removedProvisioned provisioned package(s) removed, $skippedNonRemovable non-removable package(s) skipped, $errors error(s), $notFound app id(s) not found"
