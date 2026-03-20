@@ -415,7 +415,20 @@ $braveInstalled = Test-Path 'HKLM:\SOFTWARE\BraveSoftware\Brave-Browser' `
     -ErrorAction SilentlyContinue
 
 if (-not $braveInstalled) {
-    $braveInstalled = Test-Path "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\Application\brave.exe" `
+    $braveInstalled = Test-Path 'HKLM:\SOFTWARE\WOW6432Node\BraveSoftware\Brave-Browser' `
+        -ErrorAction SilentlyContinue
+}
+
+if (-not $braveInstalled) {
+    $braveInstalled = Test-Path 'HKCU:\SOFTWARE\BraveSoftware\Brave-Browser' `
+        -ErrorAction SilentlyContinue
+}
+
+if (-not $braveInstalled) {
+    # Resolve the actual logged-on user's LOCALAPPDATA when running elevated
+    $userLocalAppData = (Get-ItemProperty -Path 'HKCU:\Volatile Environment' -Name 'LOCALAPPDATA' -ErrorAction SilentlyContinue).LOCALAPPDATA
+    if (-not $userLocalAppData) { $userLocalAppData = $env:LOCALAPPDATA }
+    $braveInstalled = Test-Path "$userLocalAppData\BraveSoftware\Brave-Browser\Application\brave.exe" `
         -ErrorAction SilentlyContinue
 }
 
