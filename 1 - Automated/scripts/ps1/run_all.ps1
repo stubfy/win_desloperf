@@ -15,16 +15,16 @@
         registry             -> consolidated reg file + visual effects + MarkC mouse fix
         services             -> startup type alignment
         performance          -> Bitsum / Ultimate Performance plan + BCD + USB selective suspend
-        [7 - DNS]            -> Cloudflare DNS (user choice)
+        [6 - DNS]            -> Cloudflare DNS (user choice)
         debloat              -> UWP app removal
         privacy              -> OOSU10 + AI/Copilot/Recall + telemetry tasks + privacy registry
         ai_debloat           -> Deep AI package / CBS / Recall cleanup
         timer                -> Optional SetTimerResolution startup
         network_tweaks       -> Teredo disable + TCP/Nagle/QoS
-        [8 - Windows Update] -> WU profile (user choice)
+        [7 - Windows Update] -> WU profile (user choice)
         firewall             -> Firewall disable (user choice)
         personal_settings    -> Subjective shell/theme preferences (user choice)
-        [6 - Interrupt Affinity] -> GPU IRQ pin to core 2 (user choice)
+        [5 - Interrupt Affinity] -> GPU IRQ pin to core 2 (user choice)
       Options - Edge uninstall, OneDrive uninstall (user choice)
       Phase C - Diff report (show_diff)
 
@@ -47,7 +47,7 @@ $PACK_ROOT             = Split-Path $ROOT -Parent
 $SCRIPTS               = $PSScriptRoot
 $BACKUP_DIR            = Join-Path $ROOT 'backup'
 $MSI_UTILS_DIR         = Join-Path $PACK_ROOT '3 - MSI Utils'
-$NVINSPECTOR_DIR       = Join-Path $PACK_ROOT '4 - NVInspector'
+$NVINSPECTOR_DIR       = Join-Path $PACK_ROOT 'Tools\NVInspector'
 $RUN_ALL_OPTIONS_FILE   = Join-Path $BACKUP_DIR 'run_all_options.json'
 $MSI_DEFAULT_STATE_FILE = Join-Path $BACKUP_DIR 'msi_state_default.json'
 $MSI_STATE_FILE         = Join-Path $MSI_UTILS_DIR 'msi_state.json'
@@ -726,7 +726,7 @@ if ($setInterruptAffinity) {
     Invoke-Script "$SCRIPTS\set_affinity.ps1" @{ SkipReboot = $true }
 } else {
     Write-Step 'PHASE B.13 - GPU interrupt affinity (skipped)'
-    Write-Host '    Skipped        : run 6 - Interrupt Affinity\set_affinity.bat after NVIDIA updates'
+    Write-Host '    Skipped        : run 5 - Interrupt Affinity\set_affinity.bat after NVIDIA updates'
     Write-Log 'Skipped: set_affinity.ps1 (user opted out)' 'INFO'
 }
 
@@ -801,14 +801,14 @@ if ($msiStateApplied) {
 if ($installNvInspector -and (Test-Path $nvInspectorExe) -and (Test-Path $nvInspectorShortcut)) {
     Write-Host '  4. NVIDIA Profile Inspector - installed, Desktop shortcut created' -ForegroundColor Green
 } elseif ($hasNvidiaGpu) {
-    Write-Host '  4. NVIDIA Profile Inspector - run install_nvinspector.bat (4 - NVInspector/)' -ForegroundColor Yellow
+    Write-Host '  4. NVIDIA Profile Inspector - run install_nvinspector.bat (Tools/NVInspector/)' -ForegroundColor Yellow
 } else {
     Write-Host '  4. NVIDIA Profile Inspector - skipped (no NVIDIA GPU detected)' -ForegroundColor DarkGray
 }
 
-Write-Host '  5. Device Manager - disable USB power saving (5 - Device Manager/)'
+Write-Host '  5. Device Manager - disable USB power saving (4 - Device Manager/)'
 Write-Host '  6. Interrupt Affinity - re-run set_affinity.bat after each NVIDIA driver update'
-Write-Host '  7. Quick reruns if needed: DNS / Windows Update / Firewall (7 - DNS/, 8 - Windows Update/, 1 - Automated/scripts/firewall.bat)'
+Write-Host '  7. Quick reruns if needed: DNS / Windows Update / Firewall (6 - DNS/, 7 - Windows Update/, 1 - Automated/scripts/firewall.bat)'
 Write-Host '  8. NIC settings - disable offloads, buffers in Device Manager'
 Write-Host '  9. Optional timer check: verify with MeasureSleep.exe as admin (Tools/)'
 Write-Host ''

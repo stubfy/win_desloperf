@@ -1,4 +1,4 @@
-5 - DEVICE MANAGER
+4 - DEVICE MANAGER
 Unused device cleanup
 =====================
 

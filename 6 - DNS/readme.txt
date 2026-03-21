@@ -1,4 +1,4 @@
-7 - DNS
+6 - DNS
 Cloudflare DNS on demand
 ========================
 
@@ -13,7 +13,7 @@ or a network reset reverted the adapters back to DHCP/router DNS.
 
 ROLLBACK
 --------
-Run `1 - Automated\restore\04_dns.bat` as administrator.
+Run `1 - Automated\restore\dns.bat` as administrator.
 
 That restore script resets DNS to automatic DHCP on all active adapters.
 

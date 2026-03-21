@@ -1,11 +1,11 @@
-3 - WINDOWS TWEAKER
-Additional tweaks via Ultimate Windows Tweaker v5
-==================================================
+WINDOWS TWEAKER
+Additional tweaks via Ultimate Windows Tweaker v5.2
+====================================================
 
 PROCEDURE
 ---------
 1. Open this folder
-2. Launch "Ultimate Windows Tweaker v 5\Ultimate Windows Tweaker 5.0.exe"
+2. Launch "UWT 5.2\Ultimate Windows Tweaker 5.2.exe"
    as administrator (right-click > Run as administrator)
 3. Menu File > Load Settings > select Settings.ini in this folder
 4. Review the tweaks to confirm they match your needs
@@ -15,11 +15,9 @@ PROCEDURE
 
 NOTES
 -----
-UWT v4.4.1 (Windows 10) is also present in this folder as an archive.
-Do not use it on Windows 11 -- use UWT v5 exclusively.
-
-If a tweak produces unexpected behavior, UWT allows undoing it individually
+If a tweak produces unexpected behavior, UWT v5.2 allows undoing it individually
 through the same interface by deselecting the tweak and clicking Apply.
+
 
 
 WHAT IT DOES

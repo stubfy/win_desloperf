@@ -23,7 +23,7 @@ Target value:
   - around `5200` when the requested 0.52 ms timer resolution is active
 
 If Windows reports a missing `VCRUNTIME140*.dll` or `MSVCP140.dll`, install
-the Microsoft Visual C++ 2015-2022 x64 runtime. `1 - Automated/scripts/08_timer.ps1`
+the Microsoft Visual C++ 2015-2022 x64 runtime. `1 - Automated/scripts/ps1/timer.ps1`
 already installs it automatically when required.
 
 

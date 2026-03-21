@@ -1,4 +1,4 @@
-6 - INTERRUPT AFFINITY
+5 - INTERRUPT AFFINITY
 Pinning GPU interrupts to a dedicated CPU core
 ===============================================
 
@@ -39,7 +39,7 @@ ROLLBACK
 --------
 Run restore_affinity.bat as administrator.
 
-The script reads backup\affinity_state.json (saved by 01_backup.ps1 before
+The script reads backup\affinity_state.json (saved by backup.ps1 before
 any tweaks ran) and restores each device to its original state:
   - If the Affinity Policy key did not exist before: deletes it (Windows default)
   - If the Affinity Policy key existed before: restores the original values

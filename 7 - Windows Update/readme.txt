@@ -1,4 +1,4 @@
-8 - WINDOWS UPDATE
+7 - WINDOWS UPDATE
 Windows Update profile on demand
 ================================
 
@@ -17,7 +17,7 @@ setup without re-running the full automated phase.
 
 ROLLBACK
 --------
-Run `1 - Automated\restore\11_windows_update.bat` as administrator.
+Run `1 - Automated\restore\windows_update.bat` as administrator.
 
 That restore script reapplies profile 1 (`Maximum`), which is the pack's
 Windows-default baseline.

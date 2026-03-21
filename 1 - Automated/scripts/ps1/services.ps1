@@ -449,7 +449,7 @@ function Get-ServiceStartupCatalog {
         'InstallService'  # Microsoft Store installation infrastructure
         'VaultSvc'        # Credential Vault: stores encrypted credentials for apps and Windows
         'W32Time'         # Windows Time: NTP synchronization (keeps system clock accurate)
-        'wuauserv'        # Windows Update Agent: managed separately by 8 - Windows Update\ps1\set_windows_update.ps1
+        'wuauserv'        # Windows Update Agent: managed separately by 7 - Windows Update\ps1\set_windows_update.ps1
     )
 
     # ---- AUTOMATIC DELAYED START ----

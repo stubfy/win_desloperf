@@ -1,4 +1,4 @@
-5 - MSI UTILS
+3 - MSI UTILS
 Enabling MSI interrupts on hardware devices
 ============================================
 

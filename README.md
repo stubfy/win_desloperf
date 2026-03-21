@@ -5,9 +5,9 @@
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-5391FE?logo=powershell)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> Windows 11 (25H2) optimization pack. Debloat, system tweaks, input latency reduction and performance focused. Includes optional personal settings for a straightforward, consistent setup across fresh installs.
+> Windows 11 (25H2) optimization pack. Debloat both apps and AI, system tweaks for input latency reduction and overall slight better performance. Includes optional personal settings for a straightforward, consistent setup across fresh installs.
 
-25H2 is the most tested version for this pack. With the latest security update, 23H2 is no longer updated by Microslop.
+**Tested on**: Intel / AMD CPU, NVIDIA GPU. Results on other hardware configurations may vary.
 
 ---
 
@@ -15,6 +15,7 @@
 
 - [What is in the pack](#what-is-in-the-pack)
 - [Fresh install example](#fresh-install-example)
+- [Benchmarks](#benchmarks)
 - [Quick start](#quick-start)
 - [Pack updates](#pack-updates)
 - [Automated phase](#automated-phase)
@@ -23,8 +24,10 @@
   - [Timer resolution](#timer-resolution-options)
   - [GPU interrupt affinity](#gpu-interrupt-affinity)
   - [Service startup tweaks](#service-startup-tweaks)
+  - [Diff report](#diff-report)
   - [Logging](#logging)
 - [Manual phase](#manual-phase)
+  - [Quick reruns](#quick-reruns)
   - [MSI Utils](#msi-utils)
 - [Rollback](#rollback)
 - [Project structure](#project-structure)
@@ -35,31 +38,91 @@
 
 ## What is in the pack
 
-In this pack you will find tweaks for:
+The pack contains tweaks for:
 
-- **Better input latency**: by adjusting the timer resolution (via SetTimerResolution or Process Lasso, depending on what you prefer), MSI interrupts, GPU IRQ affinity, mouse acceleration fix, and dynamic tick disabled in the BCD.
+- **Better input latency**: by adjusting the timer resolution (via SetTimerResolution or Process Lasso), MSI interrupts, GPU IRQ affinity, mouse acceleration fix, and dynamic tick disabled in the BCD.
 - **Better system fluidity**: power throttling disabled, MMCSS high priority, USB selective suspend disabled, less background activity
-- **Debloat**: Microsoft app removal, OEM bloatware (HP/Dell/Lenovo), pre-installed third-party apps (Spotify, Netflix, TikTok, Candy Crush, Roblox...), service startup cleanup (via Autoruns, provided in /Tools/), plus deep AI component cleanup for AIX/CoreAI/Recall where supported
-- **Privacy**: 240 OOSU10 tweaks. DiagTrack, Cortana, widgets, Copilot, Recall, Click to Do, Paint/Notepad AI features, Office AI/Copilot policies, Edge AI/Copilot sidebar, and account nag notifications disabled. Start menu Recommended section hidden.
-- **Boot**: legacy boot menu
+- **Debloat**: Microsoft app and AI removal, OEM bloatware (HP/Dell/Lenovo), pre-installed third-party apps (Spotify, Netflix, TikTok, Candy Crush, Roblox...), services (~180 services via built-in catalog)
+- **Privacy**: OOSU10. DiagTrack, Cortana, widgets, Click to Do, Brave policies (if Brave is installed), and account nag notifications disabled. Start menu Recommended section hidden.
 - **Network**: Cloudflare DNS (optional), network throttling disabled, TCP stack tuned (ECN, RSS, CUBIC, Nagle off), LSO off, QoS reservation removed
 - **Windows Update**: configurable profile: Maximum / Security only / Disabled. Security only is often the best.
-- **Personal settings**: a dedicated script groups subjective theme/taskbar/Explorer/Settings preferences separately, optional
-
-The pack is mostly automated via scripts. Tweaks that can't be automated are in separate folders, organized by steps (2, 3, 4...) in the root of the pack.
-Some folders remain manual because they may need to be reapplied later (for example, after an NVIDIA driver update, you should manually re-run the step 6 folder).
+- **Personal settings**: a dedicated optional script groups subjective theme/taskbar/Explorer/Settings preferences separately
 
 ---
 
 ## Fresh install example
 
 Here is an example of the Task Manager before and after applying the pack.
-The Windows install is fresh, and the "before" screenshot was not taken on the first boot to avoid first-load software activity and produce an accurate comparison.
+The Windows install is fresh, and the "before" screenshot was not taken on the very first boot to avoid first load software activity and produce an accurate comparison.
 
 | Before | After |
 |--------|-------|
 | ![Fresh Windows 11 install before the tweaks](assets/readme/fresh-install-before.png) | ![Fresh Windows 11 install after the tweaks](assets/readme/fresh-install-after.png) |
 | Fresh install, 133 processes. Lots of background activity at startup | After tweaks, 65 processes. Much cleaner startup |
+
+---
+
+## Benchmarks
+
+> **Methodology and disclaimer**
+>
+> **Test rig**: Ryzen 7 9800X3D OC @ 5425 MHz · RTX 4090 OC @ ~2900 MHz · DDR5 6000 MHz FCLK 2000 MHz CAS 28
+>
+> **In-game runs (Overwatch 2, Gibraltar)**: same map, same POV, ~8 min game per run. Numbers shown are AVG / 1% low / 0.1% low. Ignore the current FPS value visible in screenshots (skewed by desktop returns and menus locking at 60 FPS).
+
+### Synthetic — Cinebench R23
+
+23 400 pts → 23 681 pts **(+1.2%)**
+
+> **Note**: The difference may be within margin of error.
+
+| Before | After |
+|--------|-------|
+| ![Cinebench R23 before tweaks](assets/readme/bench/before/cinebench.png) | ![Cinebench R23 after tweaks](assets/readme/bench/after/cinebench.png) |
+
+### Synthetic — 3DMark CPU Profile
+
+| Test | Before | After | Delta |
+|------|--------|-------|-------|
+| Max threads | 10 085 | 10 375 | +2.9% |
+| 1-thread | 10 147 | 10 379 | +2.3% |
+
+| Before | After |
+|--------|-------|
+| ![3DMark CPU Profile before tweaks](assets/readme/bench/before/cpu.png) | ![3DMark CPU Profile after tweaks](assets/readme/bench/after/cpu.png) |
+
+### Synthetic — 3DMark Steel Nomad
+
+Score: 9 810 → 10 131 **(+3.3%)** · Graphics: 98.10 → 101.31 FPS **(+3.3%)**
+
+| Before | After |
+|--------|-------|
+| ![3DMark Steel Nomad before tweaks](assets/readme/bench/before/gpu.png) | ![3DMark Steel Nomad after tweaks](assets/readme/bench/after/gpu.png) |
+
+> Some gains may look small, but they meaningfully improve worst-case scenarios in games, as you can see below:
+
+### In-game — Overwatch 2 (Gibraltar)
+
+| Run | AVG | 1% low | 0.1% low |
+|-----|-----|--------|----------|
+| VOD Before | 449 | 257 | 200 |
+| VOD After | 500 | 291 | 227 |
+| Vaxta Before | 383 | 284 | 251 |
+| Vaxta After | 433 | 324 | 292 |
+
+**VOD run**
+
+| Before | After |
+|--------|-------|
+| ![Overwatch VOD run before tweaks](assets/readme/bench/before/vod.png) | ![Overwatch VOD run after tweaks](assets/readme/bench/after/vod.png) |
+
+**Vaxta run**
+
+| Before | After |
+|--------|-------|
+| ![Overwatch Vaxta 1min run before tweaks](assets/readme/bench/before/vaxta.png) | ![Overwatch Vaxta 1min run after tweaks](assets/readme/bench/after/vaxta.png) |
+
+> **Note**: the after screenshot shows 2730 MHz due to a desktop return artifact captured in the frame. In actual gameplay the clock sits lower (~2625 MHz) because of an ongoing NVIDIA driver bug causing GPU downclocking in certain context. This explains slightly lower FPS compared to the VOD run on identical hardware.
 
 ---
 
@@ -71,28 +134,37 @@ The Windows install is fresh, and the "before" screenshot was not taken on the f
 1 - Automated/run_all.bat   (double-click, UAC prompt is automatic)
 ```
 
-Before anything runs, `run_all.bat` shows a summary of the current optional choices:
-- if `1 - Automated/backup/run_all_options.json` exists, the last validated choices are loaded
-- otherwise the built-in defaults are shown
-- **Defender Safe Mode step** stays enabled by default
+Before anything runs, `run_all.bat` shows a summary of the current optional choices.
+- if `1 - Automated/backup/run_all_options.json` exists, the last validated choices are loaded, otherwise the built-in defaults are shown.
 - answer **Y** to `Run like this?` to launch immediately with those optional choices
 - answer **N** to review the same optional choices one by one through sequential prompts
 - validated optional choices are saved back to `1 - Automated/backup/run_all_options.json` for future runs
 - the core automated phases still run automatically; these are only the optional choices shown up front
-- **Apply saved MSI snapshot** appears in the flow when `3 - MSI Utils/msi_state.json` exists
 
-Estimated duration: 5 to 15 minutes. The final reboot is still confirmed at the end:
-- if Defender stayed enabled, the script offers a Safe Mode reboot for the Defender step, default: Yes
-- if Defender was disabled in the menu, the script offers a normal reboot, default: No
+
+| # | Choice | Default |
+|---|--------|---------|
+| 1 | Defender Safe Mode step (reboot into Safe Mode after run to disable Defender) | Yes |
+| 2 | Windows Update profile (1 = Maximum, 2 = Security only, 3 = Disabled) | 2 |
+| 3 | Uninstall Edge + WebView2 Runtime | Yes |
+| 4 | Uninstall OneDrive | Yes |
+| 5 | Disable Windows Firewall | Yes |
+| 6 | Apply Cloudflare DNS (1.1.1.1 / 1.0.0.1) | Yes |
+| 7 | Enable SetTimerResolution at startup | Yes |
+| 8 | Apply personal settings (dark mode, taskbar, Explorer preferences) | Yes |
+| 9 | Install NVInspector to `%APPDATA%\win_desloperf` + Desktop shortcut | Yes (NVIDIA only) |
+| 10 | Pin GPU interrupt chain to core 2 | Yes |
+| 11 | Apply saved MSI snapshot (`3 - MSI Utils/msi_state.json`) | — (shown only if file exists) |
+
+The final reboot is still confirmed at the end:
+- if Defender tweak is enabled, the script asks you to reboot into Safe Mode for the Defender step, default: Yes
+- if Defender tweak was disabled in the menu, the script asks you for a normal reboot, default: No
 
 **2. Reboot when prompted at the end**
 
-**3. Follow the manual steps in order (`3 - MSI Utils/`, `4 - NVInspector/`, `5 - Device Manager/`, `6 - Interrupt Affinity/`, then NIC Device Manager tweaks, then `Tools/`). If you confirmed the Defender Safe Mode reboot, run the Desktop shortcut `Disable Defender and Return to Normal Mode` once Safe Mode boots. If you skipped that reboot, run `2 - Windows Defender/run_defender.bat` later when needed to recreate the shortcut.**
+**3. If you confirmed the Defender Safe Mode reboot, run the Desktop shortcut `Disable Defender and Return to Normal Mode` once Safe Mode boots.**
 
-Quick reruns are also available when needed:
-`7 - DNS/set_dns.bat`, `8 - Windows Update/set_windows_update.bat`, `1 - Automated/scripts/firewall.bat`.
 
-The manual folders still contain guidance files where needed.
 
 ---
 
@@ -109,38 +181,26 @@ No git, GitHub Desktop, or terminal knowledge is required.
 The updater:
 - reads your current local pack version
 - checks the latest GitHub tag for `stubfy/win_desloperf`
-- shows the changelog tag by tag before asking for confirmation
 - updates the pack **in place** so the folder path stays the same
-- keeps a backup of the previous pack next to the current folder
-- preserves `1 - Automated/backup/` (including saved `run_all` choices and any `msi_state_default.json`) plus the saved MSI replay snapshot in `3 - MSI Utils/msi_state.json`
-
-If a tag has no published GitHub Release notes yet, the updater shows:
-
-```text
-No published release notes for this tag.
-```
-
-You can also run the checker without downloading anything:
-
-```powershell
-.\update_pack.ps1 -CheckOnly
-```
 
 ---
 
 ## Automated phase
 
-Scripts executed in order:
+You can run the scripts you want instead of the run_all script, if you just want specific tweaks.
+
+Scripts executed by run_all:
 
 | Script | Purpose |
 |--------|---------|
-| `backup.ps1` | Windows restore point + service/registry state export |
+| `snapshot.ps1` | State capture: registry values, services, BCD, network, GPU affinity, saved to `backup/snapshot_latest.json` for diff comparison |
+| `backup.ps1` | Windows Restore Point + service/registry/firewall/affinity state export |
 | `registry.ps1` | Consolidated registry tweaks + visual effects SPI (live session) + MarkC mouse fix (auto-detects DPI scaling) |
-| `services.ps1` | Service startup alignment (built-in catalog) |
-| `performance.ps1` | Ultimate Performance power plan + PPM Rocket (immediate max CPU frequency), BCD (dynamictick, legacy menu), USB selective suspend disabled |
+| `services.ps1` | Many services set to Manual instead of Automatic |
+| `performance.ps1` | Bitsum Highest Performance power plan + PPM Rocket (immediate max CPU frequency), BCD (dynamictick, legacy menu), USB selective suspend disabled |
 | `set_dns.ps1` | Optional Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
 | `debloat.ps1` | UWP app removal: Microsoft bloatware (Teams, Copilot, Outlook, Sticky Notes...), Xbox overlay, OEM apps (HP/Dell/Lenovo), pre-installed third-party apps (Spotify, Netflix, TikTok, Candy Crush...) |
-| `privacy.ps1` | O&O ShutUp10++ (240 tweaks) + Recall, Click to Do, Copilot, Office AI policies, Paint AI, Notepad AI, Edge AI/sidebar disabled + telemetry scheduled tasks + PS7 telemetry + Brave policies + privacy registry tweaks |
+| `privacy.ps1` | O&O ShutUp10++ + Recall, Click to Do, Copilot, Office AI policies, Paint AI, Notepad AI, Edge AI/sidebar disabled + telemetry scheduled tasks + PS7 telemetry + Brave policies + wscsvc (Security Center) + privacy registry tweaks |
 | `ai_debloat.ps1` | Deep AI cleanup: advanced AI AppX removal, Recall optional feature removal, CBS package cleanup, region policy patch, and targeted file/task cleanup |
 | `timer.ps1` | Optional SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
 | `network_tweaks.ps1` | Teredo disabled, TCP stack (ECN, RSC off, heuristics off), LSO disabled on active adapters, Nagle disabled per Ethernet interface, QoS bandwidth reservation removed, MaxUserPort extended |
@@ -148,23 +208,26 @@ Scripts executed in order:
 | `firewall.ps1` | Windows Firewall profiles disabled |
 | `personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, taskbar End task, Explorer presentation, Settings Home hidden) |
 | `set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
+| `msi_apply.ps1` | Applies `3 - MSI Utils/msi_state.json` if the file exists |
+| `install_nvinspector.ps1` | only on NVIDIA systems, copies NVInspector bundle to `%APPDATA%\win_desloperf\NVInspector` and creates a Desktop shortcut |
+| `opt_onedrive_uninstall.ps1` | Optional — full OneDrive removal |
+| `opt_edge_uninstall.ps1` | Optional — full Edge + WebView2 Runtime removal |
+| `show_diff.ps1` | Post-tweak diff: compares current system state against `snapshot_latest.json`, categorizes results as "already OK", "applied", or "failed" |
 
-On systems with an NVIDIA GPU, the script can also copy NVInspector to `%APPDATA%\win_desloperf\NVInspector` and create a Desktop shortcut to `NVPI-R.exe`.
+### Diff report
 
-At the end of the script, reboot behavior depends on the launch menu: if the Defender step stayed enabled, `run_all.bat` offers an immediate Safe Mode reboot (default: Yes); otherwise it offers a normal reboot (default: No).
+`show_diff.ps1` runs automatically at the end of the automated phase (Phase C). It compares the current system state against the `backup/snapshot_latest.json` captured by `snapshot.ps1` before any tweak ran, and prints a categorized report:
 
-`show_diff.ps1` can also be run standalone at any time after `run_all.bat`. Re-run it after a Windows Update to detect regressions: entries marked `failed` indicate tweaks that were reset by the update.
+- **already OK** — value was already at the target before tweaks
+- **applied** — tweak changed the value successfully
+- **failed** — value is not at the expected target after tweaks
+
+`show_diff.ps1` can also be run standalone at any time after `run_all.bat`. Re-run it after a Windows Update to detect regressions: entries marked `failed` indicate tweaks that were reset by the update and need to be reapplied.
 
 ### Windows Update profiles
 
 `set_windows_update.ps1` can also be run standalone at any time:
 
-```powershell
-.\set_windows_update.ps1 -Profil 1   # Maximum - all updates
-.\set_windows_update.ps1 -Profil 2   # Security only - no feature updates, no drivers via WU, no forced reboot
-.\set_windows_update.ps1 -Profil 3   # Disable - completely disable WU (services + policies)
-.\set_windows_update.ps1             # Interactive menu
-```
 
 Profile 2 also sets `NoAutoRebootWithLoggedOnUsers=1` (Windows will not reboot to apply an update while you are logged in) and disables the "Get latest updates as soon as they're available" toggle that bypasses the normal update schedule.
 
@@ -187,14 +250,13 @@ Profile 2 also sets `NoAutoRebootWithLoggedOnUsers=1` (Windows will not reboot t
 - Classic context menu (Windows 11)
 - Widgets / News disabled
 - Start menu Recommended section hidden
-- Personal shell/theme tweaks are applied separately in `personal_settings.ps1` (dark mode, black accent, taskbar seconds, taskbar End task, classic Alt+Tab, Explorer presentation, Settings Home hidden)
 
 ### Timer resolution options
 
-The step 1 script offers to install SetTimerResolution at startup. If you already use Process Lasso to manage the system timer, skip it.
+The `run_all.bat` setup asks you to install SetTimerResolution at startup. If you already use Process Lasso to manage the system timer, skip it.
 The logic is simple:
 - Already using Process Lasso for something else? Skip SetTimerResolution.
-- Not using Process Lasso? Install SetTimerResolution.
+- Not using Process Lasso? Setup SetTimerResolution.
 
 There is no point installing both, it's a background process running for nothing.
 
@@ -202,7 +264,7 @@ I recommend installing Process Lasso if you have a hybrid E-core + P-core (Intel
 
 If you use Process Lasso:
 1. `Options > Tools > System Timer Resolution`
-2. Set the value you want (`0.510`, `0.520`, etc.)
+2. Set the value you want (`0.510`, `0.520`)
 3. Enable `Set at every boot` + `Apply globally`
 
 Use `0.510` or `0.520` rather than `0.500`. At exactly 0.5 ms you're asking for the hardware minimum. The system can't always hit it precisely and may overshoot to the next achievable interval, causing inconsistent `Sleep(1)` behavior and higher delta. A slightly higher target (0.5100 or 0.5200, test it for your setup) is more stable as you can see in the examples below.
@@ -221,12 +283,12 @@ After reboot, verify the results with `Tools/MeasureSleep.exe` (as admin). The r
 
 ### GPU interrupt affinity
 
-The step 1 script asks whether the GPU interrupt chain should be pinned to core 2. It automatically detects the GPU, the PCI chain (GPU -> PCI Bridge -> Root Complex), and writes the affinity policy to the registry for each device.
+The `run_all.bat` setup menu asks whether the GPU interrupt chain should be pinned to core 2. It automatically detects the GPU, the PCI chain (GPU -> PCI Bridge -> Root Complex), and writes the affinity policy to the registry for each device.
 
-**Warning: NVIDIA driver updates reset this setting for the GPU.** After every NVIDIA driver update (not NVIDIA App, only the driver itself), re-run step 6:
+**Warning: NVIDIA driver updates reset this setting for the GPU.** After every NVIDIA driver update (not NVIDIA App, only the driver itself), re-run step 4:
 
 ```
-6 - Interrupt Affinity/set_affinity.bat   (double-click, UAC prompt is automatic)
+5 - Interrupt Affinity/set_affinity.bat   (double-click, UAC prompt is automatic)
 ```
 
 The script outputs the full chain with the core assignment for each device:
@@ -254,7 +316,7 @@ LatencyMon (Drivers tab) before and after. Same session, NVIDIA RTX 4090 on AMD 
 | ![LatencyMon before interrupt affinity](assets/readme/affinity-latencymon-before.png) | ![LatencyMon after interrupt affinity](assets/readme/affinity-latencymon-after.png) |
 | `nvlddmkm.sys` 3736 DPCs / 0.124 ms -- `dxgkrnl.sys` 576 DPCs / 0.139 ms | `nvlddmkm.sys` 116 DPCs / 0.035 ms (-97% / -72%) -- `dxgkrnl.sys` 90 DPCs / 0.092 ms (-84% / -34%) |
 
-> Note: the "before" baseline is already from a heavily optimized system. On a stock Windows install, `nvlddmkm.sys` highest execution can exceed 300 ms. The delta here reflects the affinity change alone, on top of everything else the pack already applied.
+> Note: the "before" baseline is already from a heavily optimized system. On a stock Windows install, `nvlddmkm.sys` highest execution time can exceed 300 ms. The delta here reflects the affinity change alone, on top of everything else the pack already applied.
 
 To undo: `restore_affinity.bat` in the same folder.
 
@@ -273,10 +335,6 @@ All executions are logged to:
 %APPDATA%\win_desloperf\logs\win_desloperf_restore.log
 ```
 
-The log includes: pack version, timestamp, OS info, machine name, full output of each script, detailed errors with stack traces.
-
-`timer.ps1` will grab and install the VC++ x64 runtime if it's missing (needed by `SetTimerResolution.exe` and `MeasureSleep.exe`).
-
 ---
 
 ## Manual phase
@@ -285,24 +343,22 @@ The log includes: pack version, timestamp, OS info, machine name, full output of
 |------|------|-----------|------------|
 | 1 | **2 - Windows Defender** | Requires Safe Mode; PPL and Tamper Protection block full disable in normal mode | High |
 | 2 | **3 - MSI Utils** | Manual identification of compatible devices required on first run | Moderate |
-| 3 | **4 - NVInspector** | `run_all.bat` can install NVInspector to `%APPDATA%\win_desloperf` and add a Desktop shortcut. Profile tuning remains manual; pre-configured profiles are included in base-settings. | Low |
-| 4 | **5 - Device Manager** | Disable unused devices (HDA Controller, IME, Hyper-V driver, GS Wavetable, etc.) to remove their DPCs and interrupts; which devices are safe to disable depends on your hardware | Low |
-| 5 | **6 - Interrupt Affinity** | Automated by `set_affinity.bat`, but you need to re-run after each NVIDIA driver update. | Low |
-| 6 | **NIC Device Manager** | Hardware-dependent NIC settings: disable Interrupt Moderation, EEE, Flow Control, Wake-on-*, LSO V2; max Receive/Transmit Buffers; uncheck power management. Keep Checksum Offload enabled and Speed/Duplex on Auto-Negotiation. | Low |
-| 7 | **Tools** | Complementary tools (Autoruns, temp folders) | Low |
+| 3 | **4 - Device Manager** | Disable unused devices (HDA Controller, IME, Hyper-V driver, GS Wavetable, etc.) to remove their DPCs and interrupts; which devices are safe to disable depends on your hardware | Low |
+| 4 | **5 - Interrupt Affinity** | Automated by `set_affinity.bat`, but you need to re-run after each NVIDIA driver update. | Low |
+| 5 | **NIC Device Manager** | Hardware-dependent NIC settings: disable Interrupt Moderation, EEE, Flow Control, Wake-on-*, LSO V2; max Receive/Transmit Buffers; uncheck power management. Keep Checksum Offload enabled and Speed/Duplex on Auto-Negotiation. | Low |
+| 6 | **Tools** | Complementary tools (Autoruns, NVInspector, temp folders) | Low |
 
 ### Quick reruns
 
 These are not mandatory manual steps after a fresh install, but they stay easy to
 re-run later without launching the full `run_all.bat` flow again.
 
-- `7 - DNS/set_dns.bat` re-applies Cloudflare DNS on active adapters
-- `8 - Windows Update/set_windows_update.bat` switches the Windows Update profile
-- `1 - Automated/scripts/firewall.bat` disables the Windows Firewall profiles again
+- `6 - DNS/set_dns.bat` re-applies Cloudflare DNS on active adapters
+- `7 - Windows Update/set_windows_update.bat` switches the Windows Update profile
 
 ### MSI Utils
 
-Which devices get MSI enabled is a judgment call, you have to look at the list and decide. That part stays manual. But once it's configured, `msi_snapshot.bat` saves the registry state of every PCI device to `msi_state.json`. After a reformat, `run_all.bat` can pick it up and apply it automatically, or you can run `msi_apply.bat` manually.
+Which devices get MSI enabled is a judgment call, you have to look at the list and decide. That part stays manual. But once it's configured, `msi_snapshot.bat` saves the registry state of every PCI device to `msi_state.json`. `run_all.bat` can pick it up and apply it automatically, or you can run `msi_apply.bat` manually.
 
 **First time:**
 
@@ -315,7 +371,7 @@ Which devices get MSI enabled is a judgment call, you have to look at the list a
 
 If `3 - MSI Utils/msi_state.json` exists, `run_all.bat` exposes **Apply saved MSI snapshot** directly in the initial launch menu. On the first apply, it also creates `1 - Automated/backup/msi_state_default.json` as the rollback state.
 
-If a device changed PCI slot since the snapshot, its InstanceId will differ and it gets skipped with a warning, configure it manually and re-run `msi_snapshot.bat` to update.
+If a device changed PCI slot since the snapshot, its InstanceId will differ and it gets skipped with a warning — configure it manually and re-run `msi_snapshot.bat` to update.
 
 `msi_apply.bat` does the same thing standalone as the automatic replay path and creates `1 - Automated/backup/msi_state_default.json` if needed. `msi_restore.bat` is the Safe Mode rollback that reapplies only `msi_state_default.json`.
 
@@ -346,24 +402,6 @@ Restores in order:
 - GPU interrupt affinity (Affinity Policy keys removed or restored to pre-tweak state)
 - Optional reinstall prompt for Microsoft Edge + WebView2 Runtime / OneDrive
 
-Deep AI removals done by `ai_debloat.ps1` are intentionally aggressive. AppX/CBS/file cleanup is not fully reversible by `restore_all.bat`; keep the restore point if you may want those Windows AI components back.
-
-## Project structure
-
-```
-win_desloperf/
-├── 1 - Automated/          Core automation (run_all.bat, restore_all.bat, scripts/)
-├── 2 - Windows Defender/   Manual Defender disable (requires Safe Mode)
-├── 3 - MSI Utils/          MSI interrupt mode configuration
-├── 4 - NVInspector/        NVIDIA Profile Inspector bundle
-├── 5 - Device Manager/     Shortcut for disabling unused devices
-├── 6 - Interrupt Affinity/ GPU IRQ affinity pinning
-├── 7 - DNS/                Quick Cloudflare DNS reapply
-├── 8 - Windows Update/     Quick Windows Update profile switch
-├── Tools/                  MeasureSleep, Autoruns, UWT, temp shortcuts
-└── backup/                 Generated locally, not tracked by git
-```
-
 ---
 
 ## Warnings
@@ -372,16 +410,12 @@ win_desloperf/
 
 | | Risk |
 |-|------|
-| **Defender disabled** | No real-time antivirus protection. On 25H2, Tamper Protection may block disabling even in Safe Mode. |
-| **Edge / WebView2 uninstall** | Uses the current WinUtil-style dummy-file flow for Edge, then tries to remove the WebView2 Runtime. On Windows 11 or with apps that depend on WebView2, the runtime can come back later. |
-| **Fullscreen Optimizations (FSO)** | The pack does not blanket-disable FSO. Results vary too much from one game and GPU stack to another, so if you want to test it, do it per game from the executable properties. |
+| **Defender disabled** | No real-time antivirus protection. On 25H2, Tamper Protection may block disabling even in Safe Mode. The script also disables Smart App Control (`VerifiedAndReputablePolicyState=0`) — this is **irreversible** without reinstalling Windows. |
 | **VBS/HVCI disabled** | Credential Guard and memory protections are off. Good perf gain, but you lose some security hardening. |
-| **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB - BSOD risk. |
-| **Interrupt Affinity** | The automated script detects the GPU chain and pins to core 2. On AMD, the Root Complex appears as ACPI -- normal, GPU + Bridge is applied and is sufficient. NVIDIA driver updates silently reset this -- re-run `set_affinity.bat` after each update. |
-| **Service startup tweaks** | Startup types come from a built-in catalog optimized for gaming. Noisiest services are disabled, most stay manual. `BITS` / `UsoSvc` / `wuauserv` can still change depending on the Windows Update profile you pick. |
+| **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB. BSOD risk. |
 | **WU Disabled profile** | No security patches, only use on isolated gaming machines. |
 | **Firewall disabled** | No Windows firewall filtering. Use only if another firewall or isolated setup covers the machine. |
-| **Timer resolution tools** | Use either `SetTimerResolution` or `Process Lasso`, not both. After reboot, check with `Tools/MeasureSleep.exe`. Known conflicts: VoiceMeeter Macro Buttons < v1.1.3.1 (forces 0.50 ms, update it), OpenRGB (holds 0.50 ms while running, close it after setup). |
+| **Timer resolution tools** | Use either `SetTimerResolution` or `Process Lasso`, not both. After reboot, check with `Tools/MeasureSleep.exe`. Known conflicts: VoiceMeeter Macro Buttons < v1.1.3.1 (forces 0.50 ms, update it), OpenRGB (holds 0.50 ms while running, close it after setup your leds). |
 | **Higher power draw** | With all these settings, your hardware may use more power and generate more heat. It's not a problem, but keep that in mind if your desktop/laptop runs hotter after applying the pack (maybe it's time to clean your PC or replace your thermal paste!). |
 
 ---
@@ -404,17 +438,12 @@ Optimization scripts already exist (WinUtil is excellent), but I decided to make
 I want to point out that I used Claude Code/Codex to help me build the automation and restore system for the whole pack. It allowed me to automate things I had been doing manually for years.
 Some text (readme) is also AI-generated.
 
-Even though the pack has been massively tested, I can't promise it covers absolutely every possible configuration and can't break something. I did my best based on my own hardware and personal feedback.
+Even though the pack has been extensively tested, I can't guarantee it covers every possible configuration without breaking something. I did my best based on my own hardware and personal feedback.
 
-**Tested on**: Intel / AMD CPU - NVIDIA GPU. Results on other hardware configurations may vary.
+
 
 ---
 
 ## License
 
 MIT
-
-
-
-
-
