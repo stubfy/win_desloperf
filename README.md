@@ -67,8 +67,6 @@ The Windows install is fresh, and the "before" screenshot was not taken on the v
 > **Methodology and disclaimer**
 >
 > **Test rig**: Ryzen 7 9800X3D OC @ 5425 MHz · RTX 4090 OC @ ~2900 MHz · DDR5 6000 MHz FCLK 2000 MHz CAS 28
->
-> **In-game runs (Overwatch 2, Gibraltar)**: same map, same POV, ~8 min game per run. Numbers shown are AVG / 1% low / 0.1% low. Ignore the current FPS value visible in screenshots (skewed by desktop returns and menus locking at 60 FPS).
 
 ### Synthetic — Cinebench R23
 
@@ -85,7 +83,7 @@ The Windows install is fresh, and the "before" screenshot was not taken on the v
 | Test | Before | After | Delta |
 |------|--------|-------|-------|
 | Max threads | 10 085 | 10 375 | +2.9% |
-| 1-thread | 10 147 | 10 379 | +2.3% |
+| 8-thread | 8 519 | 9 198 | +8.0% |
 
 | Before | After |
 |--------|-------|
@@ -102,6 +100,8 @@ Score: 9 810 → 10 131 **(+3.3%)** · Graphics: 98.10 → 101.31 FPS **(+3.3%)*
 > Some gains may look small, but they meaningfully improve worst-case scenarios in games, as you can see below:
 
 ### In-game — Overwatch 2 (Gibraltar)
+
+> **In-game runs (Overwatch 2, Gibraltar)**: same map, same POV, ~8 min game per run. Numbers shown are AVG / 1% low / 0.1% low. Ignore the current FPS value visible in screenshots (skewed by desktop returns and menus locking at 60 FPS).
 
 | Run | AVG | 1% low | 0.1% low |
 |-----|-----|--------|----------|
