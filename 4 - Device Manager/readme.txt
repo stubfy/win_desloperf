@@ -24,10 +24,6 @@ associated DPCs and interrupts.
     > Microsoft Root Enum
     > Microsoft GS Wavetable Synth (if MIDI audio not in use)
 
-Caution : only disable devices you are certain you do not need. When in
-doubt, leave them alone -- they can always be re-enabled via
-View > Show hidden devices.
-
 
 ROLLBACK
 --------
