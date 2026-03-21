@@ -1,6 +1,6 @@
 # win_desloperf
 
-![Version](https://img.shields.io/badge/version-0.9-blue)
+![Version](https://img.shields.io/badge/version-1.0-blue)
 ![Windows](https://img.shields.io/badge/Windows_11-25H2-0078D4?logo=windows)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-5391FE?logo=powershell)
 ![License](https://img.shields.io/badge/license-MIT-green)
