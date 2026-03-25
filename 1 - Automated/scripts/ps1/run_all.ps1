@@ -258,6 +258,7 @@ function Get-RunAllDefaultOptions {
         configureDns          = $true
         enableTimerTool       = $true
         applyPersonalSettings = $true
+        applyNetworkTweaks    = $true
         installNvInspector    = $HasNvidiaGpu
         setInterruptAffinity  = $true
         applySavedMsi         = $HasMsiSnapshot
@@ -321,6 +322,7 @@ function Load-RunAllOptions {
         'configureDns',
         'enableTimerTool',
         'applyPersonalSettings',
+        'applyNetworkTweaks',
         'installNvInspector',
         'setInterruptAffinity',
         'applySavedMsi'
@@ -370,6 +372,7 @@ function Save-RunAllOptions {
         configureDns          = [bool]$Options['configureDns']
         enableTimerTool       = [bool]$Options['enableTimerTool']
         applyPersonalSettings = [bool]$Options['applyPersonalSettings']
+        applyNetworkTweaks    = [bool]$Options['applyNetworkTweaks']
         installNvInspector    = [bool]$Options['installNvInspector']
         setInterruptAffinity  = [bool]$Options['setInterruptAffinity']
         applySavedMsi         = [bool]$Options['applySavedMsi']
@@ -439,6 +442,7 @@ function Show-LaunchOptionsSummary {
     Write-LaunchOptionsSummaryLine -Label 'Apply Cloudflare DNS' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['configureDns']))
     Write-LaunchOptionsSummaryLine -Label 'Enable SetTimerResolution' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['enableTimerTool']))
     Write-LaunchOptionsSummaryLine -Label 'Apply personal settings' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['applyPersonalSettings']))
+    Write-LaunchOptionsSummaryLine -Label 'Apply network tweaks' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['applyNetworkTweaks']))
 
     if ($HasNvidiaGpu) {
         Write-LaunchOptionsSummaryLine -Label 'Install NVInspector' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['installNvInspector']))
@@ -531,6 +535,7 @@ function Show-LaunchOptionsFallback {
     $Options['configureDns'] = Read-BooleanChoice -Prompt 'Apply Cloudflare DNS?' -Default ([bool]$Options['configureDns'])
     $Options['enableTimerTool'] = Read-BooleanChoice -Prompt 'Enable SetTimerResolution at startup?' -Default ([bool]$Options['enableTimerTool'])
     $Options['applyPersonalSettings'] = Read-BooleanChoice -Prompt 'Apply personal shell settings?' -Default ([bool]$Options['applyPersonalSettings'])
+    $Options['applyNetworkTweaks'] = Read-BooleanChoice -Prompt 'Apply network tweaks (Teredo, TCP, Nagle, QoS)?' -Default ([bool]$Options['applyNetworkTweaks'])
 
     if ($HasNvidiaGpu) {
         $Options['installNvInspector'] = Read-BooleanChoice -Prompt 'Install NVIDIA Profile Inspector?' -Default ([bool]$Options['installNvInspector'])
@@ -569,6 +574,7 @@ function Write-SelectedOptionsLog {
     Write-Log "Option selected: Cloudflare DNS = $([bool]$Options['configureDns'])" 'INFO'
     Write-Log "Option selected: SetTimerResolution startup = $([bool]$Options['enableTimerTool'])" 'INFO'
     Write-Log "Option selected: Personal settings = $([bool]$Options['applyPersonalSettings'])" 'INFO'
+    Write-Log "Option selected: Network tweaks = $([bool]$Options['applyNetworkTweaks'])" 'INFO'
     if ($HasNvidiaGpu) {
         Write-Log "Option selected: NVInspector install = $([bool]$Options['installNvInspector'])" 'INFO'
     } else {
@@ -645,6 +651,7 @@ $disableFirewall       = [bool]$launchOptions['disableFirewall']
 $configureDns          = [bool]$launchOptions['configureDns']
 $enableTimerTool       = [bool]$launchOptions['enableTimerTool']
 $applyPersonalSettings = [bool]$launchOptions['applyPersonalSettings']
+$applyNetworkTweaks    = [bool]$launchOptions['applyNetworkTweaks']
 $installNvInspector    = [bool]$launchOptions['installNvInspector']
 $setInterruptAffinity  = [bool]$launchOptions['setInterruptAffinity']
 $applySavedMsi         = [bool]$launchOptions['applySavedMsi']
@@ -703,8 +710,14 @@ if ($enableTimerTool) {
     Write-Log 'Skipped: timer.ps1 (user chose not to enable SetTimerResolution startup)' 'INFO'
 }
 
-Write-Step 'PHASE B.9 - Additional network tweaks (Teredo, TCP, Nagle, QoS)'
-Invoke-Script "$SCRIPTS\network_tweaks.ps1"
+if ($applyNetworkTweaks) {
+    Write-Step 'PHASE B.9 - Additional network tweaks (Teredo, TCP, Nagle, QoS)'
+    Invoke-Script "$SCRIPTS\network_tweaks.ps1"
+} else {
+    Write-Step 'PHASE B.9 - Additional network tweaks (skipped)'
+    Write-Host '    Skipped        : user chose not to apply network tweaks'
+    Write-Log 'Skipped: network_tweaks.ps1 (user chose not to apply network tweaks)' 'INFO'
+}
 
 Write-Step "PHASE B.10 - Windows Update profile: $profilLabel"
 Invoke-Script "$SCRIPTS\set_windows_update.ps1" @{ Profil = $updateProfil }
