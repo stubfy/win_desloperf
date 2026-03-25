@@ -36,6 +36,8 @@ $BACKUP_DIR = Join-Path (Split-Path (Split-Path $PSScriptRoot)) "backup"
 New-Item -ItemType Directory -Force -Path $BACKUP_DIR | Out-Null
 $serviceCatalog = & (Join-Path $PSScriptRoot 'services.ps1') -ExportCatalogOnly
 
+. (Join-Path $PSScriptRoot 'affinity_helpers.ps1')
+
 function Get-ExactServiceStartupType {
     param([Parameter(Mandatory)][string]$Name)
 
@@ -113,38 +115,29 @@ try {
     Write-Host "    [WARNING] Unable to save firewall profile states." -ForegroundColor Yellow
 }
 
-# Export GPU interrupt affinity state (for rollback after driver updates)
-$affinityState = @{}
+# Export interrupt affinity state (GPU + mouse if config present, for rollback)
 try {
+    $affinityChains = @()
+
+    # GPU chains (all PCI display devices)
     $gpus = Get-PnpDevice -Class Display -Status OK -ErrorAction SilentlyContinue |
         Where-Object { $_.InstanceId -match '^PCI\\' }
     foreach ($gpu in $gpus) {
-        $deviceIds = @($gpu.InstanceId)
-        try {
-            $pp = Get-PnpDeviceProperty -InstanceId $gpu.InstanceId `
-                -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
-            if ($pp.Data -match '^PCI\\') {
-                $deviceIds += $pp.Data
-                $gpp = Get-PnpDeviceProperty -InstanceId $pp.Data `
-                    -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
-                if ($gpp.Data -match '^PCI\\') { $deviceIds += $gpp.Data }
-            }
-        } catch {}
-        foreach ($devId in $deviceIds) {
-            $policyPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$devId\" +
-                          "Device Parameters\Interrupt Management\Affinity Policy"
-            if (Test-Path $policyPath) {
-                $props = Get-ItemProperty -Path $policyPath -ErrorAction SilentlyContinue
-                $affinityState[$devId] = @{
-                    Existed               = $true
-                    DevicePolicy          = $props.DevicePolicy
-                    AssignmentSetOverride = @($props.AssignmentSetOverride)
-                }
-            } else {
-                $affinityState[$devId] = @{ Existed = $false }
-            }
+        $chain = Get-PciChainFromDevice -InstanceId $gpu.InstanceId -StartLabel 'GPU' -Quiet
+        if ($chain.Count -gt 0) { $affinityChains += , $chain }
+    }
+
+    # Mouse chain from saved config (if present)
+    $affinityConfigPath = Join-Path $BACKUP_DIR 'affinity_config.json'
+    $affinityConfig = Read-AffinityConfig -ConfigPath $affinityConfigPath
+    if ($affinityConfig) {
+        foreach ($g in $affinityConfig.groups | Where-Object { $_.type -eq 'mouse' }) {
+            $chain = Get-PciChainFromDevice -InstanceId $g.instanceId -StartLabel 'USB Controller' -Quiet
+            if ($chain.Count -gt 0) { $affinityChains += , $chain }
         }
     }
+
+    $affinityState = Get-AffinityStateForChains -Chains $affinityChains
     $affinityState | ConvertTo-Json -Depth 3 |
         Set-Content "$BACKUP_DIR\affinity_state.json" -Encoding UTF8
     Write-Host "    Affinity states saved -> backup\affinity_state.json"

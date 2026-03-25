@@ -1,19 +1,28 @@
-# set_affinity.ps1 - Pin GPU interrupt chain to a dedicated CPU core
+# set_affinity.ps1 - Pin interrupt chains to dedicated CPU cores
 #
 # WHAT IT DOES
-#   Pins hardware interrupts from the GPU to a dedicated CPU core by writing
-#   IrqPolicySpecifiedProcessors (DevicePolicy=4) to the registry for each
-#   device in the chain: GPU -> PCI Bridge -> PCI Root Complex.
+#   Pins hardware interrupts from the GPU (and optionally a USB mouse) to
+#   dedicated CPU cores by writing IrqPolicySpecifiedProcessors (DevicePolicy=4)
+#   to the registry for each device in the PCI chain:
+#     GPU chain  : GPU -> PCI Bridge -> PCI Root Complex
+#     Mouse chain: USB Controller (xHCI) -> PCI Bridge -> PCI Root Complex
 #
 # WHY
 #   Windows distributes IRQs across all logical cores by default. GPU DPCs
 #   can land on the same core running the render thread, causing latency spikes.
 #   Pinning the entire interrupt chain to a dedicated core physically separates
-#   GPU IRQ processing from game threads.
+#   GPU IRQ processing from game threads. The same logic applies to mouse input:
+#   isolating the USB controller's interrupts reduces input jitter.
+#
+# MODES
+#   Auto  : reads backup/affinity_config.json and applies saved core assignments
+#           without prompting (used on re-runs and by run_all).
+#   Interactive : detects GPU + USB mice, asks the user to choose cores,
+#                 and optionally saves the config for future auto re-runs.
 #
 # HOW
 #   For each device in the chain, writes:
-#     HKLM\SYSTEM\CurrentControlSet\Enum\PCI\<DeviceID>\<InstanceID>\
+#     HKLM\SYSTEM\CurrentControlSet\Enum\<DeviceInstanceId>\
 #       Device Parameters\Interrupt Management\Affinity Policy\
 #         DevicePolicy          = DWORD 4   (IrqPolicySpecifiedProcessors)
 #         AssignmentSetOverride = REG_BINARY bitmask (little-endian KAFFINITY)
@@ -25,110 +34,259 @@
 #   NVIDIA drivers reset interrupt affinity on each driver update.
 #   Re-run set_affinity.bat after every NVIDIA driver update.
 
-param([switch]$SkipReboot)
+param(
+    [switch]$SkipReboot,
+    [string]$ConfigPath
+)
 
 $ErrorActionPreference = 'Continue'
 
-$TARGET_CORE = 2
-$BITMASK     = [byte[]]([System.BitConverter]::GetBytes([uint32][math]::Pow(2, $TARGET_CORE)))
-$BITMASK_HEX = ($BITMASK | ForEach-Object { '{0:X2}' -f $_ }) -join ' '
+. (Join-Path $PSScriptRoot 'affinity_helpers.ps1')
 
-Write-Host "    Target  : core $TARGET_CORE  (bitmask $BITMASK_HEX)"
+$BACKUP_DIR = Join-Path (Split-Path (Split-Path $PSScriptRoot)) 'backup'
+if (-not $ConfigPath) { $ConfigPath = Join-Path $BACKUP_DIR 'affinity_config.json' }
+$coreCount = [Environment]::ProcessorCount
 
-# ── A. GPU detection ──────────────────────────────────────────────────────────
-$allGpus = Get-PnpDevice -Class Display -Status OK -ErrorAction SilentlyContinue |
-    Where-Object { $_.InstanceId -match '^PCI\\' }
-
-if (-not $allGpus) {
-    Write-Host "    [ERROR] No PCI display device found. Is the GPU driver installed?" -ForegroundColor Red
-    return
-}
-
-$igpuPattern = 'Intel.*(UHD|Iris|HD Graphics)|Microsoft Basic Display'
-$dGpus = $allGpus | Where-Object { $_.FriendlyName -notmatch $igpuPattern }
-
-if (-not $dGpus) {
-    Write-Host "    [WARN] No discrete GPU found. Using first PCI display device." -ForegroundColor Yellow
-    $dGpus = $allGpus
-}
-
-$gpu = $dGpus | Where-Object { $_.FriendlyName -match 'NVIDIA' } | Select-Object -First 1
-if (-not $gpu) { $gpu = $dGpus | Where-Object { $_.FriendlyName -match 'AMD|Radeon' } | Select-Object -First 1 }
-if (-not $gpu) { $gpu = $dGpus | Select-Object -First 1 }
-
-Write-Host "    GPU     : $($gpu.FriendlyName)"
-
-# ── B. Walk PCI chain ─────────────────────────────────────────────────────────
-function Get-PdoName([string]$InstanceId) {
+# ── Helper: build a human-readable mouse label ────────────────────────────────
+function Get-MouseDisplayName {
+    param($Mouse)
+    # Extract VID/PID from the HID InstanceId (e.g. HID\VID_046D&PID_C548&...)
+    $vidPid = ''
+    if ($Mouse.InstanceId -match 'VID_([0-9A-Fa-f]{4})&PID_([0-9A-Fa-f]{4})') {
+        $vidPid = "VID:$($Matches[1].ToUpper()) PID:$($Matches[2].ToUpper())"
+    }
+    # Walk up one level to get the parent USB device (dongle / composite device).
+    # DEVPKEY_Device_BusReportedDeviceDesc = raw USB product string from firmware
+    # (e.g. "Pulsar 4K Wireless Receiver") -- more precise than FriendlyName which
+    # Windows always sets to the generic "USB Input Device" for composite devices.
+    $parentLabel = ''
     try {
-        $p = Get-PnpDeviceProperty -InstanceId $InstanceId `
-            -KeyName 'DEVPKEY_Device_PDOName' -ErrorAction Stop
-        return $p.Data
-    } catch { return $null }
-}
-
-$chain = [System.Collections.Generic.List[object]]::new()
-$chain.Add([PSCustomObject]@{ Label = 'GPU'; Id = $gpu.InstanceId; DevObj = (Get-PdoName $gpu.InstanceId) })
-
-try {
-    $pp = Get-PnpDeviceProperty -InstanceId $gpu.InstanceId `
-        -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
-    if ($pp.Data -match '^PCI\\') {
-        $chain.Add([PSCustomObject]@{ Label = 'PCI Bridge'; Id = $pp.Data; DevObj = (Get-PdoName $pp.Data) })
-        $gpp = Get-PnpDeviceProperty -InstanceId $pp.Data `
-            -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
-        if ($gpp.Data -match '^PCI\\') {
-            $chain.Add([PSCustomObject]@{ Label = 'Root Complex'; Id = $gpp.Data; DevObj = (Get-PdoName $gpp.Data) })
+        $parentId = (Get-PnpDeviceProperty -InstanceId $Mouse.InstanceId `
+            -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop).Data
+        $busDesc = (Get-PnpDeviceProperty -InstanceId $parentId `
+            -KeyName 'DEVPKEY_Device_BusReportedDeviceDesc' -ErrorAction SilentlyContinue).Data
+        if (-not [string]::IsNullOrWhiteSpace($busDesc)) {
+            $parentLabel = $busDesc
         } else {
-            # Normal on AMD: Root Complex is exposed as ACPI\PNP0A08 in the PnP tree, not PCI.
-            # GPU + PCI Bridge is sufficient for IRQ pinning on these platforms.
-            Write-Host "    [NOTE] Root Complex is ACPI ($($gpp.Data)) -- normal on AMD." -ForegroundColor DarkGray
-            Write-Host "           Applying GPU + PCI Bridge only (sufficient for IRQ pinning)." -ForegroundColor DarkGray
+            # Fallback: FriendlyName (better than nothing, though often generic)
+            $parentDev = Get-PnpDevice -InstanceId $parentId -ErrorAction SilentlyContinue
+            if ($parentDev -and
+                -not [string]::IsNullOrWhiteSpace($parentDev.FriendlyName) -and
+                $parentDev.FriendlyName -ne $Mouse.FriendlyName) {
+                $parentLabel = $parentDev.FriendlyName
+            }
         }
-    } else {
-        Write-Host "    [NOTE] Parent is not PCI ($($pp.Data)). Applying GPU-only affinity for compatibility." -ForegroundColor DarkGray
-    }
-} catch {
-    Write-Host "    [WARN] Could not walk PCI chain: $_. Applying GPU only." -ForegroundColor Yellow
+    } catch {}
+
+    $display = $Mouse.FriendlyName
+    if ($vidPid)      { $display += " ($vidPid)" }
+    if ($parentLabel) { $display += " via $parentLabel" }
+    return $display
 }
 
-Write-Host ""
-Write-Host "    PCI chain ($($chain.Count) device(s) to pin):"
-for ($i = 0; $i -lt $chain.Count; $i++) {
-    $devObj = if ($chain[$i].DevObj) { "  DevObj: $($chain[$i].DevObj)" } else { '' }
-    Write-Host ("      [{0}] {1,-14} : {2}{3}" -f ($i + 1), $chain[$i].Label, $chain[$i].Id, $devObj)
-}
-Write-Host ""
-
-# ── C. Write registry ─────────────────────────────────────────────────────────
-$ok = 0
-for ($i = 0; $i -lt $chain.Count; $i++) {
-    $dev        = $chain[$i]
-    $policyPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.Id)\" +
-                  "Device Parameters\Interrupt Management\Affinity Policy"
-    try {
-        if (-not (Test-Path $policyPath)) {
-            New-Item -Path $policyPath -Force -ErrorAction Stop | Out-Null
+# ── A. Pre-cleanup: reset previously pinned mouse chain ──────────────────────
+# Runs unconditionally before any apply. Ensures stale affinity from old USB
+# ports is removed when the mouse is moved to a different controller.
+$rawConfig = Read-AffinityConfig -ConfigPath $ConfigPath
+if ($rawConfig) {
+    $hadMouseCleanup = $false
+    foreach ($g in $rawConfig.groups | Where-Object { $_.type -eq 'mouse' }) {
+        $oldChain = Get-PciChainFromDevice -InstanceId $g.instanceId -StartLabel 'USB Controller' -Quiet
+        foreach ($dev in $oldChain) {
+            $policyPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.Id)\" +
+                          "Device Parameters\Interrupt Management\Affinity Policy"
+            if (Test-Path $policyPath) {
+                Remove-Item -Path $policyPath -Recurse -Force -ErrorAction SilentlyContinue
+                if (-not $hadMouseCleanup) {
+                    Write-Host "    [RESET] Clearing previous mouse affinity ($($g.label))..." -ForegroundColor DarkGray
+                    $hadMouseCleanup = $true
+                }
+                Write-Host "    [RESET]   $($dev.Label) -> cleared" -ForegroundColor DarkGray
+            }
         }
-        Set-ItemProperty -Path $policyPath -Name 'DevicePolicy' `
-            -Value 4 -Type DWord -Force -ErrorAction Stop
-        Set-ItemProperty -Path $policyPath -Name 'AssignmentSetOverride' `
-            -Value $BITMASK -Type Binary -Force -ErrorAction Stop
-        Write-Host ("    [OK]  [{0}] {1,-14} -> core {2}  DevicePolicy=4  AssignmentSetOverride={3}" -f `
-            ($i + 1), $dev.Label, $TARGET_CORE, $BITMASK_HEX) -ForegroundColor Green
-        $ok++
-    } catch {
-        Write-Host ("    [ERROR] [{0}] {1,-14} : {2}" -f ($i + 1), $dev.Label, $_) -ForegroundColor Red
+    }
+    if ($hadMouseCleanup) { Write-Host "" }
+}
+
+# ── B. Validate config for auto-apply ─────────────────────────────────────────
+$config = $rawConfig
+if ($config) {
+    $configValid = $true
+    foreach ($g in $config.groups) {
+        $dev = Get-PnpDevice -InstanceId $g.instanceId -ErrorAction SilentlyContinue
+        if (-not $dev) {
+            Write-Host "    [WARN] Saved device not found: $($g.label) ($($g.instanceId))" -ForegroundColor Yellow
+            $configValid = $false
+        }
+    }
+    if (-not $configValid) {
+        Write-Host "    Config has stale devices. Switching to interactive mode." -ForegroundColor Yellow
+        $config = $null
     }
 }
 
-# ── D. Summary ────────────────────────────────────────────────────────────────
-Write-Host ""
-if ($ok -eq $chain.Count) {
-    Write-Host "    $ok/$($chain.Count) devices pinned to core $TARGET_CORE." -ForegroundColor Green
+if ($config) {
+    # ── Auto-apply mode ────────────────────────────────────────────────────────
+    Write-Host "    Config  : $ConfigPath"
+    Write-Host ""
+
+    foreach ($g in $config.groups) {
+        $startLabel = if ($g.type -eq 'gpu') { 'GPU' } else { 'USB Controller' }
+        Write-Host "  -- $($g.type.ToUpper()) interrupt affinity --" -ForegroundColor Cyan
+        Write-Host "    Device  : $($g.label)"
+        Write-Host "    Core    : $($g.core)"
+
+        $chain = Get-PciChainFromDevice -InstanceId $g.instanceId -StartLabel $startLabel
+        if ($chain.Count -eq 0) {
+            Write-Host "    [WARN] Could not walk PCI chain. Skipping." -ForegroundColor Yellow
+            Write-Host ""
+            continue
+        }
+
+        Write-Host "    PCI chain ($($chain.Count) device(s)):"
+        for ($i = 0; $i -lt $chain.Count; $i++) {
+            Write-Host ("      [{0}] {1,-20} : {2}" -f ($i + 1), $chain[$i].Label, $chain[$i].Id)
+        }
+        Write-Host ""
+        $ok = Write-AffinityPolicy -Chain $chain -Core $g.core
+        $color = if ($ok -eq $chain.Count) { 'Green' } else { 'Yellow' }
+        Write-Host "    $ok/$($chain.Count) devices pinned to core $($g.core)." -ForegroundColor $color
+        Write-Host ""
+    }
+
 } else {
-    Write-Host "    $ok/$($chain.Count) devices pinned to core $TARGET_CORE (check errors above)." -ForegroundColor Yellow
+    # ── Interactive mode ───────────────────────────────────────────────────────
+    Write-Host "    Available CPU cores: 0-$($coreCount - 1) ($coreCount logical processors)"
+    Write-Host ""
+
+    $groups  = @()
+    $gpuCore = 2  # track for mouse default suggestion
+    $gpuChain = $null
+
+    # GPU section ---------------------------------------------------------------
+    Write-Host "  -- GPU interrupt affinity --" -ForegroundColor Cyan
+    $gpu = Find-DiscreteGpu
+
+    if (-not $gpu) {
+        Write-Host "    [ERROR] No PCI display device found. Is the GPU driver installed?" -ForegroundColor Red
+    } else {
+        Write-Host "    Detected : $($gpu.FriendlyName)"
+
+        $gpuCoreInput = Read-Host "    Pin GPU chain to core [0-$($coreCount - 1)] (default: 2)"
+        $gpuCore = if ($gpuCoreInput -match '^\d+$' -and [int]$gpuCoreInput -lt $coreCount) {
+            [int]$gpuCoreInput
+        } else { 2 }
+
+        $gpuChain = Get-PciChainFromDevice -InstanceId $gpu.InstanceId -StartLabel 'GPU'
+        if ($gpuChain.Count -eq 0) {
+            Write-Host "    [WARN] Could not walk PCI chain for GPU." -ForegroundColor Yellow
+        } else {
+            Write-Host ""
+            Write-Host "    PCI chain ($($gpuChain.Count) device(s)):"
+            for ($i = 0; $i -lt $gpuChain.Count; $i++) {
+                $devObj = if ($gpuChain[$i].DevObj) { "  DevObj: $($gpuChain[$i].DevObj)" } else { '' }
+                Write-Host ("      [{0}] {1,-14} : {2}{3}" -f ($i + 1), $gpuChain[$i].Label, $gpuChain[$i].Id, $devObj)
+            }
+            Write-Host ""
+            $ok = Write-AffinityPolicy -Chain $gpuChain -Core $gpuCore
+            $color = if ($ok -eq $gpuChain.Count) { 'Green' } else { 'Yellow' }
+            Write-Host "    $ok/$($gpuChain.Count) devices pinned to core $gpuCore." -ForegroundColor $color
+
+            $groups += @{
+                type       = 'gpu'
+                core       = $gpuCore
+                label      = $gpu.FriendlyName
+                instanceId = $gpu.InstanceId
+            }
+        }
+    }
+
+    Write-Host ""
+
+    # Mouse section -------------------------------------------------------------
+    Write-Host "  -- Mouse interrupt affinity --" -ForegroundColor Cyan
+    $usbMice = Find-UsbMice
+
+    if ($usbMice.Count -eq 0) {
+        Write-Host "    No USB mouse detected. Skipping." -ForegroundColor Gray
+    } else {
+        Write-Host "    Detected USB mice:"
+        $mouseDisplayNames = @()
+        for ($i = 0; $i -lt $usbMice.Count; $i++) {
+            $displayName = Get-MouseDisplayName -Mouse $usbMice[$i]
+            $mouseDisplayNames += $displayName
+            Write-Host ("      [{0}] {1}" -f ($i + 1), $displayName)
+        }
+        Write-Host "      [S] Skip"
+
+        $mouseChoice = Read-Host "    Select [1-$($usbMice.Count)/S] (default: 1)"
+        if ($mouseChoice -ieq 'S') {
+            Write-Host "    Mouse affinity skipped." -ForegroundColor Gray
+        } else {
+            $mouseIdx = if ($mouseChoice -match '^\d+$' -and [int]$mouseChoice -ge 1 -and [int]$mouseChoice -le $usbMice.Count) {
+                [int]$mouseChoice - 1
+            } else { 0 }
+
+            $selectedMouse       = $usbMice[$mouseIdx]
+            $selectedDisplayName = $mouseDisplayNames[$mouseIdx]
+            Write-Host "    Selected : $selectedDisplayName"
+
+            # Suggest a default core different from GPU core
+            $defaultMouseCore = if ($gpuCore -ne 4) { 4 } else { 6 }
+            $mouseCoreInput = Read-Host "    Pin mouse chain to core [0-$($coreCount - 1)] (default: $defaultMouseCore)"
+            $mouseCore = if ($mouseCoreInput -match '^\d+$' -and [int]$mouseCoreInput -lt $coreCount) {
+                [int]$mouseCoreInput
+            } else { $defaultMouseCore }
+
+            $mouseChain = Get-PciChainFromDevice -InstanceId $selectedMouse.InstanceId -StartLabel 'USB Controller'
+            if ($mouseChain.Count -eq 0) {
+                Write-Host "    [WARN] Could not walk PCI chain for mouse." -ForegroundColor Yellow
+            } else {
+                # Warn if GPU and mouse chains overlap (shared PCI bridge or root port)
+                if ($gpuChain -and $gpuChain.Count -gt 0) {
+                    $gpuIds  = @($gpuChain  | ForEach-Object { $_.Id })
+                    $mIds    = @($mouseChain | ForEach-Object { $_.Id })
+                    $overlap = $gpuIds | Where-Object { $mIds -contains $_ }
+                    if ($overlap) {
+                        Write-Host "    [NOTE] Mouse shares PCI device(s) with GPU chain." -ForegroundColor Yellow
+                        Write-Host "           Shared device(s) will use the mouse core ($mouseCore)." -ForegroundColor DarkGray
+                    }
+                }
+
+                Write-Host ""
+                Write-Host "    PCI chain ($($mouseChain.Count) device(s)):"
+                for ($i = 0; $i -lt $mouseChain.Count; $i++) {
+                    $devObj = if ($mouseChain[$i].DevObj) { "  DevObj: $($mouseChain[$i].DevObj)" } else { '' }
+                    Write-Host ("      [{0}] {1,-20} : {2}{3}" -f ($i + 1), $mouseChain[$i].Label, $mouseChain[$i].Id, $devObj)
+                }
+                Write-Host ""
+                $ok = Write-AffinityPolicy -Chain $mouseChain -Core $mouseCore
+                $color = if ($ok -eq $mouseChain.Count) { 'Green' } else { 'Yellow' }
+                Write-Host "    $ok/$($mouseChain.Count) devices pinned to core $mouseCore." -ForegroundColor $color
+
+                $groups += @{
+                    type       = 'mouse'
+                    core       = $mouseCore
+                    label      = $selectedDisplayName
+                    instanceId = $selectedMouse.InstanceId
+                }
+            }
+        }
+    }
+
+    # Save config ---------------------------------------------------------------
+    Write-Host ""
+    if ($groups.Count -gt 0) {
+        $saveChoice = Read-Host "  Save config for auto re-application? (Y/N) [default: Y]"
+        if ($saveChoice -eq '' -or $saveChoice -ieq 'Y') {
+            Save-AffinityConfig -ConfigPath $ConfigPath -Groups $groups
+            Write-Host "    Config saved -> $ConfigPath" -ForegroundColor Green
+        }
+    }
 }
+
+# ── Summary ────────────────────────────────────────────────────────────────────
+Write-Host ""
 Write-Host "    Reboot required for the setting to take effect." -ForegroundColor Yellow
 Write-Host "    NVIDIA: re-run set_affinity.bat after each driver update." -ForegroundColor DarkGray
 Write-Host ""
@@ -138,4 +296,3 @@ if (-not $SkipReboot) {
         Restart-Computer -Force
     }
 }
-

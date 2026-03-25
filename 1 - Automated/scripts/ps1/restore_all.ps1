@@ -168,7 +168,7 @@ Invoke-Script "$RESTORE\firewall.ps1"
 Write-Step "Restore personal shell/theme settings"
 Invoke-Script "$RESTORE\personal_settings.ps1"
 
-Write-Step "Restore GPU interrupt affinity (Windows default)"
+Write-Step "Restore interrupt affinity (GPU + mouse, Windows default)"
 Invoke-Script "$SCRIPTS\restore_affinity.ps1"
 
 # Scheduled tasks

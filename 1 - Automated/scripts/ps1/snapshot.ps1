@@ -29,6 +29,8 @@
 
 $ROOT       = Split-Path (Split-Path $PSScriptRoot)
 $BACKUP_DIR = Join-Path $ROOT "backup"
+
+. (Join-Path $PSScriptRoot 'affinity_helpers.ps1')
 $REG_FILES  = @(
     (Join-Path $PSScriptRoot "tweaks_consolidated.reg")
     (Join-Path $PSScriptRoot "privacy_tweaks.reg")
@@ -340,28 +342,35 @@ Write-Host "    Network  : TCP global + QoS + Nagle ($($nagleSnap.Count) interfa
 # ── Affinity snapshot ─────────────────────────────────────────────────────────
 $affinitySnap = [ordered]@{}
 try {
+    # Build chain list: all GPU chains + mouse chain from config (if present)
+    $affinityChains = @()
+
     $gpus = Get-PnpDevice -Class Display -Status OK -ErrorAction SilentlyContinue |
         Where-Object { $_.InstanceId -match '^PCI\\' }
     foreach ($gpu in $gpus) {
-        $deviceIds = @($gpu.InstanceId)
-        try {
-            $pp = Get-PnpDeviceProperty -InstanceId $gpu.InstanceId `
-                -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
-            if ($pp.Data -match '^PCI\\') {
-                $deviceIds += $pp.Data
-                $gpp = Get-PnpDeviceProperty -InstanceId $pp.Data `
-                    -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
-                if ($gpp.Data -match '^PCI\\') { $deviceIds += $gpp.Data }
-            }
-        } catch {}
-        foreach ($devId in $deviceIds) {
-            $policyPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$devId\" +
+        $chain = Get-PciChainFromDevice -InstanceId $gpu.InstanceId -StartLabel 'GPU' -Quiet
+        if ($chain.Count -gt 0) { $affinityChains += , $chain }
+    }
+
+    $affinityConfigPath = Join-Path $BACKUP_DIR 'affinity_config.json'
+    $affinityConfig = Read-AffinityConfig -ConfigPath $affinityConfigPath
+    if ($affinityConfig) {
+        foreach ($g in $affinityConfig.groups | Where-Object { $_.type -eq 'mouse' }) {
+            $chain = Get-PciChainFromDevice -InstanceId $g.instanceId -StartLabel 'USB Controller' -Quiet
+            if ($chain.Count -gt 0) { $affinityChains += , $chain }
+        }
+    }
+
+    foreach ($chain in $affinityChains) {
+        foreach ($dev in $chain) {
+            if ($affinitySnap.Contains($dev.Id)) { continue }
+            $policyPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.Id)\" +
                           "Device Parameters\Interrupt Management\Affinity Policy"
             if (Test-Path $policyPath) {
                 $props = Get-ItemProperty -Path $policyPath -ErrorAction SilentlyContinue
-                $affinitySnap[$devId] = @{ Existed = $true; DevicePolicy = $props.DevicePolicy }
+                $affinitySnap[$dev.Id] = @{ Existed = $true; DevicePolicy = $props.DevicePolicy }
             } else {
-                $affinitySnap[$devId] = @{ Existed = $false; DevicePolicy = $null }
+                $affinitySnap[$dev.Id] = @{ Existed = $false; DevicePolicy = $null }
             }
         }
     }

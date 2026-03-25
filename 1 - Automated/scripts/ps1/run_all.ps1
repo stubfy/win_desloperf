@@ -24,7 +24,7 @@
         [7 - Windows Update] -> WU profile (user choice)
         firewall             -> Firewall disable (user choice)
         personal_settings    -> Subjective shell/theme preferences (user choice)
-        [5 - Interrupt Affinity] -> GPU IRQ pin to core 2 (user choice)
+        [5 - Interrupt Affinity] -> GPU + mouse IRQ pin to user-chosen cores (config-aware)
       Options - Edge uninstall, OneDrive uninstall (user choice)
       Phase C - Diff report (show_diff)
 
@@ -50,6 +50,7 @@ $MSI_UTILS_DIR         = Join-Path $PACK_ROOT '3 - MSI Utils'
 $NVINSPECTOR_DIR       = Join-Path $PACK_ROOT 'Tools\NVInspector'
 $RUN_ALL_OPTIONS_FILE   = Join-Path $BACKUP_DIR 'run_all_options.json'
 $MSI_DEFAULT_STATE_FILE = Join-Path $BACKUP_DIR 'msi_state_default.json'
+$AFFINITY_CONFIG_FILE   = Join-Path $BACKUP_DIR 'affinity_config.json'
 $MSI_STATE_FILE         = Join-Path $MSI_UTILS_DIR 'msi_state.json'
 $LEGACY_MSI_STATE_FILE  = Join-Path $BACKUP_DIR 'msi_state.json'
 $LOG_DIR               = Join-Path $env:APPDATA 'win_desloperf\logs'
@@ -408,6 +409,7 @@ function Show-LaunchOptionsSummary {
         [hashtable]$Options,
         [bool]$HasNvidiaGpu,
         [bool]$HasMsiSnapshot,
+        [bool]$HasAffinityConfig,
         [string]$OptionsFile,
         [string]$MsiStateFile
     )
@@ -444,7 +446,8 @@ function Show-LaunchOptionsSummary {
         Write-LaunchOptionsSummaryLine -Label 'Install NVInspector' -Value 'Skipped (no NVIDIA GPU detected)' -Color 'DarkGray'
     }
 
-    Write-LaunchOptionsSummaryLine -Label 'Set interrupt affinity' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['setInterruptAffinity']))
+    $affinityLabel = if ($HasAffinityConfig) { 'Set interrupt affinity (from config)' } else { 'Set interrupt affinity' }
+    Write-LaunchOptionsSummaryLine -Label $affinityLabel -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['setInterruptAffinity']))
 
     if ($HasMsiSnapshot) {
         Write-LaunchOptionsSummaryLine -Label 'Apply saved MSI snapshot' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['applySavedMsi']))
@@ -502,6 +505,7 @@ function Show-LaunchOptionsFallback {
         [hashtable]$Options,
         [bool]$HasNvidiaGpu,
         [bool]$HasMsiSnapshot,
+        [bool]$HasAffinityConfig,
         [string]$OptionsFile
     )
 
@@ -534,7 +538,8 @@ function Show-LaunchOptionsFallback {
         $Options['installNvInspector'] = $false
     }
 
-    $Options['setInterruptAffinity'] = Read-BooleanChoice -Prompt 'Pin GPU interrupt affinity to core 2?' -Default ([bool]$Options['setInterruptAffinity'])
+    $affinityPrompt = if ($HasAffinityConfig) { 'Apply saved interrupt affinity config?' } else { 'Set interrupt affinity (GPU + mouse)?' }
+    $Options['setInterruptAffinity'] = Read-BooleanChoice -Prompt $affinityPrompt -Default ([bool]$Options['setInterruptAffinity'])
 
     if ($HasMsiSnapshot) {
         $Options['applySavedMsi'] = Read-BooleanChoice -Prompt 'Apply saved MSI snapshot?' -Default ([bool]$Options['applySavedMsi'])
@@ -601,16 +606,17 @@ $preferredGpu        = Get-PreferredDisplayGpu
 $hasNvidiaGpu        = $null -ne $preferredGpu -and $preferredGpu.FriendlyName -match 'NVIDIA'
 $msiStateFile        = Resolve-MsiStateFile -CanonicalPath $MSI_STATE_FILE -LegacyPath $LEGACY_MSI_STATE_FILE
 $hasMsiSnapshot      = Test-Path $msiStateFile
+$hasAffinityConfig   = Test-Path $AFFINITY_CONFIG_FILE
 
 $defaultOptions = Get-RunAllDefaultOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot
 $launchOptions  = Load-RunAllOptions -Path $RUN_ALL_OPTIONS_FILE -Defaults $defaultOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot
 
-if (Show-LaunchOptionsSummary -Options $launchOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot -OptionsFile $RUN_ALL_OPTIONS_FILE -MsiStateFile $msiStateFile) {
+if (Show-LaunchOptionsSummary -Options $launchOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot -HasAffinityConfig $hasAffinityConfig -OptionsFile $RUN_ALL_OPTIONS_FILE -MsiStateFile $msiStateFile) {
     Write-Log 'Launch options accepted from the current summary.' 'INFO'
 } else {
     Write-Host ''
     Write-Log 'Launch options summary declined; switching to sequential prompts.' 'INFO'
-    $launchOptions = Show-LaunchOptionsFallback -Options $launchOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot -OptionsFile $RUN_ALL_OPTIONS_FILE
+    $launchOptions = Show-LaunchOptionsFallback -Options $launchOptions -HasNvidiaGpu $hasNvidiaGpu -HasMsiSnapshot $hasMsiSnapshot -HasAffinityConfig $hasAffinityConfig -OptionsFile $RUN_ALL_OPTIONS_FILE
 }
 
 if ($null -eq $launchOptions) {
@@ -722,10 +728,10 @@ if ($applyPersonalSettings) {
 }
 
 if ($setInterruptAffinity) {
-    Write-Step 'PHASE B.13 - GPU interrupt affinity (pin to core 2)'
+    Write-Step 'PHASE B.13 - Interrupt affinity (GPU + mouse)'
     Invoke-Script "$SCRIPTS\set_affinity.ps1" @{ SkipReboot = $true }
 } else {
-    Write-Step 'PHASE B.13 - GPU interrupt affinity (skipped)'
+    Write-Step 'PHASE B.13 - Interrupt affinity (skipped)'
     Write-Host '    Skipped        : run 5 - Interrupt Affinity\set_affinity.bat after NVIDIA updates'
     Write-Log 'Skipped: set_affinity.ps1 (user opted out)' 'INFO'
 }
@@ -807,7 +813,7 @@ if ($installNvInspector -and (Test-Path $nvInspectorExe) -and (Test-Path $nvInsp
 }
 
 Write-Host '  5. Device Manager - disable USB power saving (4 - Device Manager/)'
-Write-Host '  6. Interrupt Affinity - re-run set_affinity.bat after each NVIDIA driver update'
+Write-Host '  6. Interrupt Affinity - re-run set_affinity.bat after each NVIDIA driver update (GPU + mouse config auto-applied)'
 Write-Host '  7. Quick reruns if needed: DNS / Windows Update / Firewall (6 - DNS/, 7 - Windows Update/, 1 - Automated/scripts/firewall.bat)'
 Write-Host '  8. NIC settings - disable offloads, buffers in Device Manager'
 Write-Host '  9. Optional timer check: verify with MeasureSleep.exe as admin (Tools/)'

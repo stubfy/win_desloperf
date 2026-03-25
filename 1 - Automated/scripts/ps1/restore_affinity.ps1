@@ -1,19 +1,19 @@
-# restore_affinity.ps1 - Restore GPU interrupt affinity to Windows default
+# restore_affinity.ps1 - Restore interrupt affinity to Windows default
 #
-# Detects the same GPU -> PCI Bridge -> Root Complex chain as set_affinity.ps1.
-# For each device:
-#   - If backup\affinity_state.json exists and device had Existed=true:
-#     Restores the original DevicePolicy and AssignmentSetOverride values.
-#   - If backup\affinity_state.json exists and device had Existed=false:
-#     Deletes the Affinity Policy subkey (returns to Windows default).
-#   - If no backup found:
-#     Deletes the Affinity Policy subkey (safest default).
+# Reads backup\affinity_state.json (captured by backup.ps1 before tweaks ran).
+# For each device recorded in the backup:
+#   - If backup had Existed=true : restores original DevicePolicy + AssignmentSetOverride.
+#   - If backup had Existed=false: deletes the Affinity Policy subkey (Windows default).
+#   - If no backup file found    : deletes any Affinity Policy key found (safest fallback).
+#
+# Covers all device chains recorded in the backup: GPU, USB mouse, and any future groups.
 
 $ErrorActionPreference = 'Continue'
 
-$PACK_ROOT  = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
-$BACKUP_DIR = Join-Path $PACK_ROOT "1 - Automated\backup"
-$STATE_FILE = Join-Path $BACKUP_DIR "affinity_state.json"
+. (Join-Path $PSScriptRoot 'affinity_helpers.ps1')
+
+$BACKUP_DIR = Join-Path (Split-Path (Split-Path $PSScriptRoot)) 'backup'
+$STATE_FILE = Join-Path $BACKUP_DIR 'affinity_state.json'
 
 # ── Load saved state ──────────────────────────────────────────────────────────
 $savedState = $null
@@ -25,83 +25,81 @@ if (Test-Path $STATE_FILE) {
         Write-Host "    [WARN] Could not read affinity_state.json: $_" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "    No affinity backup found. Affinity Policy keys will be deleted." -ForegroundColor Gray
+    Write-Host "    No affinity backup found. Will delete any Affinity Policy keys found." -ForegroundColor Gray
 }
 
-# ── GPU detection (same logic as set_affinity.ps1) ───────────────────────────
-$allGpus = Get-PnpDevice -Class Display -Status OK -ErrorAction SilentlyContinue |
-    Where-Object { $_.InstanceId -match '^PCI\\' }
+# ── Restore ───────────────────────────────────────────────────────────────────
+if (-not $savedState) {
+    # No backup: discover and clean up GPU + mouse chains (best-effort)
+    Write-Host "    Falling back to live device detection." -ForegroundColor Gray
+    $chains = @()
 
-if (-not $allGpus) {
-    Write-Host "    [ERROR] No PCI display device found." -ForegroundColor Red
-    return
-}
+    $gpu = Find-DiscreteGpu
+    if ($gpu) {
+        $chain = Get-PciChainFromDevice -InstanceId $gpu.InstanceId -StartLabel 'GPU' -Quiet
+        if ($chain.Count -gt 0) { $chains += , $chain }
+    }
 
-$igpuPattern = 'Intel.*(UHD|Iris|HD Graphics)|Microsoft Basic Display'
-$dGpus = $allGpus | Where-Object { $_.FriendlyName -notmatch $igpuPattern }
-if (-not $dGpus) { $dGpus = $allGpus }
-
-$gpu = $dGpus | Where-Object { $_.FriendlyName -match 'NVIDIA' } | Select-Object -First 1
-if (-not $gpu) { $gpu = $dGpus | Where-Object { $_.FriendlyName -match 'AMD|Radeon' } | Select-Object -First 1 }
-if (-not $gpu) { $gpu = $dGpus | Select-Object -First 1 }
-
-Write-Host "    GPU     : $($gpu.FriendlyName)"
-
-$chain = [System.Collections.Generic.List[object]]::new()
-$chain.Add([PSCustomObject]@{ Label = 'GPU'; Id = $gpu.InstanceId })
-
-try {
-    $pp = Get-PnpDeviceProperty -InstanceId $gpu.InstanceId `
-        -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
-    if ($pp.Data -match '^PCI\\') {
-        $chain.Add([PSCustomObject]@{ Label = 'PCI Bridge'; Id = $pp.Data })
-        $gpp = Get-PnpDeviceProperty -InstanceId $pp.Data `
-            -KeyName 'DEVPKEY_Device_Parent' -ErrorAction Stop
-        if ($gpp.Data -match '^PCI\\') {
-            $chain.Add([PSCustomObject]@{ Label = 'Root Complex'; Id = $gpp.Data })
+    $config = Read-AffinityConfig -ConfigPath (Join-Path $BACKUP_DIR 'affinity_config.json')
+    if ($config) {
+        foreach ($g in $config.groups | Where-Object { $_.type -eq 'mouse' }) {
+            $chain = Get-PciChainFromDevice -InstanceId $g.instanceId -StartLabel 'USB Controller' -Quiet
+            if ($chain.Count -gt 0) { $chains += , $chain }
         }
     }
-} catch {}
 
-Write-Host ""
-
-# ── Restore each device ───────────────────────────────────────────────────────
-foreach ($dev in $chain) {
-    $policyPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.Id)\" +
-                  "Device Parameters\Interrupt Management\Affinity Policy"
-
-    $devState = $null
-    if ($savedState) {
-        $devState = $savedState.PSObject.Properties |
-            Where-Object { $_.Name -eq $dev.Id } |
-            Select-Object -ExpandProperty Value
+    Write-Host ""
+    foreach ($chain in $chains) {
+        foreach ($dev in $chain) {
+            $policyPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.Id)\" +
+                          "Device Parameters\Interrupt Management\Affinity Policy"
+            try {
+                if (Test-Path $policyPath) {
+                    Remove-Item -Path $policyPath -Recurse -Force -ErrorAction Stop
+                    Write-Host "    [RESTORED] $($dev.Label) ($($dev.Id)) -> Affinity Policy deleted (Windows default)" -ForegroundColor Green
+                } else {
+                    Write-Host "    [SKIPPED]  $($dev.Label) ($($dev.Id)) -> Affinity Policy not present" -ForegroundColor Gray
+                }
+            } catch {
+                Write-Host "    [ERROR] $($dev.Label): $_" -ForegroundColor Red
+            }
+        }
     }
+} else {
+    # Restore from backup — generic: handles GPU, mouse, and any future device types
+    Write-Host ""
+    foreach ($prop in $savedState.PSObject.Properties) {
+        $devId      = $prop.Name
+        $devState   = $prop.Value
+        $policyPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$devId\" +
+                      "Device Parameters\Interrupt Management\Affinity Policy"
 
-    try {
-        if ($devState -and $devState.Existed -eq $true) {
-            # Restore original values
-            if (-not (Test-Path $policyPath)) {
-                New-Item -Path $policyPath -Force -ErrorAction Stop | Out-Null
-            }
-            Set-ItemProperty -Path $policyPath -Name 'DevicePolicy' `
-                -Value ([int]$devState.DevicePolicy) -Type DWord -Force -ErrorAction Stop
-            if ($null -ne $devState.AssignmentSetOverride) {
-                $origBytes = [byte[]]($devState.AssignmentSetOverride | ForEach-Object { [byte]$_ })
-                Set-ItemProperty -Path $policyPath -Name 'AssignmentSetOverride' `
-                    -Value $origBytes -Type Binary -Force -ErrorAction Stop
-            }
-            Write-Host "    [RESTORED] $($dev.Label) ($($dev.Id)) -> original affinity policy" -ForegroundColor Green
-        } else {
-            # Delete Affinity Policy subkey -> Windows assigns interrupts automatically
-            if (Test-Path $policyPath) {
-                Remove-Item -Path $policyPath -Recurse -Force -ErrorAction Stop
-                Write-Host "    [RESTORED] $($dev.Label) ($($dev.Id)) -> Affinity Policy deleted (Windows default)" -ForegroundColor Green
+        try {
+            if ($devState.Existed -eq $true) {
+                # Restore original values
+                if (-not (Test-Path $policyPath)) {
+                    New-Item -Path $policyPath -Force -ErrorAction Stop | Out-Null
+                }
+                Set-ItemProperty -Path $policyPath -Name 'DevicePolicy' `
+                    -Value ([int]$devState.DevicePolicy) -Type DWord -Force -ErrorAction Stop
+                if ($null -ne $devState.AssignmentSetOverride) {
+                    $origBytes = [byte[]]($devState.AssignmentSetOverride | ForEach-Object { [byte]$_ })
+                    Set-ItemProperty -Path $policyPath -Name 'AssignmentSetOverride' `
+                        -Value $origBytes -Type Binary -Force -ErrorAction Stop
+                }
+                Write-Host "    [RESTORED] $devId -> original affinity policy" -ForegroundColor Green
             } else {
-                Write-Host "    [SKIPPED]  $($dev.Label) ($($dev.Id)) -> Affinity Policy not present" -ForegroundColor Gray
+                # Device had no affinity policy before — delete it
+                if (Test-Path $policyPath) {
+                    Remove-Item -Path $policyPath -Recurse -Force -ErrorAction Stop
+                    Write-Host "    [RESTORED] $devId -> Affinity Policy deleted (Windows default)" -ForegroundColor Green
+                } else {
+                    Write-Host "    [SKIPPED]  $devId -> Affinity Policy not present" -ForegroundColor Gray
+                }
             }
+        } catch {
+            Write-Host "    [ERROR] $devId : $_" -ForegroundColor Red
         }
-    } catch {
-        Write-Host "    [ERROR] $($dev.Label): $_" -ForegroundColor Red
     }
 }
 
