@@ -1,6 +1,6 @@
 # win_desloperf
 
-![Version](https://img.shields.io/badge/version-1.0-blue)
+![Version](https://img.shields.io/badge/version-1.2-blue)
 ![Windows](https://img.shields.io/badge/Windows_11-25H2-0078D4?logo=windows)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-5391FE?logo=powershell)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -146,15 +146,16 @@ Before anything runs, `run_all.bat` shows a summary of the current optional choi
 |---|--------|---------|
 | 1 | Defender Safe Mode step (reboot into Safe Mode after run to disable Defender) | Yes |
 | 2 | Windows Update profile (1 = Maximum, 2 = Security only, 3 = Disabled) | 2 |
-| 3 | Uninstall Edge + WebView2 Runtime | Yes |
-| 4 | Uninstall OneDrive | Yes |
-| 5 | Disable Windows Firewall | Yes |
-| 6 | Apply Cloudflare DNS (1.1.1.1 / 1.0.0.1) | Yes |
-| 7 | Enable SetTimerResolution at startup | Yes |
-| 8 | Apply personal settings (dark mode, taskbar, Explorer preferences) | Yes |
-| 9 | Install NVInspector to `%APPDATA%\win_desloperf` + Desktop shortcut | Yes (NVIDIA only) |
-| 10 | Pin GPU interrupt chain to core 2 | Yes |
-| 11 | Apply saved MSI snapshot (`3 - MSI Utils/msi_state.json`) | — (shown only if file exists) |
+| 3 | Uninstall Edge | Yes |
+| 4 | Remove WebView2 Runtime (may break Start menu search on some machines) | No |
+| 5 | Uninstall OneDrive | Yes |
+| 6 | Disable Windows Firewall | Yes |
+| 7 | Apply Cloudflare DNS (1.1.1.1 / 1.0.0.1) | Yes |
+| 8 | Enable SetTimerResolution at startup | Yes |
+| 9 | Apply personal settings (dark mode, taskbar, Explorer preferences) | Yes |
+| 10 | Install NVInspector to `%APPDATA%\win_desloperf` + Desktop shortcut | Yes (NVIDIA only) |
+| 11 | Pin GPU interrupt chain to core 2 | Yes |
+| 12 | Apply saved MSI snapshot (`3 - MSI Utils/msi_state.json`) | — (shown only if file exists) |
 
 The final reboot is still confirmed at the end:
 - if Defender tweak is enabled, the script asks you to reboot into Safe Mode for the Defender step, default: Yes
@@ -211,7 +212,8 @@ Scripts executed by run_all:
 | `msi_apply.ps1` | Applies `3 - MSI Utils/msi_state.json` if the file exists |
 | `install_nvinspector.ps1` | only on NVIDIA systems, copies NVInspector bundle to `%APPDATA%\win_desloperf\NVInspector` and creates a Desktop shortcut |
 | `opt_onedrive_uninstall.ps1` | Optional — full OneDrive removal |
-| `opt_edge_uninstall.ps1` | Optional — full Edge + WebView2 Runtime removal |
+| `opt_edge_uninstall.ps1` | Optional — full Edge removal (WebView2 Runtime preserved) |
+| `opt_webview2_uninstall.ps1` | Optional — WebView2 Runtime removal (default OFF — may break Start menu search on some machines; fix: `Tools/fix_webview2.bat`) |
 | `show_diff.ps1` | Post-tweak diff: compares current system state against `snapshot_latest.json`, categorizes results as "already OK", "applied", or "failed" |
 
 ### Diff report
@@ -400,7 +402,7 @@ Restores in order:
 - Windows Firewall profiles (restored to saved state or Windows default)
 - Personal shell/theme settings (restored to Windows defaults)
 - GPU interrupt affinity (Affinity Policy keys removed or restored to pre-tweak state)
-- Optional reinstall prompt for Microsoft Edge + WebView2 Runtime / OneDrive
+- Optional reinstall prompt for Microsoft Edge / OneDrive
 
 ---
 
