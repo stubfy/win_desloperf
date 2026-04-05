@@ -376,14 +376,20 @@ try {
     }
 } catch {}
 
+# ── Memory Compression snapshot ───────────────────────────────────────────────
+$memCompressionEnabled = $null
+try { $memCompressionEnabled = (Get-MMAgent).MemoryCompression } catch {}
+Write-Host "    MemoryCompression: $memCompressionEnabled"
+
 # ── Save ──────────────────────────────────────────────────────────────────────
 @{
-    Timestamp = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-    Registry  = $regArray
-    Services  = $svcSnap
-    BCD       = $bcdSnap
-    Network   = $netSnap
-    Affinity  = $affinitySnap
+    Timestamp         = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+    Registry          = $regArray
+    Services          = $svcSnap
+    BCD               = $bcdSnap
+    Network           = $netSnap
+    Affinity          = $affinitySnap
+    MemoryCompression = $memCompressionEnabled
 } | ConvertTo-Json -Depth 4 | Set-Content $SNAP_FILE -Encoding UTF8
 
 Write-Host "    Saved    : $SNAP_FILE"

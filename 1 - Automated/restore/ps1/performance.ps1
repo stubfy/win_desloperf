@@ -1,7 +1,7 @@
-# restore\performance.ps1 - Restore BCD, power plan, USB selective suspend
+# restore\performance.ps1 - Restore BCD, power plan, USB selective suspend, Memory Compression
 # Combines: restore\bcdedit.ps1, restore\power.ps1, restore\usb.ps1
 #
-# Rollback: undoes performance.ps1 tweaks (disabledynamictick, power plan, USB suspend)
+# Rollback: undoes performance.ps1 tweaks (disabledynamictick, power plan, USB suspend, memory compression)
 
 # === SECTION: Restore boot configuration ===
 
@@ -40,3 +40,8 @@ if (-not $scheme) {
     powercfg /setactive $scheme 2>&1 | Out-Null
     Write-Host "    USB selective suspend re-enabled on: $scheme"
 }
+
+# === SECTION: Restore Memory Compression ===
+
+Enable-MMAgent -MemoryCompression
+Write-Host "    Memory Compression re-enabled"

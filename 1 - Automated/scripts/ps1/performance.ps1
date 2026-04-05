@@ -155,3 +155,19 @@ if (-not $planGuid) {
     powercfg /setactive $planGuid 2>&1 | Out-Null
     Write-Host "    USB selective suspend disabled on plan: $planGuid"
 }
+
+# === SECTION: Memory Compression ===
+# Windows 11 compresses memory pages to reduce physical RAM usage. On gaming PCs
+# with 16 GB+ RAM this trades CPU cycles for memory savings that are unnecessary,
+# adding measurable overhead during frame-sensitive workloads.
+
+$mcBefore = (Get-MMAgent).MemoryCompression
+Write-Host "    Memory Compression before: $mcBefore"
+
+if ($mcBefore) {
+    Disable-MMAgent -MemoryCompression
+    $mcAfter = (Get-MMAgent).MemoryCompression
+    Write-Host "    Memory Compression after : $mcAfter"
+} else {
+    Write-Host "    Memory Compression already disabled, skipping."
+}
