@@ -205,6 +205,7 @@ Scripts executed by run_all:
 | `ai_debloat.ps1` | Deep AI cleanup: advanced AI AppX removal, Recall optional feature removal, CBS package cleanup, region policy patch, and targeted file/task cleanup |
 | `timer.ps1` | Optional SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
 | `network_tweaks.ps1` | Teredo disabled, TCP stack (ECN, RSC off, heuristics off), LSO disabled on active adapters, Nagle disabled per Ethernet interface, QoS bandwidth reservation removed, MaxUserPort extended |
+| `usb_power.ps1` | USB device power management disabled on all connected USB/HID devices (PnpCapabilities, WakeEnabled, SelectiveSuspend) |
 | `set_windows_update.ps1` | Windows Update profile (Maximum / Security / Disabled) |
 | `firewall.ps1` | Windows Firewall profiles disabled |
 | `personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, taskbar End task, Explorer presentation, Settings Home hidden) |
@@ -357,6 +358,7 @@ re-run later without launching the full `run_all.bat` flow again.
 
 - `6 - DNS/set_dns.bat` re-applies Cloudflare DNS on active adapters
 - `7 - Windows Update/set_windows_update.bat` switches the Windows Update profile
+- `8 - USB Power/set_usb_power.bat` re-applies USB power management disable after plugging new devices
 
 ### MSI Utils
 

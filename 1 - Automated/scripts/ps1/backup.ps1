@@ -170,6 +170,77 @@ try {
     Write-Host "    [WARNING] Unable to save NIC power states." -ForegroundColor Yellow
 }
 
+# Export USB device power management state (for precise rollback)
+# Only written once: if the file exists (re-run of run_all), original states are preserved.
+$usbBackupFile = "$BACKUP_DIR\usb_power_state.json"
+if (-not (Test-Path $usbBackupFile)) {
+    try {
+        $usbPowerState = [ordered]@{}
+        $usbDevices = @(
+            Get-PnpDevice -Class 'USB'       -Status OK -ErrorAction SilentlyContinue
+            Get-PnpDevice -Class 'HIDClass'  -Status OK -ErrorAction SilentlyContinue
+            Get-PnpDevice -Class 'USBDevice' -Status OK -ErrorAction SilentlyContinue
+        ) | Where-Object { $_.InstanceId -match '^(USB|HID)\\' } |
+            Sort-Object InstanceId -Unique
+
+        foreach ($device in $usbDevices) {
+            $id           = $device.InstanceId
+            $devParamsPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$id\Device Parameters"
+            if (-not (Test-Path $devParamsPath)) { continue }
+
+            $state = [ordered]@{
+                FriendlyName             = $device.FriendlyName
+                DevParamsPath            = $devParamsPath
+                PnpCapabilities          = $null
+                PnpCapabilitiesExisted   = $false
+                WakeEnabledPath          = (Join-Path $devParamsPath 'Power')
+                WakeEnabled              = $null
+                WakeEnabledExisted       = $false
+                EnhancedPMEnabled        = $null
+                EnhancedPMEnabledExisted = $false
+                AllowIdleIrpInD3         = $null
+                AllowIdleIrpInD3Existed  = $false
+                SelectiveSuspendEnabled  = $null
+                SelectiveSuspendExisted  = $false
+            }
+
+            try {
+                $state.PnpCapabilities        = (Get-ItemProperty -Path $devParamsPath -Name PnpCapabilities -ErrorAction Stop).PnpCapabilities
+                $state.PnpCapabilitiesExisted = $true
+            } catch {}
+
+            $powerPath = Join-Path $devParamsPath 'Power'
+            if (Test-Path $powerPath) {
+                try {
+                    $state.WakeEnabled        = (Get-ItemProperty -Path $powerPath -Name WakeEnabled -ErrorAction Stop).WakeEnabled
+                    $state.WakeEnabledExisted = $true
+                } catch {}
+            }
+
+            foreach ($pair in @(
+                @{ Key = 'EnhancedPowerManagementEnabled'; StateKey = 'EnhancedPMEnabled';       ExistedKey = 'EnhancedPMEnabledExisted'  }
+                @{ Key = 'AllowIdleIrpInD3';               StateKey = 'AllowIdleIrpInD3';        ExistedKey = 'AllowIdleIrpInD3Existed'   }
+                @{ Key = 'SelectiveSuspendEnabled';         StateKey = 'SelectiveSuspendEnabled'; ExistedKey = 'SelectiveSuspendExisted'   }
+            )) {
+                try {
+                    $state[$pair.StateKey]   = (Get-ItemProperty -Path $devParamsPath -Name $pair.Key -ErrorAction Stop).($pair.Key)
+                    $state[$pair.ExistedKey] = $true
+                } catch {
+                    $state[$pair.ExistedKey] = $false
+                }
+            }
+
+            $usbPowerState[$id] = $state
+        }
+        $usbPowerState | ConvertTo-Json -Depth 5 | Set-Content $usbBackupFile -Encoding UTF8
+        Write-Host "    USB power states saved -> backup\usb_power_state.json ($($usbPowerState.Count) devices)"
+    } catch {
+        Write-Host "    [WARNING] Unable to save USB power states." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "    USB power states already backed up -> backup\usb_power_state.json (skipped)"
+}
+
 # Export interrupt affinity state (GPU + mouse if config present, for rollback)
 try {
     $affinityChains = @()

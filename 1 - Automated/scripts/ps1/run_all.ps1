@@ -21,6 +21,7 @@
         ai_debloat           -> Deep AI package / CBS / Recall cleanup
         timer                -> Optional SetTimerResolution startup
         network_tweaks       -> Teredo disable + TCP/Nagle/QoS
+        usb_power            -> USB device power management disable
         [7 - Windows Update] -> WU profile (user choice)
         firewall             -> Firewall disable (user choice)
         personal_settings    -> Subjective shell/theme preferences (user choice)
@@ -726,32 +727,35 @@ if ($applyNetworkTweaks) {
     Write-Log 'Skipped: network_tweaks.ps1 (user chose not to apply network tweaks)' 'INFO'
 }
 
-Write-Step "PHASE B.10 - Windows Update profile: $profilLabel"
+Write-Step 'PHASE B.10 - USB device power management'
+Invoke-Script "$SCRIPTS\usb_power.ps1"
+
+Write-Step "PHASE B.11 - Windows Update profile: $profilLabel"
 Invoke-Script "$SCRIPTS\set_windows_update.ps1" @{ Profil = $updateProfil }
 
 if ($disableFirewall) {
-    Write-Step 'PHASE B.11 - Disable Windows Firewall profiles'
+    Write-Step 'PHASE B.12 - Disable Windows Firewall profiles'
     Invoke-Script "$SCRIPTS\firewall.ps1"
 } else {
-    Write-Step 'PHASE B.11 - Disable Windows Firewall profiles (skipped)'
+    Write-Step 'PHASE B.12 - Disable Windows Firewall profiles (skipped)'
     Write-Host '    Skipped        : user chose to keep the current firewall configuration'
     Write-Log 'Skipped: firewall.ps1 (user chose not to disable firewall profiles)' 'INFO'
 }
 
 if ($applyPersonalSettings) {
-    Write-Step 'PHASE B.12 - Personal shell settings (theme, colors, taskbar, Settings app)'
+    Write-Step 'PHASE B.13 - Personal shell settings (theme, colors, taskbar, Settings app)'
     Invoke-Script "$SCRIPTS\personal_settings.ps1"
 } else {
-    Write-Step 'PHASE B.12 - Personal shell settings (skipped)'
+    Write-Step 'PHASE B.13 - Personal shell settings (skipped)'
     Write-Host "    Skipped        : user chose not to apply the pack's subjective shell/theme preferences"
     Write-Log 'Skipped: personal_settings.ps1 (user chose not to apply personal settings)' 'INFO'
 }
 
 if ($setInterruptAffinity) {
-    Write-Step 'PHASE B.13 - Interrupt affinity (GPU + mouse)'
+    Write-Step 'PHASE B.14 - Interrupt affinity (GPU + mouse)'
     Invoke-Script "$SCRIPTS\set_affinity.ps1" @{ SkipReboot = $true }
 } else {
-    Write-Step 'PHASE B.13 - Interrupt affinity (skipped)'
+    Write-Step 'PHASE B.14 - Interrupt affinity (skipped)'
     Write-Host '    Skipped        : run 5 - Interrupt Affinity\set_affinity.bat after NVIDIA updates'
     Write-Log 'Skipped: set_affinity.ps1 (user opted out)' 'INFO'
 }
@@ -759,7 +763,7 @@ if ($setInterruptAffinity) {
 $msiStateApplied = $false
 if (Test-Path $msiStateFile) {
     if ($applySavedMsi) {
-        Write-Step 'PHASE B.14 - MSI interrupt mode (from saved snapshot)'
+        Write-Step 'PHASE B.15 - MSI interrupt mode (from saved snapshot)'
         $msiMeta = (Get-Content $msiStateFile -Encoding UTF8 | ConvertFrom-Json)._meta
         Write-Host "    Snapshot found: $msiStateFile" -ForegroundColor Cyan
         Write-Host "    Created: $($msiMeta.created) on $($msiMeta.machine)" -ForegroundColor DarkGray
@@ -769,13 +773,13 @@ if (Test-Path $msiStateFile) {
         Write-Log "MSI state applied from saved snapshot: $msiStateFile" 'OK'
         $msiStateApplied = $true
     } else {
-        Write-Step 'PHASE B.14 - MSI interrupt mode (skipped)'
+        Write-Step 'PHASE B.15 - MSI interrupt mode (skipped)'
         Write-Host "    Snapshot found but skipped by launch choice: $msiStateFile" -ForegroundColor Yellow
         Write-Host '    Run 3 - MSI Utils\msi_apply.bat manually if you want to replay it later.' -ForegroundColor DarkGray
         Write-Log 'Skipped: MSI apply (launch choice disabled saved MSI replay)' 'INFO'
     }
 } else {
-    Write-Step 'PHASE B.14 - MSI interrupt mode (no snapshot found)'
+    Write-Step 'PHASE B.15 - MSI interrupt mode (no snapshot found)'
     Write-Host '    No saved msi_state.json found in 3 - MSI Utils/.' -ForegroundColor DarkGray
     Write-Host '    Configure MSI manually via MSI_util_v3.exe, then run msi_snapshot.bat to save' -ForegroundColor DarkGray
     Write-Host '    your settings to 3 - MSI Utils\msi_state.json -- next time run_all.bat runs,' -ForegroundColor DarkGray
@@ -784,7 +788,7 @@ if (Test-Path $msiStateFile) {
 }
 
 if ($installNvInspector) {
-    Write-Step 'PHASE B.15 - NVIDIA Profile Inspector install'
+    Write-Step 'PHASE B.16 - NVIDIA Profile Inspector install'
     Invoke-Script "$SCRIPTS\install_nvinspector.ps1" @{ SourceRoot = $NVINSPECTOR_DIR }
 }
 
@@ -839,7 +843,7 @@ if ($installNvInspector -and (Test-Path $nvInspectorExe) -and (Test-Path $nvInsp
     Write-Host '  4. NVIDIA Profile Inspector - skipped (no NVIDIA GPU detected)' -ForegroundColor DarkGray
 }
 
-Write-Host '  5. Device Manager - disable USB power saving (4 - Device Manager/)'
+Write-Host '  5. USB power saving - automated. Re-run set_usb_power.bat after plugging new USB devices (8 - USB Power/)'
 Write-Host '  6. Interrupt Affinity - re-run set_affinity.bat after each NVIDIA driver update (GPU + mouse config auto-applied)'
 Write-Host '  7. Quick reruns if needed: DNS / Windows Update / Firewall (6 - DNS/, 7 - Windows Update/, 1 - Automated/scripts/firewall.bat)'
 Write-Host '  8. NIC settings - disable offloads, buffers in Device Manager'

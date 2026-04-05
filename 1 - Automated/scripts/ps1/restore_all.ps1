@@ -20,6 +20,7 @@
       ai_debloat.ps1        - Restores saved JSON backups for AI deep-debloat
       debloat_restore.ps1   - Provides guidance for reinstalling removed UWP apps
       network_tweaks.ps1    - Re-enables Teredo (netsh teredo set state default)
+      usb_power.ps1         - Restores USB device power management from backup\usb_power_state.json
       windows_update.ps1    - Restores full WU (Profile 1 = Maximum)
       firewall.ps1          - Restores firewall profiles from backup\firewall_state.json
       personal_settings.ps1 - Imports personal_settings_defaults.reg
@@ -158,6 +159,9 @@ Invoke-Script "$RESTORE\debloat_restore.ps1"
 
 Write-Step "Restore network tweaks (Teredo)"
 Invoke-Script "$RESTORE\network_tweaks.ps1"
+
+Write-Step "Restore USB device power management"
+Invoke-Script "$RESTORE\usb_power.ps1"
 
 Write-Step "Restore Windows Update (maximum mode - Windows default)"
 Invoke-Script "$RESTORE\windows_update.ps1"
