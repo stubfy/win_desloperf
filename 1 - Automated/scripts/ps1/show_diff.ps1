@@ -352,6 +352,60 @@ if ($snap.Network) {
     }
 }
 
+# ── Storage write-cache diff ───────────────────────────────────────────────
+$storageChanged = [System.Collections.Generic.List[object]]::new()
+$storageAlready = 0
+$storageFailed  = [System.Collections.Generic.List[object]]::new()
+$storageSkipped = [System.Collections.Generic.List[object]]::new()
+
+if ($snap.StorageWriteCache) {
+    foreach ($disk in @($snap.StorageWriteCache)) {
+        $label = if ($disk.FriendlyName) { [string]$disk.FriendlyName } elseif ($disk.InstanceId) { [string]$disk.InstanceId } else { '(unknown disk)' }
+        $deviceParamsPath = if ($disk.DeviceParametersPath) { [string]$disk.DeviceParametersPath } elseif ($disk.DiskParametersPath) { Split-Path ([string]$disk.DiskParametersPath) -Parent } else { $null }
+        $diskPath = if ($disk.DiskParametersPath) { [string]$disk.DiskParametersPath } elseif ($deviceParamsPath) { Join-Path $deviceParamsPath 'Disk' } else { $null }
+
+        if (-not $deviceParamsPath -or -not (Test-Path $deviceParamsPath)) {
+            $storageSkipped.Add([PSCustomObject]@{ Disk = $label; Reason = 'device not present' })
+            continue
+        }
+
+        foreach ($entry in @(
+            @{ Key = 'UserWriteCacheSetting'; Before = if ($disk.BeforeUserWriteCacheSettingExisted) { [int]$disk.BeforeUserWriteCacheSetting } else { $null }; Desired = [int]$disk.DesiredUserWriteCacheSetting }
+            @{ Key = 'CacheIsPowerProtected'; Before = if ($disk.BeforeCacheIsPowerProtectedExisted) { [int]$disk.BeforeCacheIsPowerProtected } else { $null }; Desired = [int]$disk.DesiredCacheIsPowerProtected }
+        )) {
+            $current = $null
+            $exists = $false
+            if ($diskPath -and (Test-Path $diskPath)) {
+                try {
+                    $current = (Get-ItemProperty -Path $diskPath -Name $entry.Key -ErrorAction Stop).($entry.Key)
+                    $exists = $true
+                } catch {
+                }
+            }
+
+            if ($exists -and [int]$current -eq $entry.Desired) {
+                if ($null -ne $entry.Before -and [int]$entry.Before -eq $entry.Desired) {
+                    $storageAlready++
+                } else {
+                    $storageChanged.Add([PSCustomObject]@{
+                        Disk   = $label
+                        Key    = $entry.Key
+                        Before = if ($null -eq $entry.Before) { '(missing)' } else { $entry.Before }
+                        After  = [int]$current
+                    })
+                }
+            } else {
+                $storageFailed.Add([PSCustomObject]@{
+                    Disk    = $label
+                    Key     = $entry.Key
+                    Current = if ($exists) { [int]$current } else { '(missing)' }
+                    Desired = $entry.Desired
+                })
+            }
+        }
+    }
+}
+
 # ── Display ───────────────────────────────────────────────────────────────────
 function fPath([string]$p) { $p -replace 'HKLM:\\','HKLM\' -replace 'HKCU:\\','HKCU\' -replace 'HKCR:\\','HKCR\' }
 
@@ -360,6 +414,7 @@ $totalSvc = $svcChanged.Count + $svcAlready + $svcFailed.Count
 $totalBcd = $bcdChanged.Count + $bcdAlready
 $totalNet = $netChanged.Count + $netAlready + $netFailed.Count
 $totalAff = if ($snap.Affinity) { @($snap.Affinity.PSObject.Properties).Count } else { 0 }
+$totalStorage = $storageChanged.Count + $storageAlready + $storageFailed.Count
 
 Write-Host ""
 Write-Host "  RECAP - What actually changed" -ForegroundColor Cyan
@@ -377,6 +432,10 @@ Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied" -f `
 if ($snap.Network) {
     Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied   {4,3} failed" -f `
         "Network", $totalNet, $netAlready, $netChanged.Count, $netFailed.Count) -ForegroundColor White
+}
+if ($snap.StorageWriteCache) {
+    Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied   {4,3} failed" -f `
+        "Storage", $totalStorage, $storageAlready, $storageChanged.Count, $storageFailed.Count) -ForegroundColor White
 }
 if ($snap.Affinity) {
     Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied" -f `
@@ -468,6 +527,30 @@ if ($snap.Network -and $netFailed.Count -gt 0) {
     Write-Host "  Network - FAILED ($($netFailed.Count)):" -ForegroundColor Red
     foreach ($n in $netFailed) {
         Write-Host ("    x {0,-40}  current={1}  wanted={2}" -f $n.Key, $n.Current, $n.Desired) -ForegroundColor Red
+    }
+}
+
+if ($snap.StorageWriteCache -and $storageChanged.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Storage write cache - applied ($($storageChanged.Count)):" -ForegroundColor Green
+    foreach ($s in $storageChanged) {
+        Write-Host ("    + {0,-24} {1,-28}  {2}  ->  {3}" -f $s.Key, $s.Disk, $s.Before, $s.After) -ForegroundColor Green
+    }
+}
+
+if ($snap.StorageWriteCache -and $storageFailed.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Storage write cache - FAILED ($($storageFailed.Count)):" -ForegroundColor Red
+    foreach ($s in $storageFailed) {
+        Write-Host ("    x {0,-24} {1,-28}  current={2}  wanted={3}" -f $s.Key, $s.Disk, $s.Current, $s.Desired) -ForegroundColor Red
+    }
+}
+
+if ($snap.StorageWriteCache -and $storageSkipped.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Storage write cache - skipped ($($storageSkipped.Count), not counted):" -ForegroundColor Yellow
+    foreach ($s in $storageSkipped) {
+        Write-Host ("    ~ {0,-28}  {1}" -f $s.Disk, $s.Reason) -ForegroundColor Yellow
     }
 }
 

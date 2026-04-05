@@ -27,10 +27,15 @@
 # This script is a development/diagnostic tool. It has no effect on the tweaks
 # themselves and can be re-run at any time to refresh the snapshot.
 
+param(
+    [bool]$TrackStorageWriteCache = $false
+)
+
 $ROOT       = Split-Path (Split-Path $PSScriptRoot)
 $BACKUP_DIR = Join-Path $ROOT "backup"
 
 . (Join-Path $PSScriptRoot 'affinity_helpers.ps1')
+. (Join-Path $PSScriptRoot 'storage_write_cache_helpers.ps1')
 $REG_FILES  = @(
     (Join-Path $PSScriptRoot "tweaks_consolidated.reg")
     (Join-Path $PSScriptRoot "privacy_tweaks.reg")
@@ -400,13 +405,44 @@ try {
     }
 } catch {}
 
+# ── Storage write-cache snapshot ──────────────────────────────────────────
+$storageWriteCacheSnap = @()
+if ($TrackStorageWriteCache) {
+    try {
+        $targets = @(Get-StorageWriteCacheDiskTargets -InternalOnly)
+        $storageWriteCacheSnap = @(
+            foreach ($target in $targets) {
+                $state = Get-StorageWriteCacheRegistryState -DiskTarget $target
+                [PSCustomObject]@{
+                    FriendlyName                       = $target.FriendlyName
+                    Model                              = $target.Model
+                    SerialNumber                       = $target.SerialNumber
+                    BusType                            = $target.BusType
+                    MediaType                          = $target.MediaType
+                    DiskNumber                         = $target.DiskNumber
+                    InstanceId                         = $target.InstanceId
+                    DeviceParametersPath               = $target.DeviceParametersPath
+                    DiskParametersPath                 = $target.DiskParametersPath
+                    BeforeUserWriteCacheSetting        = $state.UserWriteCacheSetting
+                    BeforeUserWriteCacheSettingExisted = [bool]$state.UserWriteCacheSettingExisted
+                    BeforeCacheIsPowerProtected        = $state.CacheIsPowerProtected
+                    BeforeCacheIsPowerProtectedExisted = [bool]$state.CacheIsPowerProtectedExisted
+                    DesiredUserWriteCacheSetting       = 1
+                    DesiredCacheIsPowerProtected       = 1
+                }
+            }
+        )
+    } catch {}
+    Write-Host "    StorageWriteCache: $($storageWriteCacheSnap.Count) disk(s)"
+}
+
 # ── Memory Compression snapshot ───────────────────────────────────────────────
 $memCompressionEnabled = $null
 try { $memCompressionEnabled = (Get-MMAgent).MemoryCompression } catch {}
 Write-Host "    MemoryCompression: $memCompressionEnabled"
 
 # ── Save ──────────────────────────────────────────────────────────────────────
-@{
+$snapshotPayload = [ordered]@{
     Timestamp         = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
     Registry          = $regArray
     Services          = $svcSnap
@@ -414,6 +450,10 @@ Write-Host "    MemoryCompression: $memCompressionEnabled"
     Network           = $netSnap
     Affinity          = $affinitySnap
     MemoryCompression = $memCompressionEnabled
-} | ConvertTo-Json -Depth 4 | Set-Content $SNAP_FILE -Encoding UTF8
+}
+if ($TrackStorageWriteCache) {
+    $snapshotPayload['StorageWriteCache'] = $storageWriteCacheSnap
+}
+$snapshotPayload | ConvertTo-Json -Depth 5 | Set-Content $SNAP_FILE -Encoding UTF8
 
 Write-Host "    Saved    : $SNAP_FILE"

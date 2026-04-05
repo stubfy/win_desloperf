@@ -1,4 +1,5 @@
-# performance.ps1 - System performance: power plan, BCD, USB selective suspend
+# performance.ps1 - System performance: power plan, BCD, USB selective suspend,
+# disk write cache policy
 # Combines: power.ps1, bcdedit.ps1, usb.ps1
 #
 # Power plan strategy:
@@ -36,7 +37,24 @@
 #   Keeps USB ports powered at all times to avoid input device wake-up latency.
 #   Reuses $planGuid obtained in the power section (no redundant powercfg query).
 #
+# Disk write cache policy (optional):
+#   For internal SSD/NVMe devices only, forces UserWriteCacheSetting=1 and
+#   CacheIsPowerProtected=1 under the device node registry path so Windows exposes
+#   "Enable write caching on the device" and "Turn off Windows write-cache buffer
+#   flushing on the device" as enabled. This improves burst write performance at the
+#   cost of a higher data-loss risk on sudden power loss.
+#
 # Rollback: restore\performance.ps1
+
+param(
+    [bool]$DisableWriteCacheFlushing = $false
+)
+
+$ROOT = Split-Path (Split-Path $PSScriptRoot)
+$BACKUP_DIR = Join-Path $ROOT 'backup'
+$DISK_CACHE_BACKUP_FILE = Join-Path $BACKUP_DIR 'disk_write_cache_state.json'
+
+. (Join-Path $PSScriptRoot 'storage_write_cache_helpers.ps1')
 
 # === SECTION: Bitsum Highest Performance power plan ===
 
@@ -154,6 +172,130 @@ if (-not $planGuid) {
     powercfg /setdcvalueindex $planGuid 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0 2>&1 | Out-Null
     powercfg /setactive $planGuid 2>&1 | Out-Null
     Write-Host "    USB selective suspend disabled on plan: $planGuid"
+}
+
+# === SECTION: Disk write cache policy ===
+if (-not $DisableWriteCacheFlushing) {
+    Write-Host '    Disk write cache flushing skipped (launch option disabled)'
+} else {
+    $targets = @(Get-StorageWriteCacheDiskTargets -InternalOnly)
+    if ($targets.Count -eq 0) {
+        Write-Host '    Disk write cache: no internal SSD/NVMe disk detected, skipping.'
+    } else {
+        $existingBackup = [ordered]@{}
+        if (Test-Path $DISK_CACHE_BACKUP_FILE) {
+            try {
+                $loadedBackup = Get-Content -LiteralPath $DISK_CACHE_BACKUP_FILE -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+                foreach ($prop in $loadedBackup.PSObject.Properties) {
+                    $existingBackup[$prop.Name] = $prop.Value
+                }
+            } catch {
+                Write-Host "    [WARNING] Could not read disk write-cache backup: $($_.Exception.Message)" -ForegroundColor Yellow
+                Write-Host '    Disk write cache policy skipped to avoid losing the original rollback state.' -ForegroundColor Yellow
+                $targets = @()
+            }
+        }
+
+        if ($targets.Count -gt 0) {
+            $mergedBackup = [ordered]@{}
+            $newEntries = 0
+
+            foreach ($target in $targets) {
+                if ($existingBackup.Contains($target.InstanceId)) {
+                    $mergedBackup[$target.InstanceId] = $existingBackup[$target.InstanceId]
+                    continue
+                }
+
+                $state = Get-StorageWriteCacheRegistryState -DiskTarget $target
+                $mergedBackup[$target.InstanceId] = [ordered]@{
+                    FriendlyName                  = $target.FriendlyName
+                    Model                         = $target.Model
+                    SerialNumber                  = $target.SerialNumber
+                    BusType                       = $target.BusType
+                    MediaType                     = $target.MediaType
+                    DiskNumber                    = $target.DiskNumber
+                    DeviceParametersPath          = $target.DeviceParametersPath
+                    DiskParametersPath            = $target.DiskParametersPath
+                    DiskKeyExisted                = [bool]$state.DiskKeyExists
+                    UserWriteCacheSetting         = $state.UserWriteCacheSetting
+                    UserWriteCacheSettingExisted  = [bool]$state.UserWriteCacheSettingExisted
+                    CacheIsPowerProtected         = $state.CacheIsPowerProtected
+                    CacheIsPowerProtectedExisted  = [bool]$state.CacheIsPowerProtectedExisted
+                }
+                $newEntries++
+            }
+
+            foreach ($key in $existingBackup.Keys) {
+                if (-not $mergedBackup.Contains($key)) {
+                    $mergedBackup[$key] = $existingBackup[$key]
+                }
+            }
+
+            if (-not (Test-Path $BACKUP_DIR)) {
+                New-Item -ItemType Directory -Path $BACKUP_DIR -Force | Out-Null
+            }
+
+            $backupReady = $false
+            try {
+                $mergedBackup | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $DISK_CACHE_BACKUP_FILE -Encoding UTF8
+                $backupReady = $true
+                Write-Host "    Disk write-cache states saved -> backup\disk_write_cache_state.json ($($mergedBackup.Count) total, $newEntries new)"
+            } catch {
+                Write-Host "    [WARNING] Could not save disk write-cache backup: $($_.Exception.Message)" -ForegroundColor Yellow
+                Write-Host '    Disk write cache policy skipped to avoid losing the original rollback state.' -ForegroundColor Yellow
+            }
+
+            if ($backupReady) {
+                $modified = 0
+                $already  = 0
+                $skipped  = 0
+
+                foreach ($target in $targets) {
+                    $label = Get-StorageWriteCacheDiskLabel -DiskTarget $target
+                    $diskPath = $target.DiskParametersPath
+
+                    try {
+                        if (-not (Test-Path $diskPath)) {
+                            New-Item -Path $diskPath -Force | Out-Null
+                        }
+                    } catch {
+                        Write-Host "    Disk write cache skipped: $label ($($_.Exception.Message))" -ForegroundColor Yellow
+                        $skipped++
+                        continue
+                    }
+
+                    $deviceModified = 0
+                    foreach ($entry in @(
+                        @{ Name = 'UserWriteCacheSetting'; Value = 1 }
+                        @{ Name = 'CacheIsPowerProtected'; Value = 1 }
+                    )) {
+                        $current = $null
+                        $exists = $false
+                        try {
+                            $current = (Get-ItemProperty -Path $diskPath -Name $entry.Name -ErrorAction Stop).($entry.Name)
+                            $exists = $true
+                        } catch {
+                        }
+
+                        if (-not $exists -or [int]$current -ne $entry.Value) {
+                            New-ItemProperty -Path $diskPath -Name $entry.Name -Value $entry.Value -PropertyType DWord -Force | Out-Null
+                            $deviceModified++
+                        }
+                    }
+
+                    if ($deviceModified -gt 0) {
+                        Write-Host "    Disk write cache tuned: $label (UserWriteCacheSetting=1, CacheIsPowerProtected=1)"
+                        $modified++
+                    } else {
+                        Write-Host "    Disk write cache already tuned: $label"
+                        $already++
+                    }
+                }
+
+                Write-Host "    Disk write cache flushing: $modified disk(s) modified, $already already OK, $skipped skipped"
+            }
+        }
+    }
 }
 
 # === SECTION: Memory Compression ===

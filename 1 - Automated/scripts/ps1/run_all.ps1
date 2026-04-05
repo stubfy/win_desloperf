@@ -261,6 +261,7 @@ function Get-RunAllDefaultOptions {
         enableTimerTool       = $true
         applyPersonalSettings = $true
         applyNetworkTweaks    = $true
+        disableWriteCacheFlushing = $false
         installNvInspector    = $HasNvidiaGpu
         setInterruptAffinity  = $true
         applySavedMsi         = $HasMsiSnapshot
@@ -326,6 +327,7 @@ function Load-RunAllOptions {
         'enableTimerTool',
         'applyPersonalSettings',
         'applyNetworkTweaks',
+        'disableWriteCacheFlushing',
         'installNvInspector',
         'setInterruptAffinity',
         'applySavedMsi'
@@ -377,6 +379,7 @@ function Save-RunAllOptions {
         enableTimerTool       = [bool]$Options['enableTimerTool']
         applyPersonalSettings = [bool]$Options['applyPersonalSettings']
         applyNetworkTweaks    = [bool]$Options['applyNetworkTweaks']
+        disableWriteCacheFlushing = [bool]$Options['disableWriteCacheFlushing']
         installNvInspector    = [bool]$Options['installNvInspector']
         setInterruptAffinity  = [bool]$Options['setInterruptAffinity']
         applySavedMsi         = [bool]$Options['applySavedMsi']
@@ -448,6 +451,7 @@ function Show-LaunchOptionsSummary {
     Write-LaunchOptionsSummaryLine -Label 'Enable SetTimerResolution' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['enableTimerTool']))
     Write-LaunchOptionsSummaryLine -Label 'Apply personal settings' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['applyPersonalSettings']))
     Write-LaunchOptionsSummaryLine -Label 'Apply network tweaks' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['applyNetworkTweaks']))
+    Write-LaunchOptionsSummaryLine -Label 'Disable disk write-cache flushing (SSD/NVMe)' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['disableWriteCacheFlushing']))
 
     if ($HasNvidiaGpu) {
         Write-LaunchOptionsSummaryLine -Label 'Install NVInspector' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['installNvInspector']))
@@ -542,6 +546,7 @@ function Show-LaunchOptionsFallback {
     $Options['enableTimerTool'] = Read-BooleanChoice -Prompt 'Enable SetTimerResolution at startup?' -Default ([bool]$Options['enableTimerTool'])
     $Options['applyPersonalSettings'] = Read-BooleanChoice -Prompt 'Apply personal shell settings?' -Default ([bool]$Options['applyPersonalSettings'])
     $Options['applyNetworkTweaks'] = Read-BooleanChoice -Prompt 'Apply network tweaks (Teredo, TCP, Nagle, QoS)?' -Default ([bool]$Options['applyNetworkTweaks'])
+    $Options['disableWriteCacheFlushing'] = Read-BooleanChoice -Prompt 'Disable disk write-cache buffer flushing on internal SSD/NVMe devices?' -Default ([bool]$Options['disableWriteCacheFlushing'])
 
     if ($HasNvidiaGpu) {
         $Options['installNvInspector'] = Read-BooleanChoice -Prompt 'Install NVIDIA Profile Inspector?' -Default ([bool]$Options['installNvInspector'])
@@ -582,6 +587,7 @@ function Write-SelectedOptionsLog {
     Write-Log "Option selected: SetTimerResolution startup = $([bool]$Options['enableTimerTool'])" 'INFO'
     Write-Log "Option selected: Personal settings = $([bool]$Options['applyPersonalSettings'])" 'INFO'
     Write-Log "Option selected: Network tweaks = $([bool]$Options['applyNetworkTweaks'])" 'INFO'
+    Write-Log "Option selected: Disable write-cache flushing = $([bool]$Options['disableWriteCacheFlushing'])" 'INFO'
     if ($HasNvidiaGpu) {
         Write-Log "Option selected: NVInspector install = $([bool]$Options['installNvInspector'])" 'INFO'
     } else {
@@ -660,6 +666,7 @@ $configureDns          = [bool]$launchOptions['configureDns']
 $enableTimerTool       = [bool]$launchOptions['enableTimerTool']
 $applyPersonalSettings = [bool]$launchOptions['applyPersonalSettings']
 $applyNetworkTweaks    = [bool]$launchOptions['applyNetworkTweaks']
+$disableWriteCacheFlushing = [bool]$launchOptions['disableWriteCacheFlushing']
 $installNvInspector    = [bool]$launchOptions['installNvInspector']
 $setInterruptAffinity  = [bool]$launchOptions['setInterruptAffinity']
 $applySavedMsi         = [bool]$launchOptions['applySavedMsi']
@@ -676,7 +683,7 @@ if ($hasMsiSnapshot) {
 Write-Host ''
 
 Write-Step 'PHASE A.0 - Snapshot current state (for diff report at end)'
-& "$SCRIPTS\snapshot.ps1"
+& "$SCRIPTS\snapshot.ps1" -TrackStorageWriteCache:$disableWriteCacheFlushing
 
 Write-Step 'PHASE A.1 - Backup (restore point + service/registry state)'
 Invoke-Script "$SCRIPTS\backup.ps1"
@@ -687,8 +694,8 @@ Invoke-Script "$SCRIPTS\registry.ps1"
 Write-Step 'PHASE B.2 - Apply service startup tweaks'
 Invoke-Script "$SCRIPTS\services.ps1"
 
-Write-Step 'PHASE B.3 - System performance (power plan, BCD, USB suspend)'
-Invoke-Script "$SCRIPTS\performance.ps1"
+Write-Step 'PHASE B.3 - System performance (power plan, BCD, USB suspend, disk write cache)'
+Invoke-Script "$SCRIPTS\performance.ps1" @{ DisableWriteCacheFlushing = $disableWriteCacheFlushing }
 
 if ($configureDns) {
     Write-Step 'PHASE B.4 - Cloudflare DNS (1.1.1.1 / 1.0.0.1)'
