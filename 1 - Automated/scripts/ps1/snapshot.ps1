@@ -336,8 +336,32 @@ try {
 } catch {}
 $netSnap['NagleInterfaces'] = $nagleSnap
 
+# NIC Power Saving snapshot
+$nicPowerSnap = @{}
+try {
+    $powerKeywords = @('EEE','EnergyEfficientEthernet','GreenEthernet','GigabitLite',
+        'WakeOnMagicPacket','WakeOnPattern','*PMARPOffload','*PMNSOffload',
+        'PowerSavingMode','ReduceSpeedOnPowerDown','WolShutdownLinkSpeed',
+        'AutoPowerSaveModeEnabled','EnablePME','AdaptivePowerManagement')
+    foreach ($adapter in @(Get-NetAdapter -Physical -Status Up -ErrorAction SilentlyContinue)) {
+        $adapterSnap = @{ AdvancedProperties = @{}; PnpCapabilities = $null; WakeEnabled = $null }
+        $allAdvanced = Get-NetAdapterAdvancedProperty -Name $adapter.Name -ErrorAction SilentlyContinue
+        foreach ($prop in $allAdvanced) {
+            if ($prop.RegistryKeyword -in $powerKeywords) {
+                $adapterSnap.AdvancedProperties[$prop.RegistryKeyword] = $prop.DisplayValue
+            }
+        }
+        $devParamsPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($adapter.PnpDeviceID)\Device Parameters"
+        try { $adapterSnap.PnpCapabilities = (Get-ItemProperty -Path $devParamsPath -Name 'PnpCapabilities' -ErrorAction Stop).PnpCapabilities } catch {}
+        $powerPath = Join-Path $devParamsPath 'Power'
+        try { $adapterSnap.WakeEnabled = (Get-ItemProperty -Path $powerPath -Name 'WakeEnabled' -ErrorAction Stop).WakeEnabled } catch {}
+        $nicPowerSnap[$adapter.Name] = $adapterSnap
+    }
+} catch {}
+$netSnap['NicPowerSaving'] = $nicPowerSnap
+
 $nagleModeLabel = if ($netSnap['NagleSelectionMode']) { $netSnap['NagleSelectionMode'] } else { 'unknown' }
-Write-Host "    Network  : TCP global + QoS + Nagle ($($nagleSnap.Count) interface(s), mode: $nagleModeLabel)"
+Write-Host "    Network  : TCP global + QoS + Nagle ($($nagleSnap.Count) interface(s), mode: $nagleModeLabel) + NIC power ($($nicPowerSnap.Count) adapter(s))"
 
 # ── Affinity snapshot ─────────────────────────────────────────────────────────
 $affinitySnap = [ordered]@{}

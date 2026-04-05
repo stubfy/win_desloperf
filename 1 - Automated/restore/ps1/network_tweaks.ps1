@@ -134,6 +134,62 @@ $pschedPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched'
 Remove-ItemProperty -Path $pschedPath -Name 'NonBestEffortLimit' -ErrorAction SilentlyContinue
 Write-Host "    QoS NonBestEffortLimit key removed"
 
+# ── NIC Power Saving restore ──────────────────────────────────────────────────
+$BACKUP_DIR    = Join-Path (Split-Path (Split-Path $PSScriptRoot)) "backup"
+$nicBackupFile = Join-Path $BACKUP_DIR 'nic_power_state.json'
+
+if (Test-Path $nicBackupFile) {
+    $nicBackup = Get-Content $nicBackupFile -Raw | ConvertFrom-Json
+    foreach ($adapterProp in $nicBackup.PSObject.Properties) {
+        $adapterName = $adapterProp.Name
+        $state       = $adapterProp.Value
+
+        $adapter = Get-NetAdapter -Name $adapterName -ErrorAction SilentlyContinue
+        if (-not $adapter) {
+            Write-Host "    NIC power restore: adapter '$adapterName' not found, skipping"
+            continue
+        }
+
+        $restored = 0
+
+        foreach ($apProp in $state.AdvancedProperties.PSObject.Properties) {
+            $regKeyword          = $apProp.Name
+            $originalDisplayValue = $apProp.Value.DisplayValue
+            if ($null -eq $originalDisplayValue) { continue }
+            Set-NetAdapterAdvancedProperty -Name $adapterName -RegistryKeyword $regKeyword -DisplayValue $originalDisplayValue -ErrorAction SilentlyContinue
+            $restored++
+        }
+
+        # Restore PnpCapabilities
+        $pnpPath = $state.PnpCapabilitiesPath
+        if ($state.PnpCapabilitiesExisted -and $null -ne $state.PnpCapabilities) {
+            Set-ItemProperty -Path $pnpPath -Name 'PnpCapabilities' -Value ([int]$state.PnpCapabilities) -Type DWord -Force -ErrorAction SilentlyContinue
+            Write-Host "    $adapterName: PnpCapabilities restored = $($state.PnpCapabilities)"
+        } elseif (-not $state.PnpCapabilitiesExisted) {
+            Remove-ItemProperty -Path $pnpPath -Name 'PnpCapabilities' -ErrorAction SilentlyContinue
+            Write-Host "    $adapterName: PnpCapabilities removed (was not set before)"
+        }
+
+        # Restore WakeEnabled
+        $wakePath = $state.WakeEnabledPath
+        if ($state.WakeEnabledExisted -and $null -ne $state.WakeEnabled) {
+            Set-ItemProperty -Path $wakePath -Name 'WakeEnabled' -Value ([int]$state.WakeEnabled) -Type DWord -Force -ErrorAction SilentlyContinue
+            Write-Host "    $adapterName: WakeEnabled restored = $($state.WakeEnabled)"
+        } elseif (-not $state.WakeEnabledExisted) {
+            Remove-ItemProperty -Path $wakePath -Name 'WakeEnabled' -ErrorAction SilentlyContinue
+        }
+
+        Write-Host "    NIC power restored: $adapterName ($restored advanced properties)"
+    }
+} else {
+    Write-Host "    NIC power restore: no backup found, removing PnpCapabilities override"
+    foreach ($adapter in @(Get-NetAdapter -Physical -Status Up -ErrorAction SilentlyContinue)) {
+        $devParamsPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($adapter.PnpDeviceID)\Device Parameters"
+        Remove-ItemProperty -Path $devParamsPath -Name 'PnpCapabilities' -ErrorAction SilentlyContinue
+        Write-Host "    $($adapter.Name): PnpCapabilities removed (fallback)"
+    }
+}
+
 if ($networkFailures.Count -gt 0) {
     throw "Network restore completed with failures: $($networkFailures -join '; ')"
 }

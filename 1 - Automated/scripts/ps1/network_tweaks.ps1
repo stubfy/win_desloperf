@@ -155,5 +155,90 @@ $tcpParamsPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters'
 Set-ItemProperty -Path $tcpParamsPath -Name 'MaxUserPort' -Value 65534 -Type DWord -Force
 Write-Host "    MaxUserPort = 65534"
 
+# ── NIC Power Saving ──────────────────────────────────────────────────────────
+$nicPowerProperties = @(
+    @{ RegistryKeyword = 'EEE';                     DisplayName = 'Energy-Efficient Ethernet'; DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'EnergyEfficientEthernet'; DisplayName = $null;                       DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'GreenEthernet';           DisplayName = 'Green Ethernet';            DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'GigabitLite';             DisplayName = 'Gigabit Lite';              DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'WakeOnMagicPacket';       DisplayName = 'Wake on Magic Packet';      DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'WakeOnPattern';           DisplayName = 'Wake on Pattern Match';     DisableValue = 'Disabled' }
+    @{ RegistryKeyword = '*PMARPOffload';           DisplayName = $null;                       DisableValue = 'Disabled' }
+    @{ RegistryKeyword = '*PMNSOffload';            DisplayName = $null;                       DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'PowerSavingMode';         DisplayName = 'Power Saving Mode';         DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'ReduceSpeedOnPowerDown';  DisplayName = 'Reduce Speed On Power Down'; DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'AutoPowerSaveModeEnabled'; DisplayName = $null;                      DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'EnablePME';               DisplayName = $null;                       DisableValue = 'Disabled' }
+    @{ RegistryKeyword = 'AdaptivePowerManagement'; DisplayName = $null;                       DisableValue = 'Disabled' }
+)
+
+$nicAdapters = @(Get-NetAdapter -Physical -Status Up -ErrorAction SilentlyContinue)
+foreach ($adapter in $nicAdapters) {
+    $modified = 0
+
+    foreach ($prop in $nicPowerProperties) {
+        $handled = $false
+
+        if ($prop.RegistryKeyword) {
+            $existing = Get-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword $prop.RegistryKeyword -ErrorAction SilentlyContinue
+            if ($existing -and $existing.DisplayValue -ne $prop.DisableValue) {
+                Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword $prop.RegistryKeyword -DisplayValue $prop.DisableValue -ErrorAction SilentlyContinue
+                Write-Host "    $($adapter.Name): $($prop.RegistryKeyword) -> Disabled"
+                $modified++
+                $handled = $true
+            } elseif ($existing) {
+                $handled = $true
+            }
+        }
+
+        if (-not $handled -and $prop.DisplayName) {
+            $existing = Get-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName $prop.DisplayName -ErrorAction SilentlyContinue
+            if ($existing -and $existing.DisplayValue -ne $prop.DisableValue) {
+                Set-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName $prop.DisplayName -DisplayValue $prop.DisableValue -ErrorAction SilentlyContinue
+                Write-Host "    $($adapter.Name): $($prop.DisplayName) -> Disabled"
+                $modified++
+            }
+        }
+    }
+
+    # WolShutdownLinkSpeed: set to highest speed or "Not Speed Reduction" (performance-oriented)
+    $wolProp = Get-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword 'WolShutdownLinkSpeed' -ErrorAction SilentlyContinue
+    if ($wolProp) {
+        $target = $wolProp.ValidDisplayValues | Where-Object { $_ -match 'Not Speed Reduction' } | Select-Object -First 1
+        if (-not $target) {
+            $target = $wolProp.ValidDisplayValues | Sort-Object -Descending | Select-Object -First 1
+        }
+        if ($target -and $wolProp.DisplayValue -ne $target) {
+            Set-NetAdapterAdvancedProperty -Name $adapter.Name -RegistryKeyword 'WolShutdownLinkSpeed' -DisplayValue $target -ErrorAction SilentlyContinue
+            Write-Host "    $($adapter.Name): WolShutdownLinkSpeed -> $target"
+            $modified++
+        }
+    }
+
+    # PnP power management: PnpCapabilities = 0x18 disables "Allow the computer to turn off this device"
+    $devParamsPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($adapter.PnpDeviceID)\Device Parameters"
+    if (-not (Test-Path $devParamsPath)) {
+        New-Item -Path $devParamsPath -Force -ErrorAction SilentlyContinue | Out-Null
+    }
+    if (Test-Path $devParamsPath) {
+        Set-ItemProperty -Path $devParamsPath -Name 'PnpCapabilities' -Value 24 -Type DWord -Force -ErrorAction SilentlyContinue
+        Write-Host "    $($adapter.Name): PnpCapabilities = 24 (0x18)"
+        $modified++
+    }
+
+    # WakeEnabled: disable wake-on-LAN at PnP level if Power subkey exists
+    $powerPath = Join-Path $devParamsPath 'Power'
+    if (Test-Path $powerPath) {
+        Set-ItemProperty -Path $powerPath -Name 'WakeEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+        Write-Host "    $($adapter.Name): WakeEnabled = 0"
+        $modified++
+    }
+
+    Write-Host "    NIC power saving: $($adapter.Name) ($modified properties modified)"
+}
+if ($nicAdapters.Count -eq 0) {
+    Write-Host "    NIC power saving: no active physical adapters found"
+}
+
 
 

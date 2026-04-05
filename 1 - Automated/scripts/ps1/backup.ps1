@@ -115,6 +115,61 @@ try {
     Write-Host "    [WARNING] Unable to save firewall profile states." -ForegroundColor Yellow
 }
 
+# Export NIC power saving state (for precise rollback)
+$nicPowerState = @{}
+try {
+    $powerKeywords = @('EEE','EnergyEfficientEthernet','GreenEthernet','GigabitLite',
+        'WakeOnMagicPacket','WakeOnPattern','*PMARPOffload','*PMNSOffload',
+        'PowerSavingMode','ReduceSpeedOnPowerDown','WolShutdownLinkSpeed',
+        'AutoPowerSaveModeEnabled','EnablePME','AdaptivePowerManagement')
+    $powerDisplayNames = @('Energy-Efficient Ethernet','Green Ethernet','Gigabit Lite',
+        'Wake on Magic Packet','Wake on Pattern Match','Power Saving Mode','Reduce Speed On Power Down')
+
+    foreach ($adapter in @(Get-NetAdapter -Physical -Status Up -ErrorAction SilentlyContinue)) {
+        $adapterState = @{
+            PnpDeviceID        = $adapter.PnpDeviceID
+            AdvancedProperties = @{}
+        }
+
+        $allAdvanced = Get-NetAdapterAdvancedProperty -Name $adapter.Name -ErrorAction SilentlyContinue
+        foreach ($prop in $allAdvanced) {
+            if ($prop.RegistryKeyword -in $powerKeywords -or $prop.DisplayName -in $powerDisplayNames) {
+                $adapterState.AdvancedProperties[$prop.RegistryKeyword] = @{
+                    DisplayName   = $prop.DisplayName
+                    DisplayValue  = $prop.DisplayValue
+                    RegistryValue = $prop.RegistryValue
+                }
+            }
+        }
+
+        $devParamsPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($adapter.PnpDeviceID)\Device Parameters"
+        $adapterState['PnpCapabilitiesPath'] = $devParamsPath
+        try {
+            $adapterState['PnpCapabilities']      = (Get-ItemProperty -Path $devParamsPath -Name 'PnpCapabilities' -ErrorAction Stop).PnpCapabilities
+            $adapterState['PnpCapabilitiesExisted'] = $true
+        } catch {
+            $adapterState['PnpCapabilities']      = $null
+            $adapterState['PnpCapabilitiesExisted'] = $false
+        }
+
+        $powerPath = Join-Path $devParamsPath 'Power'
+        $adapterState['WakeEnabledPath'] = $powerPath
+        try {
+            $adapterState['WakeEnabled']       = (Get-ItemProperty -Path $powerPath -Name 'WakeEnabled' -ErrorAction Stop).WakeEnabled
+            $adapterState['WakeEnabledExisted'] = $true
+        } catch {
+            $adapterState['WakeEnabled']       = $null
+            $adapterState['WakeEnabledExisted'] = $false
+        }
+
+        $nicPowerState[$adapter.Name] = $adapterState
+    }
+    $nicPowerState | ConvertTo-Json -Depth 4 | Set-Content "$BACKUP_DIR\nic_power_state.json" -Encoding UTF8
+    Write-Host "    NIC power states saved -> backup\nic_power_state.json"
+} catch {
+    Write-Host "    [WARNING] Unable to save NIC power states." -ForegroundColor Yellow
+}
+
 # Export interrupt affinity state (GPU + mouse if config present, for rollback)
 try {
     $affinityChains = @()
