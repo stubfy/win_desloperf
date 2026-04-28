@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-16"?>
+<UserSettings>
+  <WindowTop>-16</WindowTop>
+  <WindowLeft>-16</WindowLeft>
+  <WindowWidth>1140</WindowWidth>
+  <WindowHeight>649</WindowHeight>
+  <WindowState>Maximized</WindowState>
+  <ShowCustomizedSettingNamesOnly>true</ShowCustomizedSettingNamesOnly>
+  <ShowScannedUnknownSettings>true</ShowScannedUnknownSettings>
+  <HiddenSettingGroups>
+    <string>7 - Stereo</string>
+    <string>6 - SLI</string>
+    <string>8.5 - Game Profiles</string>
+    <string>Unknown</string>
+    <string>8 - Extra</string>
+    <string>1 - Compatibility</string>
+    <string>7.5 - Indicators</string>
+    <string>Other</string>
+    <string>5 - Common</string>
+    <string>0.2.2 - Graphic | Game Specific</string>
+  </HiddenSettingGroups>
+  <DisableUpdateCheck>true</DisableUpdateCheck>
+</UserSettings>

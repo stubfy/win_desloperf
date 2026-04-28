@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-16"?>
+<UserSettings>
+  <WindowTop>133</WindowTop>
+  <WindowLeft>918</WindowLeft>
+  <WindowWidth>2560</WindowWidth>
+  <WindowHeight>1400</WindowHeight>
+  <WindowState>Maximized</WindowState>
+  <ShowCustomizedSettingNamesOnly>true</ShowCustomizedSettingNamesOnly>
+  <ShowScannedUnknownSettings>false</ShowScannedUnknownSettings>
+  <HiddenSettingGroups>
+    <string>7 - Stereo</string>
+    <string>6 - SLI</string>
+    <string>8.5 - Game Profiles</string>
+    <string>Unknown</string>
+    <string>8 - Extra</string>
+    <string>7.5 - Indicators</string>
+    <string>Other</string>
+    <string>1 - Compatibility</string>
+    <string>5 - Common</string>
+    <string>0.2.2 - Graphic | Game Specific</string>
+  </HiddenSettingGroups>
+  <DisableUpdateCheck>true</DisableUpdateCheck>
+  <FavoriteSettingIds />
+  <Theme>DarkTheme.xaml</Theme>
+  <DisplayDensity>Compact</DisplayDensity>
+  <TextRendering>Modern</TextRendering>
+  <Win11BackdropMode>Disabled</Win11BackdropMode>
+</UserSettings>
