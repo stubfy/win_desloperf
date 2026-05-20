@@ -817,7 +817,7 @@ if ($removeWebView2) {
 }
 
 Write-Step 'PHASE C - Recap (what actually changed vs before)'
-Invoke-Script "$SCRIPTS\show_diff.ps1"
+Invoke-Script "$SCRIPTS\show_diff.ps1" @{ IncludeNetwork = $applyNetworkTweaks }
 Write-Host ''
 Write-Host '================================================' -ForegroundColor Green
 Write-Host '   AUTOMATED TWEAKS COMPLETE                    ' -ForegroundColor Green

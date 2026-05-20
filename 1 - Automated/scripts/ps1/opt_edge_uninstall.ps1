@@ -4,7 +4,8 @@
     Remove Microsoft Edge using the vendored WinUtil uninstall flow.
 
 .DESCRIPTION
-    Loads the upstream WinUtil function and executes it as-is.
+    Loads the vendored WinUtil function and runs its Edge removal flow when
+    an Edge installer is present.
     WebView2 Runtime is not touched by this script.
 
     Rollback: restore\opt_edge_restore.ps1 reinstalls Edge via winget.

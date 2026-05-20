@@ -13,13 +13,16 @@
 $BACKUP_DIR = Join-Path (Split-Path (Split-Path $PSScriptRoot)) "backup"
 $backupFile  = Join-Path $BACKUP_DIR "usb_power_state.json"
 
+. (Join-Path $PSScriptRoot 'usb_power_helpers.ps1')
+
 # ── Enumerate connected USB and HID devices ────────────────────────────────────
-$rawDevices = @(
-    Get-PnpDevice -Class 'USB'       -Status OK -ErrorAction SilentlyContinue
-    Get-PnpDevice -Class 'HIDClass'  -Status OK -ErrorAction SilentlyContinue
-    Get-PnpDevice -Class 'USBDevice' -Status OK -ErrorAction SilentlyContinue
-) | Where-Object { $_.InstanceId -match '^(USB|HID)\\' } |
+$rawDevices = @(Get-UsbPowerTargetDevices) | Where-Object { $_.InstanceId -match '^(USB|HID)\\' } |
     Sort-Object InstanceId -Unique
+
+$powerDeviceEnableInstances = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceEnable -ErrorAction SilentlyContinue |
+    Where-Object { $_.InstanceName -match '^(USB|HID)\\' })
+$powerDeviceWakeEnableInstances = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceWakeEnable -ErrorAction SilentlyContinue |
+    Where-Object { $_.InstanceName -match '^(USB|HID)\\' })
 
 # ── Backup (merge: add new devices, never overwrite original states) ───────────
 $existingBackup = [ordered]@{}
@@ -41,8 +44,14 @@ foreach ($device in $rawDevices) {
     $id           = $device.InstanceId
     $devParamsPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$id\Device Parameters"
 
-    if ($existingBackup.ContainsKey($id)) {
-        $mergedBackup[$id] = $existingBackup[$id]
+    if ($existingBackup.Contains($id)) {
+        $state = $existingBackup[$id]
+        Add-UsbPowerWmiBackupState `
+            -State $state `
+            -InstanceId $id `
+            -PowerDeviceEnableInstances $powerDeviceEnableInstances `
+            -PowerDeviceWakeEnableInstances $powerDeviceWakeEnableInstances
+        $mergedBackup[$id] = $state
         continue
     }
 
@@ -90,13 +99,19 @@ foreach ($device in $rawDevices) {
         }
     }
 
+    Add-UsbPowerWmiBackupState `
+        -State $state `
+        -InstanceId $id `
+        -PowerDeviceEnableInstances $powerDeviceEnableInstances `
+        -PowerDeviceWakeEnableInstances $powerDeviceWakeEnableInstances
+
     $mergedBackup[$id] = $state
     $newEntries++
 }
 
 # Preserve entries for devices not currently connected (offline devices)
 foreach ($id in $existingBackup.Keys) {
-    if (-not $mergedBackup.ContainsKey($id)) {
+    if (-not $mergedBackup.Contains($id)) {
         $mergedBackup[$id] = $existingBackup[$id]
     }
 }
@@ -161,9 +176,12 @@ foreach ($device in $rawDevices) {
         } catch {} # Key absent — nothing to disable
     }
 
+    $deviceModified += Disable-UsbPowerWmiInstances -InstanceId $id -Instances $powerDeviceEnableInstances
+    $deviceModified += Disable-UsbPowerWmiInstances -InstanceId $id -Instances $powerDeviceWakeEnableInstances
+
     if ($deviceModified -gt 0) {
         $name = if ($device.FriendlyName) { $device.FriendlyName } else { $id }
-        Write-Host "    USB power off: $name ($deviceModified keys)"
+        Write-Host "    USB power off: $name ($deviceModified change(s))"
         $modified++
     }
 }

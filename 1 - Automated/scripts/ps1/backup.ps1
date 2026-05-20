@@ -37,6 +37,7 @@ New-Item -ItemType Directory -Force -Path $BACKUP_DIR | Out-Null
 $serviceCatalog = & (Join-Path $PSScriptRoot 'services.ps1') -ExportCatalogOnly
 
 . (Join-Path $PSScriptRoot 'affinity_helpers.ps1')
+. (Join-Path $PSScriptRoot 'usb_power_helpers.ps1')
 
 function Get-ExactServiceStartupType {
     param([Parameter(Mandatory)][string]$Name)
@@ -176,12 +177,13 @@ $usbBackupFile = "$BACKUP_DIR\usb_power_state.json"
 if (-not (Test-Path $usbBackupFile)) {
     try {
         $usbPowerState = [ordered]@{}
-        $usbDevices = @(
-            Get-PnpDevice -Class 'USB'       -Status OK -ErrorAction SilentlyContinue
-            Get-PnpDevice -Class 'HIDClass'  -Status OK -ErrorAction SilentlyContinue
-            Get-PnpDevice -Class 'USBDevice' -Status OK -ErrorAction SilentlyContinue
-        ) | Where-Object { $_.InstanceId -match '^(USB|HID)\\' } |
+        $usbDevices = @(Get-UsbPowerTargetDevices) | Where-Object { $_.InstanceId -match '^(USB|HID)\\' } |
             Sort-Object InstanceId -Unique
+
+        $powerDeviceEnableInstances = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceEnable -ErrorAction SilentlyContinue |
+            Where-Object { $_.InstanceName -match '^(USB|HID)\\' })
+        $powerDeviceWakeEnableInstances = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceWakeEnable -ErrorAction SilentlyContinue |
+            Where-Object { $_.InstanceName -match '^(USB|HID)\\' })
 
         foreach ($device in $usbDevices) {
             $id           = $device.InstanceId
@@ -229,6 +231,12 @@ if (-not (Test-Path $usbBackupFile)) {
                     $state[$pair.ExistedKey] = $false
                 }
             }
+
+            Add-UsbPowerWmiBackupState `
+                -State $state `
+                -InstanceId $id `
+                -PowerDeviceEnableInstances $powerDeviceEnableInstances `
+                -PowerDeviceWakeEnableInstances $powerDeviceWakeEnableInstances
 
             $usbPowerState[$id] = $state
         }

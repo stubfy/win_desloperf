@@ -21,6 +21,10 @@
 # whether the update has reset any of the pack's tweaks back to defaults. Any "failed"
 # entries in that context are regressions introduced by the update.
 
+param(
+    [bool]$IncludeNetwork = $true
+)
+
 $ROOT      = Split-Path (Split-Path $PSScriptRoot)
 $SNAP_FILE = Join-Path $ROOT "backup\snapshot_latest.json"
 $serviceCatalog = & (Join-Path $PSScriptRoot 'services.ps1') -ExportCatalogOnly
@@ -225,7 +229,7 @@ $netChanged = [System.Collections.Generic.List[object]]::new()
 $netAlready = 0
 $netFailed  = [System.Collections.Generic.List[object]]::new()
 
-if ($snap.Network) {
+if ($IncludeNetwork -and $snap.Network) {
     # Desired TCP global state
     $tcpDesired = @{
         autotuninglevel      = 'normal'
@@ -429,9 +433,11 @@ Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied   {4,3} 
     "Services",  $totalSvc, $svcAlready,  $svcChanged.Count,  $svcFailed.Count) -ForegroundColor White
 Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied" -f `
     "BCD",  $totalBcd, $bcdAlready,  $bcdChanged.Count) -ForegroundColor White
-if ($snap.Network) {
+if ($IncludeNetwork -and $snap.Network) {
     Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied   {4,3} failed" -f `
         "Network", $totalNet, $netAlready, $netChanged.Count, $netFailed.Count) -ForegroundColor White
+} elseif ($snap.Network) {
+    Write-Host ("  {0,-12} skipped (not selected for this run)" -f "Network") -ForegroundColor DarkGray
 }
 if ($snap.StorageWriteCache) {
     Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied   {4,3} failed" -f `
@@ -514,7 +520,7 @@ if ($svcFailed.Count -gt 0) {
 }
 
 # Network changes
-if ($snap.Network -and $netChanged.Count -gt 0) {
+if ($IncludeNetwork -and $snap.Network -and $netChanged.Count -gt 0) {
     Write-Host ""
     Write-Host "  Network - applied ($($netChanged.Count)):" -ForegroundColor Green
     foreach ($n in $netChanged) {
@@ -522,7 +528,7 @@ if ($snap.Network -and $netChanged.Count -gt 0) {
     }
 }
 
-if ($snap.Network -and $netFailed.Count -gt 0) {
+if ($IncludeNetwork -and $snap.Network -and $netFailed.Count -gt 0) {
     Write-Host ""
     Write-Host "  Network - FAILED ($($netFailed.Count)):" -ForegroundColor Red
     foreach ($n in $netFailed) {

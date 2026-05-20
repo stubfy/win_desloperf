@@ -8,10 +8,17 @@
 $BACKUP_DIR = Join-Path (Split-Path (Split-Path $PSScriptRoot)) "backup"
 $backupFile  = Join-Path $BACKUP_DIR "usb_power_state.json"
 
+. (Join-Path (Split-Path (Split-Path $PSScriptRoot)) 'scripts\ps1\usb_power_helpers.ps1')
+
 if (Test-Path $backupFile) {
     $usbBackup = Get-Content $backupFile -Raw -Encoding UTF8 | ConvertFrom-Json
     $restored  = 0
     $skipped   = 0
+
+    $powerDeviceEnableInstances = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceEnable -ErrorAction SilentlyContinue |
+        Where-Object { $_.InstanceName -match '^(USB|HID)\\' })
+    $powerDeviceWakeEnableInstances = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceWakeEnable -ErrorAction SilentlyContinue |
+        Where-Object { $_.InstanceName -match '^(USB|HID)\\' })
 
     foreach ($entry in $usbBackup.PSObject.Properties) {
         $id    = $entry.Name
@@ -60,9 +67,12 @@ if (Test-Path $backupFile) {
             }
         }
 
+        $deviceRestored += Restore-UsbPowerWmiBackupEntries -Entries $state.PowerDeviceEnable -Instances $powerDeviceEnableInstances
+        $deviceRestored += Restore-UsbPowerWmiBackupEntries -Entries $state.PowerDeviceWakeEnable -Instances $powerDeviceWakeEnableInstances
+
         if ($deviceRestored -gt 0) {
             $name = if ($state.FriendlyName) { $state.FriendlyName } else { $id }
-            Write-Host "    USB power restored: $name ($deviceRestored keys)"
+            Write-Host "    USB power restored: $name ($deviceRestored change(s))"
             $restored++
         }
     }
@@ -72,11 +82,7 @@ if (Test-Path $backupFile) {
 } else {
     Write-Host "    USB power restore: no backup found, removing PnpCapabilities override (fallback)"
     $removed = 0
-    $usbDevices = @(
-        Get-PnpDevice -Class 'USB'       -Status OK -ErrorAction SilentlyContinue
-        Get-PnpDevice -Class 'HIDClass'  -Status OK -ErrorAction SilentlyContinue
-        Get-PnpDevice -Class 'USBDevice' -Status OK -ErrorAction SilentlyContinue
-    ) | Where-Object { $_.InstanceId -match '^(USB|HID)\\' } |
+    $usbDevices = @(Get-UsbPowerTargetDevices) | Where-Object { $_.InstanceId -match '^(USB|HID)\\' } |
         Sort-Object InstanceId -Unique
 
     foreach ($device in $usbDevices) {
@@ -87,5 +93,11 @@ if (Test-Path $backupFile) {
             $removed++
         }
     }
+
+    foreach ($instance in @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceEnable -ErrorAction SilentlyContinue |
+        Where-Object { $_.InstanceName -match '^(USB|HID)\\' })) {
+        Set-CimInstance -InputObject $instance -Property @{ Enable = $true } -ErrorAction SilentlyContinue | Out-Null
+    }
+
     Write-Host "    USB power restore: PnpCapabilities removed on $removed device(s) (fallback)"
 }
