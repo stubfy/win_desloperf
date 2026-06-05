@@ -1,4 +1,4 @@
-# win_desloperf
+﻿# win_desloperf
 
 ![Version](https://img.shields.io/badge/version-1.3-blue)
 ![Windows](https://img.shields.io/badge/Windows_11-25H2-0078D4?logo=windows)
@@ -43,9 +43,9 @@ The pack contains tweaks for:
 - **Better input latency**: by adjusting the timer resolution (via SetTimerResolution or Process Lasso), MSI interrupts, GPU IRQ affinity, mouse acceleration fix, and dynamic tick disabled in the BCD.
 - **Better system fluidity**: power throttling disabled, MMCSS high priority, USB selective suspend disabled, less background activity
 - **Debloat**: Microsoft app and AI removal, OEM bloatware (HP/Dell/Lenovo), pre-installed third-party apps (Spotify, Netflix, TikTok, Candy Crush, Roblox...), services (~180 services via built-in catalog)
-- **Privacy**: OOSU10. DiagTrack, Cortana, widgets, Click to Do, Brave policies (if Brave is installed), and account nag notifications disabled. Start menu Recommended section hidden.
+- **Privacy**: OOSU10. DiagTrack, Cortana, widgets, Click to Do, Windows Hello/passkeys, Brave policies (if Brave is installed), and account nag notifications disabled. Start menu Recommended section hidden.
 - **Network**: Cloudflare DNS (optional), network throttling disabled, TCP stack tuned (ECN, RSS, CUBIC, Nagle off), LSO off, QoS reservation removed
-- **Windows Update**: configurable profile: Default / Security / Disabled. Security is often the best.
+- **Windows Update**: configurable profile: Default / Security / Disabled. Security is often the best. Delivery Optimization peer sharing stays off.
 - **Personal settings**: a dedicated optional script groups subjective theme/taskbar/Explorer/Settings preferences separately
 
 ---
@@ -66,11 +66,11 @@ The Windows install is fresh, and the "before" screenshot was not taken on the v
 
 > **Methodology and disclaimer**
 >
-> **Test rig**: Ryzen 7 9800X3D OC @ 5425 MHz · RTX 4090 OC @ ~2900 MHz · DDR5 6000 MHz FCLK 2000 MHz CAS 28
+> **Test rig**: Ryzen 7 9800X3D OC @ 5425 MHz Â· RTX 4090 OC @ ~2900 MHz Â· DDR5 6000 MHz FCLK 2000 MHz CAS 28
 
-### Synthetic — Cinebench R23
+### Synthetic â€” Cinebench R23
 
-23 400 pts → 23 681 pts **(+1.2%)**
+23 400 pts â†’ 23 681 pts **(+1.2%)**
 
 > **Note**: The difference may be within margin of error.
 
@@ -78,7 +78,7 @@ The Windows install is fresh, and the "before" screenshot was not taken on the v
 |--------|-------|
 | ![Cinebench R23 before tweaks](assets/readme/bench/before/cinebench.png) | ![Cinebench R23 after tweaks](assets/readme/bench/after/cinebench.png) |
 
-### Synthetic — 3DMark CPU Profile
+### Synthetic â€” 3DMark CPU Profile
 
 | Test | Before | After | Delta |
 |------|--------|-------|-------|
@@ -89,9 +89,9 @@ The Windows install is fresh, and the "before" screenshot was not taken on the v
 |--------|-------|
 | ![3DMark CPU Profile before tweaks](assets/readme/bench/before/cpu.png) | ![3DMark CPU Profile after tweaks](assets/readme/bench/after/cpu.png) |
 
-### Synthetic — 3DMark Steel Nomad
+### Synthetic â€” 3DMark Steel Nomad
 
-Score: 9 810 → 10 131 **(+3.3%)** · Graphics: 98.10 → 101.31 FPS **(+3.3%)**
+Score: 9 810 â†’ 10 131 **(+3.3%)** Â· Graphics: 98.10 â†’ 101.31 FPS **(+3.3%)**
 
 | Before | After |
 |--------|-------|
@@ -99,7 +99,7 @@ Score: 9 810 → 10 131 **(+3.3%)** · Graphics: 98.10 → 101.31 FPS **(+3.3%)*
 
 > Some gains may look small, but they meaningfully improve worst-case scenarios in games, as you can see below:
 
-### In-game — Overwatch 2 (Gibraltar)
+### In-game â€” Overwatch 2 (Gibraltar)
 
 > **In-game runs (Overwatch 2, Gibraltar)**: same map, same POV, ~8 min game per run. Numbers shown are AVG / 1% low / 0.1% low. Ignore the current FPS value visible in screenshots (skewed by desktop returns and menus locking at 60 FPS).
 
@@ -155,9 +155,12 @@ After that check, `run_all.bat` shows a summary of the current optional choices.
 | 7 | Apply Cloudflare DNS (1.1.1.1 / 1.0.0.1) | Yes |
 | 8 | Enable SetTimerResolution at startup | Yes |
 | 9 | Apply personal settings (dark mode, taskbar, Explorer preferences) | Yes |
-| 10 | Install NVInspector to `%APPDATA%\win_desloperf` + Desktop shortcut | Yes (NVIDIA only) |
-| 11 | Pin GPU interrupt chain to core 2 | Yes |
-| 12 | Apply saved MSI snapshot (`3 - MSI Utils/msi_state.json`) | — (shown only if file exists) |
+| 10 | Apply network tweaks (Teredo, TCP, Nagle, QoS) | Yes |
+| 11 | Disable disk write-cache buffer flushing on internal SSD/NVMe devices | No |
+| 12 | Enable Windows Low Latency Profile / CPU boost | No |
+| 13 | Install NVInspector to `%APPDATA%\win_desloperf` + Desktop shortcut | Yes (NVIDIA only) |
+| 14 | Pin GPU interrupt chain to core 2 | Yes |
+| 15 | Apply saved MSI snapshot (`3 - MSI Utils/msi_state.json`) | â€” (shown only if file exists) |
 
 The final reboot is still confirmed at the end:
 - if Defender tweak is enabled, the script asks you to reboot into Safe Mode for the Defender step, default: Yes
@@ -201,33 +204,34 @@ Scripts executed by run_all:
 | `snapshot.ps1` | State capture: registry values, services, BCD, network, GPU affinity, saved to `backup/snapshot_latest.json` for diff comparison |
 | `backup.ps1` | Windows Restore Point + service/registry/firewall/affinity state export |
 | `registry.ps1` | Consolidated registry tweaks + visual effects SPI (live session) + MarkC mouse fix (auto-detects DPI scaling) |
-| `services.ps1` | Many services set to Manual instead of Automatic |
+| `services.ps1` | Many services set to Manual instead of Automatic; Windows Hello/passkey services are disabled |
 | `performance.ps1` | Bitsum Highest Performance power plan + PPM Rocket (immediate max CPU frequency), BCD (dynamictick, legacy menu), USB selective suspend disabled |
+| `low_latency_profile.ps1` | Optional Windows FeatureManagement overrides for the native Low Latency Profile / CPU boost introduced around KB5089573 |
 | `set_dns.ps1` | Optional Cloudflare DNS (1.1.1.1 / 1.0.0.1) |
 | `debloat.ps1` | UWP app removal: Microsoft bloatware (Teams, Copilot, Outlook, Sticky Notes...), Xbox overlay, OEM apps (HP/Dell/Lenovo), pre-installed third-party apps (Spotify, Netflix, TikTok, Candy Crush...) |
-| `privacy.ps1` | O&O ShutUp10++ + Recall, Click to Do, Copilot, Office AI policies, Paint AI, Notepad AI, Edge AI/sidebar disabled + telemetry scheduled tasks + PS7 telemetry + Brave policies + wscsvc (Security Center) + privacy registry tweaks |
+| `privacy.ps1` | O&O ShutUp10++ + Recall, Click to Do, Copilot, Office AI policies, Paint AI, Notepad AI, Edge AI/sidebar disabled + Windows Hello/passkey policy block and NGC quarantine + telemetry scheduled tasks + PS7 telemetry + Brave policies + wscsvc (Security Center) + privacy registry tweaks |
 | `ai_debloat.ps1` | Deep AI cleanup: advanced AI AppX removal, Recall optional feature removal, CBS package cleanup, region policy patch, and targeted file/task cleanup |
 | `timer.ps1` | Optional SetTimerResolution at startup (~0.5 ms), installs VC++ x64 runtime if missing |
 | `network_tweaks.ps1` | Teredo disabled, TCP stack (ECN, RSC off, heuristics off), LSO disabled on active adapters, Nagle disabled per Ethernet interface, QoS bandwidth reservation removed, MaxUserPort extended |
 | `usb_power.ps1` | USB device power management disabled on all connected USB/HID devices (PnpCapabilities, WakeEnabled, SelectiveSuspend) |
-| `set_windows_update.ps1` | Windows Update profile (Default / Security / Disabled) |
+| `set_windows_update.ps1` | Windows Update profile (Default / Security / Disabled) + Delivery Optimization peer sharing disabled |
 | `firewall.ps1` | Windows Firewall profiles disabled |
 | `personal_settings.ps1` | Optional personal shell/theme preferences (dark mode, accents, taskbar clock seconds, taskbar End task, Explorer presentation, Settings Home hidden) |
 | `set_affinity.ps1` | GPU interrupt chain pinned to core 2 (GPU, PCI Bridge, Root Complex) |
 | `msi_apply.ps1` | Applies `3 - MSI Utils/msi_state.json` if the file exists |
 | `install_nvinspector.ps1` | only on NVIDIA systems, copies NVInspector bundle to `%APPDATA%\win_desloperf\NVInspector` and creates a Desktop shortcut |
-| `opt_onedrive_uninstall.ps1` | Optional — full OneDrive removal |
-| `opt_edge_uninstall.ps1` | Optional — Remove Microsoft Edge via the WinUtil uninstall flow (WebView2 Runtime preserved) |
-| `opt_webview2_uninstall.ps1` | Optional — WebView2 Runtime removal (default OFF — may break Start menu search on some machines; fix: `Tools/fix_webview2.bat`) |
+| `opt_onedrive_uninstall.ps1` | Optional â€” full OneDrive removal |
+| `opt_edge_uninstall.ps1` | Optional â€” Remove Microsoft Edge via the WinUtil uninstall flow (WebView2 Runtime preserved) |
+| `opt_webview2_uninstall.ps1` | Optional â€” WebView2 Runtime removal (default OFF â€” may break Start menu search on some machines; fix: `Tools/fix_webview2.bat`) |
 | `show_diff.ps1` | Post-tweak diff: compares current system state against `snapshot_latest.json`, categorizes results as "already OK", "applied", or "failed" |
 
 ### Diff report
 
 `show_diff.ps1` runs automatically at the end of the automated phase (Phase C). It compares the current system state against the `backup/snapshot_latest.json` captured by `snapshot.ps1` before any tweak ran, and prints a categorized report:
 
-- **already OK** — value was already at the target before tweaks
-- **applied** — tweak changed the value successfully
-- **failed** — value is not at the expected target after tweaks
+- **already OK** â€” value was already at the target before tweaks
+- **applied** â€” tweak changed the value successfully
+- **failed** â€” value is not at the expected target after tweaks
 
 `show_diff.ps1` can also be run standalone at any time after `run_all.bat`. Re-run it after a Windows Update to detect regressions: entries marked `failed` indicate tweaks that were reset by the update and need to be reapplied.
 
@@ -235,10 +239,12 @@ Scripts executed by run_all:
 
 `set_windows_update.ps1` can also be run standalone at any time:
 
-- `1 = Default` restores the WinUtil out-of-box Windows Update configuration.
-- `2 = Security` applies the WinUtil recommended profile: drivers via Windows Update disabled, feature updates deferred 365 days, quality updates deferred 4 days, and automatic restart with logged-on users disabled.
+- `1 = Default` restores the WinUtil out-of-box Windows Update configuration, then keeps Delivery Optimization in HTTP-only mode.
+- `2 = Security` applies the WinUtil recommended profile: drivers via Windows Update disabled, optional driver offers hidden, feature updates deferred 365 days, quality updates deferred 4 days, automatic restart with logged-on users disabled, Insider preview builds disabled, and automatic optional preview updates disabled.
 - `3 = Disabled` turns Windows Update off entirely and should only be used knowingly.
 - `1 - Automated\restore\windows_update.bat` reapplies profile 1 (`Default`).
+
+The pack disables Delivery Optimization peer sharing with `DODownloadMode=0`. That blocks LAN/Internet peer update sharing but leaves Microsoft CDN downloads working. In the Security profile, preview builds are blocked with `ManagePreviewBuilds=0`, automatic optional preview updates are blocked with `SetAllowOptionalContent=0`, and already offered optional driver updates are hidden from Windows Update. If hidden drivers remain cached in the Windows Update Settings view, the script backs up and rebuilds the USO UX store, then asks Windows Update to refresh the page.
 
 ### Registry tweaks applied
 - GameDVR / GameBar disabled + ms-gamebar / ms-gamebarservices URL protocol redirect (silences focus-stealing popups after GameBar removal)
@@ -332,7 +338,8 @@ To undo: `restore_affinity.bat` in the same folder.
 
 `services.ps1` aligns service startup types to a built-in catalog optimized for gaming.
 Noisy stuff like `SysMain`, `DPS`, `DiagTrack`, `WSearch` gets disabled. Most secondary services stay `Manual`, including `IKEEXT`, `StiSvc` and `TermService`. A small core stays `Automatic` on purpose (`DeviceAssociationService`, `InstallService`, `VaultSvc`, `W32Time`, `wuauserv`). `UsoSvc` is `AutomaticDelayedStart`.
-`DoSvc` is `Disabled`, and its `TriggerInfo` key is removed so SCM cannot quietly bring it back.
+`DoSvc` stays available because current Windows Update downloads can depend on it. Peer sharing is blocked by policy instead.
+Windows Hello/passkey services (`NgcSvc`, `NgcCtnrSvc`, `NaturalAuthentication`, `WbioSrvc`) are disabled. `VaultSvc`, `KeyIso`, `TokenBroker`, and `wlidsvc` are left alone so normal credential storage and Microsoft account flows do not get broken.
 
 ### Logging
 
@@ -364,6 +371,7 @@ re-run later without launching the full `run_all.bat` flow again.
 - `6 - DNS/set_dns.bat` re-applies Cloudflare DNS on active adapters
 - `7 - Windows Update/set_windows_update.bat` switches the Windows Update profile
 - `8 - USB Power/set_usb_power.bat` re-applies USB power management disable after plugging new devices
+- `1 - Automated/scripts/low_latency_profile.bat` re-applies the optional Low Latency Profile / CPU boost overrides
 
 ### MSI Utils
 
@@ -380,7 +388,7 @@ Which devices get MSI enabled is a judgment call, you have to look at the list a
 
 If `3 - MSI Utils/msi_state.json` exists, `run_all.bat` exposes **Apply saved MSI snapshot** directly in the initial launch menu. On the first apply, it also creates `1 - Automated/backup/msi_state_default.json` as the rollback state.
 
-If a device changed PCI slot since the snapshot, its InstanceId will differ and it gets skipped with a warning — configure it manually and re-run `msi_snapshot.bat` to update.
+If a device changed PCI slot since the snapshot, its InstanceId will differ and it gets skipped with a warning â€” configure it manually and re-run `msi_snapshot.bat` to update.
 
 `msi_apply.bat` does the same thing standalone as the automatic replay path and creates `1 - Automated/backup/msi_state_default.json` if needed. `msi_restore.bat` is the Safe Mode rollback that reapplies only `msi_state_default.json`.
 
@@ -399,13 +407,14 @@ Restores in order:
 - Registry (from backup + visual effects SPI reset + mouse curves reverted to Windows default)
 - Services (back to saved state from `backup/services_state.json`)
 - System performance (BCD entries removed, power plan back to Balanced, USB selective suspend restored)
+- Low Latency Profile / CPU boost FeatureManagement overrides (restored to the saved pre-tweak state)
 - DNS (back to DHCP)
 - SetTimerResolution (startup shortcut removed)
-- Privacy & AI (privacy registry defaults + AI/Recall/Copilot policy keys removed)
+- Privacy & AI (privacy registry defaults + AI/Recall/Copilot policy keys removed; Windows Hello/passkey policies and provider exclusions removed, with the quarantined NGC store restored when available)
 - AI deep debloat backups (saved JSON/Game Bar backups restored where available)
 - UWP app reinstallation help (`debloat_restore.ps1` provides Store/winget commands)
 - Network tweaks (Teredo, TCP stack, LSO, Nagle, QoS restored to Windows defaults)
-- Windows Update (restored to Default / WinUtil baseline)
+- Windows Update (restored to Default / WinUtil baseline, with peer sharing still disabled)
 - Windows Firewall profiles (restored to saved state or Windows default)
 - Personal shell/theme settings (restored to Windows defaults)
 - GPU interrupt affinity (Affinity Policy keys removed or restored to pre-tweak state)
@@ -419,10 +428,11 @@ Restores in order:
 
 | | Risk |
 |-|------|
-| **Defender disabled** | No real-time antivirus protection. On 25H2, Tamper Protection may block disabling even in Safe Mode. The script also disables Smart App Control (`VerifiedAndReputablePolicyState=0`) — this is **irreversible** without reinstalling Windows. |
+| **Defender disabled** | No real-time antivirus protection. On 25H2, Tamper Protection may block disabling even in Safe Mode. The script also disables Smart App Control (`VerifiedAndReputablePolicyState=0`) â€” this is **irreversible** without reinstalling Windows. |
 | **VBS/HVCI disabled** | Credential Guard and memory protections are off. Good perf gain, but you lose some security hardening. |
 | **MSI Utils** | Do not enable MSI on audio controllers, capture cards (ELGATO) or legacy USB. BSOD risk. |
 | **WU Disabled profile** | No security patches, only use on isolated gaming machines. |
+| **Windows Hello/passkeys disabled** | PIN, biometric Hello, local passkeys, FIDO/security-key sign-in, picture password, and web sign-in are blocked at the Windows layer. Existing Hello credentials are quarantined from the NGC store. Make sure you know your Windows account password before rebooting. |
 | **Firewall disabled** | No Windows firewall filtering. Use only if another firewall or isolated setup covers the machine. |
 | **Timer resolution tools** | Use either `SetTimerResolution` or `Process Lasso`, not both. After reboot, check with `Tools/MeasureSleep.exe`. Known conflicts: VoiceMeeter Macro Buttons < v1.1.3.1 (forces 0.50 ms, update it), OpenRGB (holds 0.50 ms while running, close it after setup your leds). |
 | **Higher power draw** | With all these settings, your hardware may use more power and generate more heat. It's not a problem, but keep that in mind if your desktop/laptop runs hotter after applying the pack (maybe it's time to clean your PC or replace your thermal paste!). |

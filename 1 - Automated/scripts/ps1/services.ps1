@@ -19,11 +19,9 @@ param(
 # is visible to both the SCM API and the raw registry simultaneously, avoiding
 # cases where one layer disagrees with the other after a failed Set-Service call.
 #
-# DoSvc (Delivery Optimization): Set to Disabled AND its TriggerInfo sub-key is
-# removed. TriggerInfo causes SCM to automatically start DoSvc when certain
-# network events fire (e.g., ETW network connectivity trigger). Removing it
-# prevents SCM from relaunching DoSvc behind our back after Start=4 is applied.
-# This is intentional redundancy on top of DODownloadMode=0 in privacy.ps1.
+# Delivery Optimization: P2P sharing is disabled by DODownloadMode=0 in
+# privacy.ps1. Do not disable DoSvc itself; Windows Update still needs the
+# service for normal Microsoft CDN downloads on recent Windows builds.
 #
 # Rollback: restore\services.ps1 reads backup\services_state.json and
 # restores each service to its pre-tweak startup type.
@@ -107,7 +105,6 @@ function Get-ServiceStartupCatalog {
         'AssignedAccessManagerSvc'
         'DiagTrack'
         'dmwappushservice'
-        'DoSvc'
         'CDPSvc'            # Connected Devices Platform: Nearby Sharing / shared experiences
         'CDPUserSvc'        # Per-user CDP instance backing Nearby and cross-device features
         'DevicePickerUserSvc' # Per-user device picker used by Nearby / cast / share UX
@@ -129,6 +126,12 @@ function Get-ServiceStartupCatalog {
         'WpcMonSvc'
         'WSearch'
         'WSAIFabricSvc'
+
+        # --- Windows Hello / passkeys ---
+        'NaturalAuthentication' # Signals whether the user is present (gesture/sensor)
+        'NgcCtnrSvc'      # Microsoft Passport Container: Windows Hello / passkey credential container
+        'NgcSvc'          # Microsoft Passport: Windows Hello / PIN provisioning
+        'WbioSrvc'        # Windows Biometric Framework: fingerprint/face reader management
     )
 
     # ---- MANUAL ----
@@ -258,10 +261,6 @@ function Get-ServiceStartupCatalog {
 
         # --- iSCSI ---
         'MSiSCSI'         # Microsoft iSCSI Initiator: connects to remote iSCSI storage
-
-        # --- Windows Hello / Biometrics ---
-        'NaturalAuthentication' # Signals whether the user is present (gesture/sensor)
-        'WbioSrvc'        # Windows Biometric Framework: fingerprint/face reader management
 
         # --- Network ---
         'NcaSvc'          # Network Connectivity Awareness: monitors network path quality
@@ -519,7 +518,7 @@ function Get-ServiceStartupCatalog {
         Manual                 = $manual
         Automatic              = $automatic
         AutomaticDelayedStart  = $automaticDelayedStart
-        TriggerlessDisabled    = @('DoSvc')
+        TriggerlessDisabled    = @()
         TriggerlessManual      = @()
         Defaults               = $defaults
         Tracked                = @($disabled + $manual + $automatic + $automaticDelayedStart)
@@ -653,30 +652,5 @@ foreach ($svc in $serviceCatalog.AutomaticDelayedStart) {
         $result = Set-ServiceStartupTypeExact -Name $resolvedSvc -StartupType 'AutomaticDelayedStart'
         Write-ServiceStartupResult -Result $result -Name $resolvedSvc -SuccessPrefix '[AUTO-DELAY] '
     }
-}
-
-# DoSvc (Delivery Optimization) special case:
-# Set to Disabled AND remove TriggerInfo to prevent SCM from starting it
-# automatically on network-connectivity ETW events. Without removing TriggerInfo
-# the service can relaunch itself even after the startup type is changed.
-# This is intentionally redundant with DODownloadMode=0 in privacy.ps1:
-# the registry policy blocks P2P downloading, TriggerInfo removal prevents the
-# process from ever running in the background to check for work.
-$doSvc = Get-Service 'DoSvc' -ErrorAction SilentlyContinue
-if ($doSvc) {
-    $result = Set-ServiceStartupTypeExact -Name 'DoSvc' -StartupType 'Disabled'
-    $triggerPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc\TriggerInfo'
-    if (Test-Path $triggerPath) {
-        Remove-Item $triggerPath -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    $current = Get-ExactServiceStartupType -Name 'DoSvc'
-    if ($result.Exists -and $current -eq 'Disabled') {
-        Write-Host "    [DISABLED]   DoSvc (TriggerInfo removed)"
-    } else {
-        $currentLabel = if ($current) { $current } else { 'Unknown' }
-        Write-Host "    [WARN]       DoSvc -> current=$currentLabel wanted=Disabled (TriggerInfo removal attempted)" -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "    [NOT FOUND]  DoSvc" -ForegroundColor Gray
 }
 

@@ -176,15 +176,20 @@ Windows Registry Editor Version 5.00
 ; Note: LetAppsRunInBackground is already handled in tweaks_consolidated.reg.
 ; LetAppsAccessMicrophone=0 (not 2): Microphone access is kept at user discretion
 ;   rather than globally blocked, to avoid breaking legitimate audio input apps.
-; LetAppsAccessCalendar/Camera/Messaging/AccountInfo=2: Fully blocked via policy.
+; Camera access is intentionally left under user control because disabling it
+; breaks the global Settings > Privacy & security > Camera toggle.
+; LetAppsAccessCalendar/Messaging/AccountInfo=2: Fully blocked via policy.
 ; These privacy blocks prevent background UWP apps from silently accessing
-; the camera, calendar, contact list or SMS through WinRT APIs.
+; the calendar, contact list or SMS through WinRT APIs.
+; LetAppsAccessPasskeys=2: Blocks apps from creating or using passkeys.
+; LetAppsAccessPasskeysEnumeration=2: Blocks passkey autofill/enumeration.
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy]
 "LetAppsAccessCalendar"=dword:00000002
-"LetAppsAccessCamera"=dword:00000002
 "LetAppsAccessMicrophone"=dword:00000000
 "LetAppsAccessMessaging"=dword:00000002
 "LetAppsAccessAccountInfo"=dword:00000002
+"LetAppsAccessPasskeys"=dword:00000002
+"LetAppsAccessPasskeysEnumeration"=dword:00000002
 
 ; ---------------------------------------------------------------------------
 ; NOTIFICATIONS / ADS - ACCOUNT AND SYNC PROVIDER NAGS

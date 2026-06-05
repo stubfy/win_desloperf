@@ -15,6 +15,7 @@
         registry             -> consolidated reg file + visual effects + MarkC mouse fix
         services             -> startup type alignment
         performance          -> Bitsum / Ultimate Performance plan + BCD + USB selective suspend
+        low_latency_profile  -> Optional Windows FeatureManagement CPU boost overrides
         [6 - DNS]            -> Cloudflare DNS (user choice)
         debloat              -> UWP app removal
         privacy              -> OOSU10 + AI/Copilot/Recall + telemetry tasks + privacy registry
@@ -353,6 +354,7 @@ function Get-RunAllDefaultOptions {
         applyPersonalSettings = $true
         applyNetworkTweaks    = $true
         disableWriteCacheFlushing = $false
+        enableLowLatencyProfile = $false
         installNvInspector    = $HasNvidiaGpu
         setInterruptAffinity  = $true
         applySavedMsi         = $HasMsiSnapshot
@@ -419,6 +421,7 @@ function Load-RunAllOptions {
         'applyPersonalSettings',
         'applyNetworkTweaks',
         'disableWriteCacheFlushing',
+        'enableLowLatencyProfile',
         'installNvInspector',
         'setInterruptAffinity',
         'applySavedMsi'
@@ -471,6 +474,7 @@ function Save-RunAllOptions {
         applyPersonalSettings = [bool]$Options['applyPersonalSettings']
         applyNetworkTweaks    = [bool]$Options['applyNetworkTweaks']
         disableWriteCacheFlushing = [bool]$Options['disableWriteCacheFlushing']
+        enableLowLatencyProfile = [bool]$Options['enableLowLatencyProfile']
         installNvInspector    = [bool]$Options['installNvInspector']
         setInterruptAffinity  = [bool]$Options['setInterruptAffinity']
         applySavedMsi         = [bool]$Options['applySavedMsi']
@@ -543,6 +547,7 @@ function Show-LaunchOptionsSummary {
     Write-LaunchOptionsSummaryLine -Label 'Apply personal settings' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['applyPersonalSettings']))
     Write-LaunchOptionsSummaryLine -Label 'Apply network tweaks' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['applyNetworkTweaks']))
     Write-LaunchOptionsSummaryLine -Label 'Disable disk write-cache flushing (SSD/NVMe)' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['disableWriteCacheFlushing']))
+    Write-LaunchOptionsSummaryLine -Label 'Enable Low Latency Profile / CPU boost' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['enableLowLatencyProfile']))
 
     if ($HasNvidiaGpu) {
         Write-LaunchOptionsSummaryLine -Label 'Install NVInspector' -Value (Get-OptionSummaryBoolText -Value ([bool]$Options['installNvInspector']))
@@ -638,6 +643,7 @@ function Show-LaunchOptionsFallback {
     $Options['applyPersonalSettings'] = Read-BooleanChoice -Prompt 'Apply personal shell settings?' -Default ([bool]$Options['applyPersonalSettings'])
     $Options['applyNetworkTweaks'] = Read-BooleanChoice -Prompt 'Apply network tweaks (Teredo, TCP, Nagle, QoS)?' -Default ([bool]$Options['applyNetworkTweaks'])
     $Options['disableWriteCacheFlushing'] = Read-BooleanChoice -Prompt 'Disable disk write-cache buffer flushing on internal SSD/NVMe devices?' -Default ([bool]$Options['disableWriteCacheFlushing'])
+    $Options['enableLowLatencyProfile'] = Read-BooleanChoice -Prompt 'Enable Windows Low Latency Profile / CPU boost (FeatureManagement overrides)?' -Default ([bool]$Options['enableLowLatencyProfile'])
 
     if ($HasNvidiaGpu) {
         $Options['installNvInspector'] = Read-BooleanChoice -Prompt 'Install NVIDIA Profile Inspector?' -Default ([bool]$Options['installNvInspector'])
@@ -679,6 +685,7 @@ function Write-SelectedOptionsLog {
     Write-Log "Option selected: Personal settings = $([bool]$Options['applyPersonalSettings'])" 'INFO'
     Write-Log "Option selected: Network tweaks = $([bool]$Options['applyNetworkTweaks'])" 'INFO'
     Write-Log "Option selected: Disable write-cache flushing = $([bool]$Options['disableWriteCacheFlushing'])" 'INFO'
+    Write-Log "Option selected: Low Latency Profile / CPU boost = $([bool]$Options['enableLowLatencyProfile'])" 'INFO'
     if ($HasNvidiaGpu) {
         Write-Log "Option selected: NVInspector install = $([bool]$Options['installNvInspector'])" 'INFO'
     } else {
@@ -764,6 +771,7 @@ $enableTimerTool       = [bool]$launchOptions['enableTimerTool']
 $applyPersonalSettings = [bool]$launchOptions['applyPersonalSettings']
 $applyNetworkTweaks    = [bool]$launchOptions['applyNetworkTweaks']
 $disableWriteCacheFlushing = [bool]$launchOptions['disableWriteCacheFlushing']
+$enableLowLatencyProfile = [bool]$launchOptions['enableLowLatencyProfile']
 $installNvInspector    = [bool]$launchOptions['installNvInspector']
 $setInterruptAffinity  = [bool]$launchOptions['setInterruptAffinity']
 $applySavedMsi         = [bool]$launchOptions['applySavedMsi']
@@ -780,7 +788,7 @@ if ($hasMsiSnapshot) {
 Write-Host ''
 
 Write-Step 'PHASE A.0 - Snapshot current state (for diff report at end)'
-& "$SCRIPTS\snapshot.ps1" -TrackStorageWriteCache:$disableWriteCacheFlushing
+& "$SCRIPTS\snapshot.ps1" -TrackStorageWriteCache:$disableWriteCacheFlushing -TrackLowLatencyProfile:$enableLowLatencyProfile
 
 Write-Step 'PHASE A.1 - Backup (restore point + service/registry state)'
 Invoke-Script "$SCRIPTS\backup.ps1"
@@ -794,72 +802,81 @@ Invoke-Script "$SCRIPTS\services.ps1"
 Write-Step 'PHASE B.3 - System performance (power plan, BCD, USB suspend, disk write cache)'
 Invoke-Script "$SCRIPTS\performance.ps1" @{ DisableWriteCacheFlushing = $disableWriteCacheFlushing }
 
+if ($enableLowLatencyProfile) {
+    Write-Step 'PHASE B.4 - Low Latency Profile / CPU boost'
+    Invoke-Script "$SCRIPTS\low_latency_profile.ps1"
+} else {
+    Write-Step 'PHASE B.4 - Low Latency Profile / CPU boost (skipped)'
+    Write-Host '    Skipped        : user chose not to apply Windows FeatureManagement CPU boost overrides'
+    Write-Log 'Skipped: low_latency_profile.ps1 (user chose not to enable Low Latency Profile / CPU boost)' 'INFO'
+}
+
 if ($configureDns) {
-    Write-Step 'PHASE B.4 - Cloudflare DNS (1.1.1.1 / 1.0.0.1)'
+    Write-Step 'PHASE B.5 - Cloudflare DNS (1.1.1.1 / 1.0.0.1)'
     Invoke-Script "$SCRIPTS\set_dns.ps1"
 } else {
-    Write-Step 'PHASE B.4 - Cloudflare DNS (skipped)'
+    Write-Step 'PHASE B.5 - Cloudflare DNS (skipped)'
     Write-Host '    Skipped        : user chose not to override the current DNS configuration'
     Write-Log 'Skipped: set_dns.ps1 (user chose not to apply Cloudflare DNS)' 'INFO'
 }
 
-Write-Step 'PHASE B.5 - Remove bloatware UWP apps'
+Write-Step 'PHASE B.6 - Remove bloatware UWP apps'
 Invoke-Script "$SCRIPTS\debloat.ps1"
 
-Write-Step 'PHASE B.6 - Privacy & AI (OOSU10, telemetry, AI/Copilot, privacy registry)'
+Write-Step 'PHASE B.7 - Privacy & AI (OOSU10, telemetry, AI/Copilot, privacy registry)'
 Invoke-Script "$SCRIPTS\privacy.ps1"
 
-Write-Step 'PHASE B.7 - AI deep debloat (AppX/CBS/Recall cleanup)'
+Write-Step 'PHASE B.8 - AI deep debloat (AppX/CBS/Recall cleanup)'
 Invoke-Script "$SCRIPTS\ai_debloat.ps1"
 
 if ($enableTimerTool) {
-    Write-Step 'PHASE B.8 - SetTimerResolution at startup'
+    Write-Step 'PHASE B.9 - SetTimerResolution at startup'
     Invoke-Script "$SCRIPTS\timer.ps1"
 } else {
-    Write-Step 'PHASE B.8 - SetTimerResolution at startup (skipped)'
+    Write-Step 'PHASE B.9 - SetTimerResolution at startup (skipped)'
     Write-Host '    Skipped        : user chose not to install the timer tool'
     Write-Host '                     Process Lasso users can use its built-in timer resolution tool instead'
     Write-Log 'Skipped: timer.ps1 (user chose not to enable SetTimerResolution startup)' 'INFO'
 }
 
 if ($applyNetworkTweaks) {
-    Write-Step 'PHASE B.9 - Additional network tweaks (Teredo, TCP, Nagle, QoS)'
+    Write-Step 'PHASE B.10 - Additional network tweaks (Teredo, TCP, Nagle, QoS)'
     Invoke-Script "$SCRIPTS\network_tweaks.ps1"
 } else {
-    Write-Step 'PHASE B.9 - Additional network tweaks (skipped)'
+    Write-Step 'PHASE B.10 - Additional network tweaks (skipped)'
     Write-Host '    Skipped        : user chose not to apply network tweaks'
     Write-Log 'Skipped: network_tweaks.ps1 (user chose not to apply network tweaks)' 'INFO'
 }
 
-Write-Step 'PHASE B.10 - USB device power management'
+Write-Step 'PHASE B.11 - USB device power management'
 Invoke-Script "$SCRIPTS\usb_power.ps1"
 
-Write-Step "PHASE B.11 - Windows Update profile: $profilLabel"
+Write-Step "PHASE B.12 - Windows Update profile: $profilLabel"
 Invoke-Script "$SCRIPTS\set_windows_update.ps1" @{ Profil = $updateProfil }
 
 if ($disableFirewall) {
-    Write-Step 'PHASE B.12 - Disable Windows Firewall profiles'
+    Write-Step 'PHASE B.13 - Disable Windows Firewall profiles'
     Invoke-Script "$SCRIPTS\firewall.ps1"
 } else {
-    Write-Step 'PHASE B.12 - Disable Windows Firewall profiles (skipped)'
+    Write-Step 'PHASE B.13 - Disable Windows Firewall profiles (skipped)'
     Write-Host '    Skipped        : user chose to keep the current firewall configuration'
     Write-Log 'Skipped: firewall.ps1 (user chose not to disable firewall profiles)' 'INFO'
 }
 
 if ($applyPersonalSettings) {
-    Write-Step 'PHASE B.13 - Personal shell settings (theme, colors, taskbar, Settings app)'
+    Write-Step 'PHASE B.14 - Personal shell settings (theme, colors, taskbar, Settings app)'
     Invoke-Script "$SCRIPTS\personal_settings.ps1"
 } else {
-    Write-Step 'PHASE B.13 - Personal shell settings (skipped)'
+    Write-Step 'PHASE B.14 - Personal shell settings (skipped)'
     Write-Host "    Skipped        : user chose not to apply the pack's subjective shell/theme preferences"
     Write-Log 'Skipped: personal_settings.ps1 (user chose not to apply personal settings)' 'INFO'
 }
 
 if ($setInterruptAffinity) {
-    Write-Step 'PHASE B.14 - Interrupt affinity (GPU + mouse)'
+    Write-Step 'PHASE B.15 - Interrupt affinity (GPU + mouse)'
     Invoke-Script "$SCRIPTS\set_affinity.ps1" @{ SkipReboot = $true }
 } else {
-    Write-Step 'PHASE B.14 - Interrupt affinity (skipped)'
+    Write-Step 'PHASE B.15 - Interrupt affinity (skipped)'
     Write-Host '    Skipped        : run 5 - Interrupt Affinity\set_affinity.bat after NVIDIA updates'
     Write-Log 'Skipped: set_affinity.ps1 (user opted out)' 'INFO'
 }
@@ -867,7 +884,7 @@ if ($setInterruptAffinity) {
 $msiStateApplied = $false
 if (Test-Path $msiStateFile) {
     if ($applySavedMsi) {
-        Write-Step 'PHASE B.15 - MSI interrupt mode (from saved snapshot)'
+        Write-Step 'PHASE B.16 - MSI interrupt mode (from saved snapshot)'
         $msiMeta = (Get-Content $msiStateFile -Encoding UTF8 | ConvertFrom-Json)._meta
         Write-Host "    Snapshot found: $msiStateFile" -ForegroundColor Cyan
         Write-Host "    Created: $($msiMeta.created) on $($msiMeta.machine)" -ForegroundColor DarkGray
@@ -877,13 +894,13 @@ if (Test-Path $msiStateFile) {
         Write-Log "MSI state applied from saved snapshot: $msiStateFile" 'OK'
         $msiStateApplied = $true
     } else {
-        Write-Step 'PHASE B.15 - MSI interrupt mode (skipped)'
+        Write-Step 'PHASE B.16 - MSI interrupt mode (skipped)'
         Write-Host "    Snapshot found but skipped by launch choice: $msiStateFile" -ForegroundColor Yellow
         Write-Host '    Run 3 - MSI Utils\msi_apply.bat manually if you want to replay it later.' -ForegroundColor DarkGray
         Write-Log 'Skipped: MSI apply (launch choice disabled saved MSI replay)' 'INFO'
     }
 } else {
-    Write-Step 'PHASE B.15 - MSI interrupt mode (no snapshot found)'
+    Write-Step 'PHASE B.16 - MSI interrupt mode (no snapshot found)'
     Write-Host '    No saved msi_state.json found in 3 - MSI Utils/.' -ForegroundColor DarkGray
     Write-Host '    Configure MSI manually via MSI_util_v3.exe, then run msi_snapshot.bat to save' -ForegroundColor DarkGray
     Write-Host '    your settings to 3 - MSI Utils\msi_state.json -- next time run_all.bat runs,' -ForegroundColor DarkGray
@@ -892,7 +909,7 @@ if (Test-Path $msiStateFile) {
 }
 
 if ($installNvInspector) {
-    Write-Step 'PHASE B.16 - NVIDIA Profile Inspector install'
+    Write-Step 'PHASE B.17 - NVIDIA Profile Inspector install'
     Invoke-Script "$SCRIPTS\install_nvinspector.ps1" @{ SourceRoot = $NVINSPECTOR_DIR }
 }
 
@@ -914,7 +931,7 @@ if ($removeWebView2) {
 }
 
 Write-Step 'PHASE C - Recap (what actually changed vs before)'
-Invoke-Script "$SCRIPTS\show_diff.ps1" @{ IncludeNetwork = $applyNetworkTweaks }
+Invoke-Script "$SCRIPTS\show_diff.ps1" @{ IncludeNetwork = $applyNetworkTweaks; IncludePersonal = $applyPersonalSettings }
 Write-Host ''
 Write-Host '================================================' -ForegroundColor Green
 Write-Host '   AUTOMATED TWEAKS COMPLETE                    ' -ForegroundColor Green

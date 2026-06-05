@@ -28,7 +28,8 @@
 # themselves and can be re-run at any time to refresh the snapshot.
 
 param(
-    [bool]$TrackStorageWriteCache = $false
+    [bool]$TrackStorageWriteCache = $false,
+    [bool]$TrackLowLatencyProfile = $false
 )
 
 $ROOT       = Split-Path (Split-Path $PSScriptRoot)
@@ -68,10 +69,34 @@ $ADDITIONAL_TRACKED_REG_VALUES = @(
     # privacy.ps1 - Notepad AI features
     @{ Path='HKLM:\SOFTWARE\Policies\WindowsNotepad';      Name='DisableAIFeatures'; Desired=1; Type='DWORD' }
     @{ Path='HKCU:\Software\Microsoft\Notepad\Settings';  Name='DisableAIFeatures'; Desired=1; Type='DWORD' }
+    # privacy.ps1 - Windows Hello / passkeys
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork'; Name='Enabled'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork'; Name='DisablePostLogonProvisioning'; Desired=1; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork'; Name='EnablePinRecovery'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork'; Name='UseCertificateForOnPremAuth'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork'; Name='UseCloudTrustForOnPremAuth'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork'; Name='DisableSmartCardNode'; Desired=1; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork'; Name='UseHelloCertificatesAsSmartCardCertificates'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Biometrics'; Name='Enabled'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WinBio\Credential Provider'; Name='Domain Accounts'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\FIDO'; Name='EnableFIDODeviceLogon'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Microsoft\Policies\PassportForWork\SecurityKey'; Name='UseSecurityKeyForSignin'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name='AllowDomainPINLogon'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name='BlockDomainPicturePassword'; Desired=1; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\SecondaryAuthenticationFactor'; Name='AllowSecondaryAuthenticationDevice'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Authentication\EnableWebSignIn'; Name='value'; Desired=0; Type='DWORD' }
+    @{ Path='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'; Name='ExcludedCredentialProviders'; Desired='{F8A1793B-7873-4046-B2A7-1F318747F427};{D6886603-9D2F-4EB2-B667-1971041FA96B};{cb82ea12-9f71-446d-89e1-8d0924e1256e};{8AF662BF-65A0-4D0A-A540-A338A999D36F};{BEC09223-B018-416D-A0AC-523971B639F5};{2135f72a-90b5-4ed3-a7f1-8bb705ac276a};{27FBDB57-B613-4AF2-9D7E-4FA7A66C21AD};{48B4E58D-2791-456C-9091-D524C6C706F2}'; Type='StringContainsAll' }
     # set_windows_update.ps1 Profile 2/3 - anti-forced-reboot
     @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'; Name='NoAutoRebootWithLoggedOnUsers'; Desired=1; Type='DWORD' }
 )
 $SNAP_FILE  = Join-Path $BACKUP_DIR "snapshot_latest.json"
+$LOW_LATENCY_FEATURE_PRIORITY = 8
+$LOW_LATENCY_FEATURE_IDS = @(
+    '58989092'
+    '60716524'
+    '48433719'
+    '61391826'
+)
 
 if (-not (Test-Path $BACKUP_DIR)) {
     New-Item -ItemType Directory -Path $BACKUP_DIR -Force | Out-Null
@@ -83,8 +108,8 @@ function ConvertTo-PSPath([string]$p) {
     return $p `
         -replace '^HKEY_LOCAL_MACHINE\\', 'HKLM:\' `
         -replace '^HKEY_CURRENT_USER\\',  'HKCU:\' `
-        -replace '^HKEY_CLASSES_ROOT\\',  'HKCR:\' `
-        -replace '^HKEY_USERS\\',         'HKU:\'
+        -replace '^HKEY_CLASSES_ROOT\\',  'Registry::HKEY_CLASSES_ROOT\' `
+        -replace '^HKEY_USERS\\',         'Registry::HKEY_USERS\'
 }
 
 function Get-ExactServiceStartupType {
@@ -117,6 +142,20 @@ function Resolve-TrackedServiceNames {
     }
 
     return @($Name)
+}
+
+function ConvertTo-ObfuscatedFeatureId {
+    param([Parameter(Mandatory)][uint32]$FeatureId)
+
+    $mask = [uint64]4294967295
+    $x = ([uint64]$FeatureId -bxor [uint64]1947605582) -band $mask
+    $x = (($x -shr 16) -bor ($x -shl 16)) -band $mask
+    $x = ((($x -band [uint64]4278255360) -shr 8) -bor (($x -band [uint64]16711935) -shl 8)) -band $mask
+    $x = ($x -bxor [uint64]2410822991) -band $mask
+    $x = ((($x -shl 1) -band $mask) -bor ($x -shr 31)) -band $mask
+    $x = ($x -bxor [uint64]2201929983) -band $mask
+
+    return [uint32]$x
 }
 
 function Get-NagleTargetAdapters {
@@ -177,6 +216,7 @@ foreach ($regFile in $REG_FILES) {
     $currentKey = $null
     $pending    = $null
     $lines      = Get-Content $regFile -Encoding UTF8
+    $sourceName = Split-Path $regFile -Leaf
     Write-Host "    Reg file : $(Split-Path $regFile -Leaf) ($($lines.Count) lines)"
 
     foreach ($raw in $lines) {
@@ -216,7 +256,7 @@ foreach ($regFile in $REG_FILES) {
             $desired = [long][Convert]::ToInt64($matches[2], 16)
             $before  = $null
             try { $before = [long](Get-ItemProperty -Path $currentKey -Name $name -ErrorAction Stop).$name } catch {}
-            $regEntries["$currentKey|$name"] = @{ Path=$currentKey; Name=$name; Type='DWORD'; Before=$before; Desired=$desired }
+            $regEntries["$currentKey|$name"] = @{ Path=$currentKey; Name=$name; Type='DWORD'; Before=$before; Desired=$desired; Source=$sourceName }
             continue
         }
 
@@ -226,16 +266,16 @@ foreach ($regFile in $REG_FILES) {
             $desired = $matches[2] -replace '\\\\', '\' -replace '\\"', '"'
             $before  = $null
             try { $before = [string](Get-ItemProperty -Path $currentKey -Name $name -ErrorAction Stop).$name } catch {}
-            $regEntries["$currentKey|$name"] = @{ Path=$currentKey; Name=$name; Type='String'; Before=$before; Desired=$desired }
+            $regEntries["$currentKey|$name"] = @{ Path=$currentKey; Name=$name; Type='String'; Before=$before; Desired=$desired; Source=$sourceName }
             continue
         }
 
         # Default string: @="value"
         if ($line -match '^@="(.*)"$') {
-            $desired = $matches[1]
+            $desired = $matches[1] -replace '\\"', '"'
             $before  = $null
             try { $before = [string](Get-ItemProperty -Path $currentKey -Name '(default)' -ErrorAction Stop).'(default)' } catch {}
-            $regEntries["$currentKey|(default)"] = @{ Path=$currentKey; Name='(default)'; Type='String'; Before=$before; Desired=$desired }
+            $regEntries["$currentKey|(default)"] = @{ Path=$currentKey; Name='(default)'; Type='String'; Before=$before; Desired=$desired; Source=$sourceName }
             continue
         }
     }
@@ -252,8 +292,11 @@ foreach ($entry in $ADDITIONAL_TRACKED_REG_VALUES) {
     $key = "$($entry.Path)|$($entry.Name)"
     if (-not $regEntries.Contains($key)) {
         $before = $null
-        try { $before = [long](Get-ItemProperty -Path $entry.Path -Name $entry.Name -ErrorAction Stop).($entry.Name) } catch {}
-        $regEntries[$key] = @{ Path=$entry.Path; Name=$entry.Name; Type=$entry.Type; Before=$before; Desired=$entry.Desired }
+        try {
+            $rawBefore = (Get-ItemProperty -Path $entry.Path -Name $entry.Name -ErrorAction Stop).($entry.Name)
+            $before = if ($entry.Type -eq 'DWORD') { [long]$rawBefore } else { [string]$rawBefore }
+        } catch {}
+        $regEntries[$key] = @{ Path=$entry.Path; Name=$entry.Name; Type=$entry.Type; Before=$before; Desired=$entry.Desired; Source='script' }
     }
 }
 
@@ -437,6 +480,51 @@ if ($TrackStorageWriteCache) {
 }
 
 # ── Memory Compression snapshot ───────────────────────────────────────────────
+$lowLatencyProfileSnap = @()
+if ($TrackLowLatencyProfile) {
+    $overrideRoot = "HKLM:\SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\$LOW_LATENCY_FEATURE_PRIORITY"
+    $lowLatencyProfileSnap = @(
+        foreach ($featureId in $LOW_LATENCY_FEATURE_IDS) {
+            $obfuscatedId = ConvertTo-ObfuscatedFeatureId -FeatureId ([uint32]$featureId)
+            $path = Join-Path $overrideRoot $obfuscatedId.ToString()
+            $props = $null
+            if (Test-Path $path) {
+                $props = Get-ItemProperty -Path $path -ErrorAction SilentlyContinue
+            }
+
+            $values = @(
+                @{ Name = 'EnabledState';        Desired = 2 }
+                @{ Name = 'EnabledStateOptions'; Desired = 0 }
+                @{ Name = 'Variant';             Desired = 0 }
+                @{ Name = 'VariantPayload';      Desired = 0 }
+                @{ Name = 'VariantPayloadKind';  Desired = 0 }
+            ) | ForEach-Object {
+                $exists = $false
+                $before = $null
+                if ($props -and ($props.PSObject.Properties.Name -contains $_.Name)) {
+                    $exists = $true
+                    $before = [int]$props.($_.Name)
+                }
+                [PSCustomObject]@{
+                    Name          = $_.Name
+                    Before        = $before
+                    BeforeExisted = [bool]$exists
+                    Desired       = [int]$_.Desired
+                }
+            }
+
+            [PSCustomObject]@{
+                FeatureId    = $featureId
+                ObfuscatedId = $obfuscatedId.ToString()
+                Priority     = $LOW_LATENCY_FEATURE_PRIORITY
+                Path         = $path
+                Values       = $values
+            }
+        }
+    )
+    Write-Host "    LowLatencyProfile: $($lowLatencyProfileSnap.Count) feature override(s)"
+}
+
 $memCompressionEnabled = $null
 try { $memCompressionEnabled = (Get-MMAgent).MemoryCompression } catch {}
 Write-Host "    MemoryCompression: $memCompressionEnabled"
@@ -454,6 +542,9 @@ $snapshotPayload = [ordered]@{
 if ($TrackStorageWriteCache) {
     $snapshotPayload['StorageWriteCache'] = $storageWriteCacheSnap
 }
-$snapshotPayload | ConvertTo-Json -Depth 5 | Set-Content $SNAP_FILE -Encoding UTF8
+if ($TrackLowLatencyProfile) {
+    $snapshotPayload['LowLatencyProfile'] = $lowLatencyProfileSnap
+}
+$snapshotPayload | ConvertTo-Json -Depth 6 | Set-Content $SNAP_FILE -Encoding UTF8
 
 Write-Host "    Saved    : $SNAP_FILE"

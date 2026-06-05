@@ -16,6 +16,20 @@
 #   - Telemetry tasks: re-enable manually via Task Scheduler
 #   - wscsvc: restored automatically via restore\services.ps1 (backup JSON)
 
+$AUTOMATED_ROOT = Split-Path (Split-Path $PSScriptRoot)
+$BACKUP_DIR = Join-Path $AUTOMATED_ROOT "backup"
+$WINDOWS_HELLO_STATE_FILE = Join-Path $BACKUP_DIR "windows_hello_state.json"
+$WINDOWS_HELLO_PROVIDER_EXCLUSIONS = [ordered]@{
+    "{F8A1793B-7873-4046-B2A7-1F318747F427}" = "FIDO Credential Provider"
+    "{D6886603-9D2F-4EB2-B667-1971041FA96B}" = "NGC Credential Provider"
+    "{cb82ea12-9f71-446d-89e1-8d0924e1256e}" = "PINLogonProvider"
+    "{8AF662BF-65A0-4D0A-A540-A338A999D36F}" = "FaceCredentialProvider"
+    "{BEC09223-B018-416D-A0AC-523971B639F5}" = "WinBio Credential Provider"
+    "{2135f72a-90b5-4ed3-a7f1-8bb705ac276a}" = "PicturePasswordLogonProvider"
+    "{27FBDB57-B613-4AF2-9D7E-4FA7A66C21AD}" = "TrustedSignal Credential Provider"
+    "{48B4E58D-2791-456C-9091-D524C6C706F2}" = "Secondary Authentication Factor Credential Provider"
+}
+
 # === SECTION: Privacy registry tweaks ===
 
 $REG = Join-Path $PSScriptRoot "privacy_tweaks.reg"
@@ -154,12 +168,17 @@ $policies = @{
     # ---- Delivery Optimization P2P mode ----
     # DODownloadMode=0: Disables Delivery Optimization peer-to-peer update sharing.
     # Mode 0 = HTTP only (download from Microsoft CDN only, no LAN/Internet peers).
-    # This is set here in addition to the DoSvc TriggerInfo removal in services.ps1.
-    # The two are intentionally redundant: the registry policy blocks the P2P logic
-    # at the protocol layer, while removing TriggerInfo prevents the process from
-    # ever starting in the background to check for work.
+    # DoSvc must remain available because current Windows Update downloads depend
+    # on it even when peer sharing is blocked.
     'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization' = @{
         'DODownloadMode' = 0
+    }
+
+    # ---- SmartScreen app content checks ----
+    # Redundant with privacy_tweaks.reg, kept here because this user hive value can
+    # be absent after a silent reg import on some builds.
+    'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost' = @{
+        'EnableWebContentEvaluation' = 0
     }
 
     # ---- Copilot shell availability (WinUtil method) ----
@@ -228,15 +247,54 @@ $policies = @{
         'AutoOpenCopilotLargeScreens' = 0
     }
 
+    # ---- Windows Hello / passkeys ----
+    # Windows passkeys use the Windows Hello platform authenticator. These
+    # policies disable Windows Hello for Business provisioning, PIN/NGC,
+    # biometrics, FIDO/security-key sign-in, picture password, and web sign-in
+    # at the Windows policy/provider layer so browsers such as Firefox cannot
+    # invoke the local Hello/passkey authenticator.
+    'HKLM:\SOFTWARE\Policies\Microsoft\PassportForWork' = @{
+        'Enabled'                                    = 0
+        'DisablePostLogonProvisioning'               = 1
+        'EnablePinRecovery'                          = 0
+        'UseCertificateForOnPremAuth'                = 0
+        'UseCloudTrustForOnPremAuth'                 = 0
+        'DisableSmartCardNode'                       = 1
+        'UseHelloCertificatesAsSmartCardCertificates' = 0
+    }
+    'HKLM:\SOFTWARE\Policies\Microsoft\Biometrics' = @{
+        'Enabled' = 0
+    }
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WinBio\Credential Provider' = @{
+        'Domain Accounts' = 0
+    }
+    'HKLM:\SOFTWARE\Policies\Microsoft\FIDO' = @{
+        'EnableFIDODeviceLogon' = 0
+    }
+    'HKLM:\SOFTWARE\Microsoft\Policies\PassportForWork\SecurityKey' = @{
+        'UseSecurityKeyForSignin' = 0
+    }
+    'HKLM:\SOFTWARE\Policies\Microsoft\SecondaryAuthenticationFactor' = @{
+        'AllowSecondaryAuthenticationDevice' = 0
+    }
+    'HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Authentication\EnableWebSignIn' = @{
+        'value' = 0
+    }
+
     # ---- Cross-Device Resume (CDP) ----
     # EnableCdp=0: Disables the Connected Devices Platform (CDP) which powers
     # the "Cross-Device Resume" feature (24H2+). CDP allows Windows to resume
     # phone/browser activity on the PC and syncs clipboard/notifications across
     # devices. Also related to CDPSvc which is set to Manual in services.ps1.
+    # AllowClipboardHistory=0 is re-applied here because OOSU10 can remove the
+    # policy value after registry.ps1 imports tweaks_consolidated.reg.
     # Note: EnableActivityFeed/PublishUserActivities in tweaks_consolidated.reg
     # also disables Timeline which uses the same CDP infrastructure.
     'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' = @{
-        'EnableCdp' = 0
+        'EnableCdp'                 = 0
+        'AllowClipboardHistory'     = 0
+        'AllowDomainPINLogon'       = 0
+        'BlockDomainPicturePassword' = 1
     }
 
     # ---- Nearby Sharing / Drag Tray ----
@@ -261,6 +319,191 @@ foreach ($path in $policies.Keys) {
         Write-Host "    [SET] $name = $($policies[$path][$name])  ($path)"
     }
 }
+
+# === SECTION: Windows Hello / passkeys provider and NGC credential purge ===
+
+function ConvertTo-Hashtable {
+    param($Object)
+
+    if ($null -eq $Object) { return $null }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        $hash = [ordered]@{}
+        foreach ($key in $Object.Keys) {
+            $hash[$key] = ConvertTo-Hashtable $Object[$key]
+        }
+        return $hash
+    }
+
+    if ($Object -is [System.Collections.IEnumerable] -and -not ($Object -is [string])) {
+        $items = @()
+        foreach ($item in $Object) {
+            $items += ConvertTo-Hashtable $item
+        }
+        return $items
+    }
+
+    if ($Object.PSObject.Properties.Count -gt 0 -and $Object -isnot [string]) {
+        $hash = [ordered]@{}
+        foreach ($prop in $Object.PSObject.Properties) {
+            $hash[$prop.Name] = ConvertTo-Hashtable $prop.Value
+        }
+        return $hash
+    }
+
+    return $Object
+}
+
+function Read-WindowsHelloState {
+    if (-not (Test-Path $WINDOWS_HELLO_STATE_FILE)) {
+        return [ordered]@{}
+    }
+
+    try {
+        $raw = Get-Content -LiteralPath $WINDOWS_HELLO_STATE_FILE -Raw -Encoding UTF8 -ErrorAction Stop
+        if ([string]::IsNullOrWhiteSpace($raw)) { return [ordered]@{} }
+        return ConvertTo-Hashtable ($raw | ConvertFrom-Json)
+    } catch {
+        Write-Host "    [WARN] Could not read Windows Hello backup metadata: $($_.Exception.Message)" -ForegroundColor Yellow
+        return [ordered]@{}
+    }
+}
+
+function Write-WindowsHelloState {
+    param([Parameter(Mandatory)][System.Collections.IDictionary]$State)
+
+    if (-not (Test-Path $BACKUP_DIR)) {
+        New-Item -ItemType Directory -Path $BACKUP_DIR -Force | Out-Null
+    }
+
+    $State['SchemaVersion'] = 1
+    $State['UpdatedAt'] = (Get-Date).ToString('o')
+    $State | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $WINDOWS_HELLO_STATE_FILE -Encoding UTF8
+}
+
+function Split-CredentialProviderList {
+    param([AllowNull()][string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return @() }
+    return @($Value -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
+
+function Set-WindowsHelloCredentialProviderExclusions {
+    $policyPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+    $valueName = 'ExcludedCredentialProviders'
+    if (-not (Test-Path $policyPath)) { New-Item -Path $policyPath -Force | Out-Null }
+
+    $props = Get-ItemProperty -Path $policyPath -ErrorAction SilentlyContinue
+    $hadOriginal = $false
+    $originalValue = $null
+    if ($props -and ($props.PSObject.Properties.Name -contains $valueName)) {
+        $hadOriginal = $true
+        $originalValue = [string]$props.$valueName
+    }
+
+    $state = Read-WindowsHelloState
+    if (-not $state.Contains('ExcludedCredentialProviders')) {
+        $state['ExcludedCredentialProviders'] = [ordered]@{
+            CapturedAt          = (Get-Date).ToString('o')
+            OriginalValueExists = $hadOriginal
+            OriginalValue       = $originalValue
+            PackAdded           = @($WINDOWS_HELLO_PROVIDER_EXCLUSIONS.Keys)
+        }
+    }
+
+    $seen = @{}
+    $merged = [System.Collections.Generic.List[string]]::new()
+    foreach ($provider in @((Split-CredentialProviderList $originalValue) + @($WINDOWS_HELLO_PROVIDER_EXCLUSIONS.Keys))) {
+        $key = $provider.ToLowerInvariant()
+        if (-not $seen.ContainsKey($key)) {
+            $seen[$key] = $true
+            [void]$merged.Add($provider)
+        }
+    }
+
+    $newValue = ($merged -join ';')
+    if ($props -and ($props.PSObject.Properties.Name -contains $valueName)) {
+        Set-ItemProperty -Path $policyPath -Name $valueName -Value $newValue -ErrorAction SilentlyContinue
+    } else {
+        New-ItemProperty -Path $policyPath -Name $valueName -Value $newValue -PropertyType String -Force -ErrorAction SilentlyContinue | Out-Null
+    }
+
+    Write-WindowsHelloState $state
+    Write-Host "    [SET] ExcludedCredentialProviders merged for Windows Hello/passkeys"
+}
+
+function Test-PathSafe {
+    param([Parameter(Mandatory)][string]$Path)
+
+    try {
+        return [bool](Test-Path -LiteralPath $Path -ErrorAction Stop)
+    } catch [System.UnauthorizedAccessException] {
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Suspend-WindowsHelloNgcStore {
+    $ngcPath = Join-Path $env:SystemRoot 'ServiceProfiles\LocalService\AppData\Local\Microsoft\Ngc'
+    $quarantineRoot = Join-Path $BACKUP_DIR 'windows_hello_ngc_quarantine'
+    $state = Read-WindowsHelloState
+
+    foreach ($svc in @('NgcSvc', 'NgcCtnrSvc', 'NaturalAuthentication', 'WbioSrvc')) {
+        $service = Get-Service -Name $svc -ErrorAction SilentlyContinue
+        if ($service -and $service.Status -ne 'Stopped') {
+            Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if ($state.Contains('Ngc') -and $state['Ngc'].Contains('Quarantined') -and $state['Ngc']['Quarantined']) {
+        Write-Host '    [SKIP] Windows Hello NGC store already quarantined'
+        return
+    }
+
+    if (-not (Test-PathSafe $ngcPath)) {
+        $state['Ngc'] = [ordered]@{
+            OriginalPath = $ngcPath
+            Quarantined  = $false
+            MissingAt    = (Get-Date).ToString('o')
+        }
+        Write-WindowsHelloState $state
+        Write-Host '    [INFO] Windows Hello NGC store not present'
+        return
+    }
+
+    try {
+        if (-not (Test-Path $quarantineRoot)) {
+            New-Item -ItemType Directory -Path $quarantineRoot -Force | Out-Null
+        }
+
+        $target = Join-Path $quarantineRoot ("Ngc-{0}" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+        & takeown.exe /F $ngcPath /A /R /D Y *> $null
+        & icacls.exe $ngcPath /grant '*S-1-5-32-544:F' /T /C *> $null
+        Move-Item -LiteralPath $ngcPath -Destination $target -Force -ErrorAction Stop
+
+        $state['Ngc'] = [ordered]@{
+            OriginalPath    = $ngcPath
+            QuarantinePath  = $target
+            Quarantined     = $true
+            QuarantinedAt   = (Get-Date).ToString('o')
+        }
+        Write-WindowsHelloState $state
+        Write-Host "    [MOVED] Windows Hello NGC store quarantined: $target"
+    } catch {
+        $state['Ngc'] = [ordered]@{
+            OriginalPath = $ngcPath
+            Quarantined  = $false
+            Error        = $_.Exception.Message
+            FailedAt     = (Get-Date).ToString('o')
+        }
+        Write-WindowsHelloState $state
+        Write-Host "    [WARN] Could not quarantine Windows Hello NGC store: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+
+Set-WindowsHelloCredentialProviderExclusions
+Suspend-WindowsHelloNgcStore
 
 
 # --- Refresh Paint app settings so AI/Copilot policy is re-read ---

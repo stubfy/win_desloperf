@@ -29,6 +29,18 @@ if (-not (Test-Path $regFile)) {
 Start-Process "regedit.exe" -ArgumentList "/s `"$regFile`"" -Wait -Verb RunAs
 Write-Host "    Registry tweaks imported from tweaks_consolidated.reg"
 
+$coreDwordTweaks = @(
+    @{ Path='HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'; Name='AllowClipboardHistory'; Value=0 }
+)
+
+foreach ($tweak in $coreDwordTweaks) {
+    if (-not (Test-Path $tweak.Path)) {
+        New-Item -Path $tweak.Path -Force | Out-Null
+    }
+    Set-ItemProperty -Path $tweak.Path -Name $tweak.Name -Type DWord -Value $tweak.Value
+}
+Write-Host "    Core registry policy values verified"
+
 # === SECTION: Visual effects SPI P/Invoke ===
 
 if (-not ('WinDeslopper.NativeMethods' -as [type])) {
@@ -250,6 +262,18 @@ Refresh-UserShell
 
 $MOUSE_FIX_DIR = Join-Path $PSScriptRoot "mouse_fix"
 
+function Set-MouseAccelerationOff {
+    $mousePath = 'HKCU:\Control Panel\Mouse'
+    if (-not (Test-Path $mousePath)) {
+        New-Item -Path $mousePath -Force | Out-Null
+    }
+
+    New-ItemProperty -Path $mousePath -Name MouseSpeed -PropertyType String -Value '0' -Force | Out-Null
+    New-ItemProperty -Path $mousePath -Name MouseThreshold1 -PropertyType String -Value '0' -Force | Out-Null
+    New-ItemProperty -Path $mousePath -Name MouseThreshold2 -PropertyType String -Value '0' -Force | Out-Null
+    Write-Host "    [SET] Mouse acceleration disabled (Enhanced Pointer Precision off)"
+}
+
 # Map LogPixels value -> DPI scale percentage string (used in filename lookup)
 $scaleMap = @{
     96  = '100'
@@ -295,3 +319,5 @@ if ($result.ExitCode -eq 0) {
 } else {
     Write-Host "    [WARN] regedit exit code: $($result.ExitCode)"
 }
+
+Set-MouseAccelerationOff

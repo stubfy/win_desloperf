@@ -22,7 +22,8 @@
 # entries in that context are regressions introduced by the update.
 
 param(
-    [bool]$IncludeNetwork = $true
+    [bool]$IncludeNetwork = $true,
+    [bool]$IncludePersonal = $true
 )
 
 $ROOT      = Split-Path (Split-Path $PSScriptRoot)
@@ -56,6 +57,52 @@ function Get-ExactServiceStartupType {
     }
 }
 
+function Split-RegistryTokenList {
+    param([AllowNull()][string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return @() }
+    return @($Value -split '[;,]' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
+
+function Test-RegistryTokenListContainsAll {
+    param(
+        [AllowNull()][string]$Value,
+        [Parameter(Mandatory)][string]$Required
+    )
+
+    $currentTokens = @(Split-RegistryTokenList $Value | ForEach-Object { $_.ToLowerInvariant() })
+    foreach ($token in @(Split-RegistryTokenList $Required)) {
+        if ($token.ToLowerInvariant() -notin $currentTokens) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Resolve-RegistryPath {
+    param([Parameter(Mandatory)][string]$Path)
+
+    return $Path `
+        -replace '^HKCR:\\', 'Registry::HKEY_CLASSES_ROOT\' `
+        -replace '^HKU:\\',  'Registry::HKEY_USERS\'
+}
+
+function Test-IsPersonalRegistryEntry {
+    param($Entry)
+
+    if ($IncludePersonal) { return $false }
+    if ($Entry.PSObject.Properties.Name -contains 'Source') {
+        return ($Entry.Source -eq 'personal_settings.reg')
+    }
+
+    $entryId = "$(Resolve-RegistryPath -Path $Entry.Path)|$($Entry.Name)"
+    $legacyPersonalEntryIds = @(
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent|StartColorMenu',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent|AccentColorMenu'
+    )
+    return ($entryId -in $legacyPersonalEntryIds)
+}
+
 if (-not (Test-Path $SNAP_FILE)) {
     Write-Host "  No snapshot found at: $SNAP_FILE" -ForegroundColor Yellow
     Write-Host "  Run the pack once first to create a baseline." -ForegroundColor DarkGray
@@ -70,7 +117,11 @@ $regAlready = 0
 $regFailed  = [System.Collections.Generic.List[object]]::new()
 
 foreach ($data in $snap.Registry) {
-    $path    = $data.Path
+    if (Test-IsPersonalRegistryEntry -Entry $data) {
+        continue
+    }
+
+    $path    = Resolve-RegistryPath -Path $data.Path
     $name    = $data.Name
     $type    = $data.Type
     $before  = $data.Before
@@ -82,12 +133,53 @@ foreach ($data in $snap.Registry) {
     try {
         $v       = Get-ItemProperty -Path $path -Name $name -ErrorAction Stop
         $current = if ($type -eq 'DWORD') { [long]$v.$name } else { [string]$v.$name }
-    } catch { continue }  # key/value missing, skip
+    } catch {
+        $regFailed.Add([PSCustomObject]@{
+            Path    = $path
+            Name    = $name
+            Current = '(missing)'
+            Desired = $desired
+        })
+        continue
+    }
 
-    $desiredN = if ($type -eq 'DWORD') { [long]$desired } else { [string]$desired }
+    $desiredN = if ($type -eq 'DWORD') { [long]$desired } else { ([string]$desired) -replace '\\"', '"' }
     $beforeN  = if ($null -eq $before) { $null }
                 elseif ($type -eq 'DWORD') { [long]$before }
                 else { [string]$before }
+
+    if ($type -eq 'StringContainsAll') {
+        $currentHasAll = Test-RegistryTokenListContainsAll -Value $current -Required $desiredN
+        $beforeHasAll = if ($null -eq $beforeN) { $false } else { Test-RegistryTokenListContainsAll -Value $beforeN -Required $desiredN }
+
+        if ($currentHasAll) {
+            if ($beforeHasAll) {
+                if (-not $isVolatile) {
+                    $regAlready++
+                }
+            } else {
+                $changeRecord = [PSCustomObject]@{
+                    Path   = $path
+                    Name   = $name
+                    Before = if ($null -eq $beforeN) { '(missing)' } else { $beforeN }
+                    After  = $current
+                }
+                if ($isVolatile) {
+                    $volatileRegistryApplied.Add($changeRecord)
+                } else {
+                    $regChanged.Add($changeRecord)
+                }
+            }
+        } else {
+            $regFailed.Add([PSCustomObject]@{
+                Path    = $path
+                Name    = $name
+                Current = $current
+                Desired = "contains all: $desiredN"
+            })
+        }
+        continue
+    }
 
     if ($current -eq $desiredN) {
         if ($beforeN -eq $desiredN) {
@@ -411,7 +503,57 @@ if ($snap.StorageWriteCache) {
 }
 
 # ── Display ───────────────────────────────────────────────────────────────────
-function fPath([string]$p) { $p -replace 'HKLM:\\','HKLM\' -replace 'HKCU:\\','HKCU\' -replace 'HKCR:\\','HKCR\' }
+$lowLatencyChanged = [System.Collections.Generic.List[object]]::new()
+$lowLatencyAlready = 0
+$lowLatencyFailed  = [System.Collections.Generic.List[object]]::new()
+
+if ($snap.LowLatencyProfile) {
+    foreach ($feature in @($snap.LowLatencyProfile)) {
+        foreach ($entry in @($feature.Values)) {
+            $current = $null
+            $exists = $false
+            if ($feature.Path -and (Test-Path ([string]$feature.Path))) {
+                try {
+                    $current = (Get-ItemProperty -Path ([string]$feature.Path) -Name ([string]$entry.Name) -ErrorAction Stop).($entry.Name)
+                    $exists = $true
+                } catch {
+                }
+            }
+
+            $before = if ($entry.BeforeExisted) { [int]$entry.Before } else { $null }
+            $desired = [int]$entry.Desired
+            if ($exists -and [int]$current -eq $desired) {
+                if ($null -ne $before -and [int]$before -eq $desired) {
+                    $lowLatencyAlready++
+                } else {
+                    $lowLatencyChanged.Add([PSCustomObject]@{
+                        FeatureId = $feature.FeatureId
+                        Key       = $entry.Name
+                        Before    = if ($null -eq $before) { '(missing)' } else { $before }
+                        After     = [int]$current
+                    })
+                }
+            } else {
+                $lowLatencyFailed.Add([PSCustomObject]@{
+                    FeatureId = $feature.FeatureId
+                    Key       = $entry.Name
+                    Current   = if ($exists) { [int]$current } else { '(missing)' }
+                    Desired   = $desired
+                })
+            }
+        }
+    }
+}
+
+function fPath([string]$p) {
+    $p `
+        -replace '^Registry::HKEY_LOCAL_MACHINE\\','HKLM\' `
+        -replace '^Registry::HKEY_CURRENT_USER\\','HKCU\' `
+        -replace '^Registry::HKEY_CLASSES_ROOT\\','HKCR\' `
+        -replace '^Registry::HKEY_USERS\\','HKU\' `
+        -replace 'HKLM:\\','HKLM\' `
+        -replace 'HKCU:\\','HKCU\'
+}
 
 $totalReg = $regChanged.Count + $regAlready + $regFailed.Count
 $totalSvc = $svcChanged.Count + $svcAlready + $svcFailed.Count
@@ -419,6 +561,7 @@ $totalBcd = $bcdChanged.Count + $bcdAlready
 $totalNet = $netChanged.Count + $netAlready + $netFailed.Count
 $totalAff = if ($snap.Affinity) { @($snap.Affinity.PSObject.Properties).Count } else { 0 }
 $totalStorage = $storageChanged.Count + $storageAlready + $storageFailed.Count
+$totalLowLatency = $lowLatencyChanged.Count + $lowLatencyAlready + $lowLatencyFailed.Count
 
 Write-Host ""
 Write-Host "  RECAP - What actually changed" -ForegroundColor Cyan
@@ -442,6 +585,10 @@ if ($IncludeNetwork -and $snap.Network) {
 if ($snap.StorageWriteCache) {
     Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied   {4,3} failed" -f `
         "Storage", $totalStorage, $storageAlready, $storageChanged.Count, $storageFailed.Count) -ForegroundColor White
+}
+if ($snap.LowLatencyProfile) {
+    Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied   {4,3} failed" -f `
+        "LowLatency", $totalLowLatency, $lowLatencyAlready, $lowLatencyChanged.Count, $lowLatencyFailed.Count) -ForegroundColor White
 }
 if ($snap.Affinity) {
     Write-Host ("  {0,-12} {1,3} checked   {2,3} already OK   {3,3} applied" -f `
@@ -557,6 +704,22 @@ if ($snap.StorageWriteCache -and $storageSkipped.Count -gt 0) {
     Write-Host "  Storage write cache - skipped ($($storageSkipped.Count), not counted):" -ForegroundColor Yellow
     foreach ($s in $storageSkipped) {
         Write-Host ("    ~ {0,-28}  {1}" -f $s.Disk, $s.Reason) -ForegroundColor Yellow
+    }
+}
+
+if ($snap.LowLatencyProfile -and $lowLatencyChanged.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Low Latency Profile - applied ($($lowLatencyChanged.Count)):" -ForegroundColor Green
+    foreach ($l in $lowLatencyChanged) {
+        Write-Host ("    + {0,-10} {1,-24}  {2}  ->  {3}" -f $l.FeatureId, $l.Key, $l.Before, $l.After) -ForegroundColor Green
+    }
+}
+
+if ($snap.LowLatencyProfile -and $lowLatencyFailed.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Low Latency Profile - FAILED ($($lowLatencyFailed.Count)):" -ForegroundColor Red
+    foreach ($l in $lowLatencyFailed) {
+        Write-Host ("    x {0,-10} {1,-24}  current={2}  wanted={3}" -f $l.FeatureId, $l.Key, $l.Current, $l.Desired) -ForegroundColor Red
     }
 }
 

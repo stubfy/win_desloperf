@@ -159,7 +159,6 @@ Windows Registry Editor Version 5.00
 ; disable the legacy ballistics thresholds (MouseSpeed/Threshold1/Threshold2).
 ; Source: http://donewmouseaccel.blogspot.com/2010/03/markc-windows-7-mouse-acceleration-fix.html
 [HKEY_CURRENT_USER\Control Panel\Mouse]
-"MouseSensitivity"="10"
 "SmoothMouseXCurve"=hex:\
 	00,00,00,00,00,00,00,00,\
 	C0,CC,0C,00,00,00,00,00,\

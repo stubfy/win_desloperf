@@ -157,11 +157,3 @@ foreach ($svc in $defaults.Keys) {
     }
     Write-ServiceStartupResult -Result $result -Name $svc
 }
-
-# DoSvc can be restored to its startup type, but TriggerInfo is not recreated here.
-if ($defaults.Contains('DoSvc') -and $defaults['DoSvc'] -in @('Manual', 'Disabled')) {
-    $triggerPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc\TriggerInfo'
-    if (Test-Path $triggerPath) {
-        Remove-Item $triggerPath -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}

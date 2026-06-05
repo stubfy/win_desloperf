@@ -168,7 +168,7 @@ try {
     $nicPowerState | ConvertTo-Json -Depth 4 | Set-Content "$BACKUP_DIR\nic_power_state.json" -Encoding UTF8
     Write-Host "    NIC power states saved -> backup\nic_power_state.json"
 } catch {
-    Write-Host "    [WARNING] Unable to save NIC power states." -ForegroundColor Yellow
+    Write-Host "    [WARNING] Unable to save NIC power states: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
 # Export USB device power management state (for precise rollback)

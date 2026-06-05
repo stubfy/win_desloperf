@@ -14,6 +14,7 @@
       registry.ps1          - Imports tweaks_defaults.reg + resets SPI visual effects + mouse curves
       services.ps1          - Reads backup\services_state.json and restores each service
       performance.ps1       - Removes disabledynamictick/bootmenupolicy, restores power plan + USB + disk write cache
+      low_latency_profile.ps1 - Restores Windows FeatureManagement CPU boost overrides
       dns.ps1               - Restores DHCP-assigned DNS on all interfaces
       timer.ps1             - Deletes startup shortcut, terminates SetTimerResolution
       privacy.ps1           - Imports privacy_defaults.reg, removes AI/Recall/Copilot policy keys
@@ -141,6 +142,9 @@ Invoke-Script "$RESTORE\services.ps1"
 
 Write-Step "Restore system performance (boot config, power plan, USB, disk write cache)"
 Invoke-Script "$RESTORE\performance.ps1"
+
+Write-Step "Restore Low Latency Profile / CPU boost overrides"
+Invoke-Script "$RESTORE\low_latency_profile.ps1"
 
 Write-Step "Restore DNS (automatic DHCP)"
 Invoke-Script "$RESTORE\dns.ps1"
