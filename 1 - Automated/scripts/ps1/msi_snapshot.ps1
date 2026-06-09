@@ -41,6 +41,25 @@ function Get-PciDevices {
         })
 }
 
+function Get-InterruptPriorityState([string]$InstanceId) {
+    $priorityPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$InstanceId\Device Parameters\Interrupt Management\Affinity Policy"
+    $priorityExists = $false
+    $priorityValue = $null
+
+    if (Test-Path -LiteralPath $priorityPath) {
+        $props = Get-ItemProperty -LiteralPath $priorityPath -ErrorAction SilentlyContinue
+        if ($null -ne $props -and $props.PSObject.Properties.Name -contains 'DevicePriority') {
+            $priorityExists = $true
+            $priorityValue = $props.DevicePriority
+        }
+    }
+
+    return [ordered]@{
+        DevicePriority = $priorityValue
+        DevicePriorityExists = $priorityExists
+    }
+}
+
 $PACK_ROOT = Split-Path (Split-Path (Split-Path $PSScriptRoot))
 if ($DataDir -eq '') { $DataDir = Join-Path $PACK_ROOT '3 - MSI Utils' }
 if ($StateFile -eq '') { $StateFile = Join-Path $DataDir 'msi_state.json' }
@@ -83,6 +102,7 @@ $countNoKey = 0
 $allPciDevices = Get-PciDevices
 foreach ($dev in $allPciDevices) {
     $msiPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($dev.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
+    $priorityState = Get-InterruptPriorityState $dev.InstanceId
     if (Test-Path -LiteralPath $msiPath) {
         $props = Get-ItemProperty -LiteralPath $msiPath -ErrorAction SilentlyContinue
         $msiVal = $props.MSISupported
@@ -92,6 +112,8 @@ foreach ($dev in $allPciDevices) {
             Class = $dev.Class
             MSISupported = $msiVal
             MessageNumberLimit = $limitVal
+            DevicePriority = $priorityState.DevicePriority
+            DevicePriorityExists = $priorityState.DevicePriorityExists
         }
         if ($msiVal -eq 1) {
             Write-Host ("    [MSI ON]  {0,-40} {1}" -f $dev.FriendlyName, $dev.InstanceId) -ForegroundColor Green
@@ -106,6 +128,8 @@ foreach ($dev in $allPciDevices) {
             Class = $dev.Class
             MSISupported = $null
             MessageNumberLimit = $null
+            DevicePriority = $priorityState.DevicePriority
+            DevicePriorityExists = $priorityState.DevicePriorityExists
         }
         Write-Host ("    [No key]  {0,-40} {1}" -f $dev.FriendlyName, $dev.InstanceId) -ForegroundColor DarkGray
         $countNoKey++
