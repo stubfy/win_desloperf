@@ -874,7 +874,7 @@ if ($applyPersonalSettings) {
 
 if ($setInterruptAffinity) {
     Write-Step 'PHASE B.15 - Interrupt affinity (GPU + mouse)'
-    Invoke-Script "$SCRIPTS\set_affinity.ps1" @{ SkipReboot = $true }
+    Invoke-Script "$SCRIPTS\set_affinity.ps1" @{ SkipReboot = $true; AssumeYes = $true }
 } else {
     Write-Step 'PHASE B.15 - Interrupt affinity (skipped)'
     Write-Host '    Skipped        : run 5 - Interrupt Affinity\set_affinity.bat after NVIDIA updates'

@@ -36,6 +36,7 @@
 
 param(
     [switch]$SkipReboot,
+    [switch]$AssumeYes,
     [string]$ConfigPath
 )
 
@@ -136,11 +137,13 @@ if ($config) {
         Write-Host "    Device  : $($g.label)"
         Write-Host "    Core    : $($g.core)"
 
-        $applyThis = Read-Host "  Apply $($g.type.ToUpper()) affinity? (Y/N) [default: Y]"
-        if ($applyThis -ne '' -and $applyThis -inotmatch '^y') {
-            Write-Host "    $($g.type.ToUpper()) affinity skipped." -ForegroundColor Gray
-            Write-Host ""
-            continue
+        if (-not $AssumeYes) {
+            $applyThis = Read-Host "  Apply $($g.type.ToUpper()) affinity? (Y/N) [default: Y]"
+            if ($applyThis -ne '' -and $applyThis -inotmatch '^y') {
+                Write-Host "    $($g.type.ToUpper()) affinity skipped." -ForegroundColor Gray
+                Write-Host ""
+                continue
+            }
         }
 
         $chain = Get-PciChainFromDevice -InstanceId $g.instanceId -StartLabel $startLabel
