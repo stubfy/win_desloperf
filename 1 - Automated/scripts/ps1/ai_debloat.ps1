@@ -191,6 +191,43 @@ function Test-AiPackageName {
     return $false
 }
 
+function Test-AiAppxPackageIsPinnedSystemStub {
+    param([Parameter(Mandatory)]$Package)
+
+    $isNonRemovable = $false
+    try { $isNonRemovable = [bool]$Package.NonRemovable } catch {}
+    return $isNonRemovable
+}
+
+function Enable-AiAppxRemovalPolicy {
+    param([Parameter(Mandatory)][string]$PackageFamilyName)
+
+    try {
+        Set-NonRemovableAppsPolicy -Online -PackageFamilyName $PackageFamilyName -NonRemovable 0 -ErrorAction Stop | Out-Null
+        Write-Info "Non-removable policy cleared for $PackageFamilyName"
+        return
+    } catch {
+        Write-Info "Direct non-removable policy clear failed for $PackageFamilyName, retrying as SYSTEM: $($_.Exception.Message)"
+    }
+
+    $familyEscaped = $PackageFamilyName.Replace("'", "''")
+    $systemScript = @"
+`$family = '$familyEscaped'
+try {
+    Set-NonRemovableAppsPolicy -Online -PackageFamilyName `$family -NonRemovable 0 -ErrorAction Stop | Out-Null
+    Write-Output "Non-removable policy cleared for `$family"
+} catch {
+    Write-Output ("Non-removable policy clear failed for {0}: {1}" -f `$family, `$_.Exception.Message)
+}
+"@
+
+    try {
+        Invoke-AsSystemScript -Name ("clear-nonremovable-" + ([guid]::NewGuid().ToString('N'))) -ScriptBody $systemScript -TimeoutSeconds 180
+    } catch {
+        Write-Warn "Unable to clear non-removable policy for $PackageFamilyName`: $($_.Exception.Message)"
+    }
+}
+
 function Stop-AiProcesses {
     $names = @('ai', 'aihost', 'aicontext', 'aixhost', 'aimgr', 'Copilot', 'ClickToDo', 'M365Copilot', 'GameBar', 'GameBarFTServer')
     foreach ($name in $names) {
@@ -291,7 +328,7 @@ if (Test-Path -LiteralPath `$inboxPath) {
     Remove-Item -LiteralPath (Join-Path `$inboxPath `$family) -Recurse -Force -ErrorAction SilentlyContinue
 }
 try {
-    & dism.exe /Online /Set-NonRemovableAppsPolicy /PackageFamily:`$family /NonRemovable:0 | Out-Null
+    Set-NonRemovableAppsPolicy -Online -PackageFamilyName `$family -NonRemovable 0 -ErrorAction Stop | Out-Null
 } catch {
 }
 Write-Output "Prepared `$family for deprovision/removal"
@@ -310,12 +347,29 @@ function Remove-AdvancedAiAppxPackages {
     $installed = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.Name })
     $provisioned = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.DisplayName })
     $systemRetry = [System.Collections.Generic.List[object]]::new()
+    $removalTargets = [System.Collections.Generic.List[object]]::new()
 
     foreach ($pkg in $installed) {
+        if (Test-AiAppxPackageIsPinnedSystemStub -Package $pkg) {
+            Enable-AiAppxRemovalPolicy -PackageFamilyName $pkg.PackageFamilyName
+        }
+    }
+
+    $installed = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.Name })
+    foreach ($pkg in $installed) {
+        if (Test-AiAppxPackageIsPinnedSystemStub -Package $pkg) {
+            Write-Info "Skipping non-removable AI AppX system stub $($pkg.Name) (Windows kept package pinned after supported policy clear)"
+            continue
+        }
+
+        [void]$removalTargets.Add($pkg)
+    }
+
+    foreach ($pkg in $removalTargets) {
         Prepare-AiAppxForRemoval -PackageFamilyName $pkg.PackageFamilyName
     }
 
-    foreach ($pkg in $installed) {
+    foreach ($pkg in $removalTargets) {
         try {
             Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
         } catch {
@@ -406,8 +460,7 @@ function Remove-FilePathForced {
 )
 
 foreach (`$target in @(`$targets)) {
-    try { & dism.exe /Online /Set-NonRemovableAppsPolicy /PackageFamily:`$target.Family /NonRemovable:0 | Out-Null } catch {}
-    try { & dism.exe /Online /Set-NonRemovableAppsPolicy /PackageFamilyName:`$target.Family /NonRemovable:0 | Out-Null } catch {}
+    try { Set-NonRemovableAppsPolicy -Online -PackageFamilyName `$target.Family -NonRemovable 0 -ErrorAction Stop | Out-Null } catch {}
     try { Remove-AppxPackage -Package `$target.PackageFull -AllUsers -ErrorAction Stop | Out-Null } catch {}
 
     try {
@@ -464,7 +517,7 @@ foreach (`$target in @(`$targets)) {
         }
     }
 
-    if ($installed.Count -eq 0 -and $provisioned.Count -eq 0) {
+    if ($removalTargets.Count -eq 0 -and $provisioned.Count -eq 0) {
         Write-Info 'No additional AI AppX packages found'
     }
 }
@@ -734,12 +787,29 @@ function Disable-GamingCopilot {
 }
 
 function Write-Summary {
+    $remainingInstalled = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.Name })
+    $remainingProvisioned = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.DisplayName })
+
+    $pinnedSystemStubs = @()
     $remaining = @()
-    $remaining += @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.Name } | Select-Object -ExpandProperty Name -Unique)
-    $remaining += @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { Test-AiPackageName -Name $_.DisplayName } | Select-Object -ExpandProperty DisplayName -Unique)
+    foreach ($pkg in $remainingInstalled) {
+        if (Test-AiAppxPackageIsPinnedSystemStub -Package $pkg) {
+            $pinnedSystemStubs += $pkg.Name
+        } else {
+            $remaining += $pkg.Name
+        }
+    }
+
+    $remaining += @($remainingProvisioned | Select-Object -ExpandProperty DisplayName -Unique)
     $remaining = @($remaining | Sort-Object -Unique)
+    $pinnedSystemStubs = @($pinnedSystemStubs | Sort-Object -Unique)
 
     if ($remaining.Count -eq 0) {
+        if ($pinnedSystemStubs.Count -gt 0) {
+            Write-Info ("Only non-removable AI AppX system stubs remain: {0}" -f ($pinnedSystemStubs -join ', '))
+            return
+        }
+
         Write-Ok 'No tracked advanced AI AppX packages remain'
         return
     }

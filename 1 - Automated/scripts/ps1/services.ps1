@@ -156,9 +156,6 @@ function Get-ServiceStartupCatalog {
         'BTAGService'     # Bluetooth Audio Gateway: A2DP profile for Bluetooth headsets
         'bthserv'         # Bluetooth Support service
 
-        # --- Camera ---
-        'camsvc'          # Camera capabilities and privacy access broker
-
         # --- Certificates ---
         'CertPropSvc'     # Certificate Propagation: pushes smart card certs to the cert store
 
@@ -448,6 +445,7 @@ function Get-ServiceStartupCatalog {
         'InstallService'  # Microsoft Store installation infrastructure
         'VaultSvc'        # Credential Vault: stores encrypted credentials for apps and Windows
         'W32Time'         # Windows Time: NTP synchronization (keeps system clock accurate)
+        'camsvc'          # Camera privacy broker: keep Automatic so camera access stays user-controlled
         'wuauserv'        # Windows Update Agent: managed separately by 7 - Windows Update\ps1\set_windows_update.ps1
     )
 
