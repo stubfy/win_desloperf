@@ -30,6 +30,50 @@ $WINDOWS_HELLO_PROVIDER_EXCLUSIONS = [ordered]@{
     "{48B4E58D-2791-456C-9091-D524C6C706F2}" = "Secondary Authentication Factor Credential Provider"
 }
 
+function Set-CameraAccessUserControlled {
+    $appPrivacyPaths = @(
+        'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy',
+        'HKCU:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
+    )
+
+    $cameraPolicyNames = @(
+        'LetAppsAccessCamera',
+        'LetAppsAccessCamera_UserInControl',
+        'LetAppsAccessCamera_ForceAllowTheseApps',
+        'LetAppsAccessCamera_ForceDenyTheseApps'
+    )
+
+    foreach ($path in $appPrivacyPaths) {
+        if (Test-Path $path) {
+            foreach ($name in $cameraPolicyNames) {
+                Remove-ItemProperty -Path $path -Name $name -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    $consentPaths = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam\NonPackaged',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam\NonPackaged'
+    )
+
+    foreach ($path in $consentPaths) {
+        if (-not (Test-Path $path)) {
+            New-Item -Path $path -Force | Out-Null
+        }
+        New-ItemProperty -Path $path -Name 'Value' -Value 'Allow' -PropertyType String -Force | Out-Null
+    }
+
+    $cameraService = Get-Service -Name 'camsvc' -ErrorAction SilentlyContinue
+    if ($cameraService) {
+        Set-Service -Name 'camsvc' -StartupType Automatic -ErrorAction SilentlyContinue
+        if ($cameraService.Status -ne 'Running') {
+            Start-Service -Name 'camsvc' -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 # === SECTION: Privacy registry tweaks ===
 
 $REG = Join-Path $PSScriptRoot "privacy_tweaks.reg"
@@ -63,6 +107,9 @@ if (-not (Test-Path $oosuExe)) {
     Start-Process $oosuExe -ArgumentList "`"$oosuCfg`" /quiet" -Wait -Verb RunAs
     Write-Host "    O&O ShutUp10++ applied: $oosuCfg"
 }
+
+Set-CameraAccessUserControlled
+Write-Host "    [OK] Camera access kept enabled and user-controlled"
 
 # === SECTION: AI / Recall / Copilot / app AI features ===
 # Windows 11 25H2 introduces several AI features that run background processes,

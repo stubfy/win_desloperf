@@ -87,11 +87,32 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy]
 "LetAppsAccessCalendar"=-
 "LetAppsAccessCamera"=-
+"LetAppsAccessCamera_UserInControl"=-
+"LetAppsAccessCamera_ForceAllowTheseApps"=-
+"LetAppsAccessCamera_ForceDenyTheseApps"=-
 "LetAppsAccessMicrophone"=-
 "LetAppsAccessMessaging"=-
 "LetAppsAccessAccountInfo"=-
 "LetAppsAccessPasskeys"=-
 "LetAppsAccessPasskeysEnumeration"=-
+
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy]
+"LetAppsAccessCamera"=-
+"LetAppsAccessCamera_UserInControl"=-
+"LetAppsAccessCamera_ForceAllowTheseApps"=-
+"LetAppsAccessCamera_ForceDenyTheseApps"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam]
+"Value"="Allow"
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam]
+"Value"="Allow"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam\NonPackaged]
+"Value"="Allow"
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam\NonPackaged]
+"Value"="Allow"
 
 ; ---------------------------------------------------------------------------
 ; NOTIFICATIONS / ADS - RESTORE DEFAULTS
