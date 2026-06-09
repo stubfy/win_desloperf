@@ -40,6 +40,36 @@ function Get-PciDevices {
         })
 }
 
+function Test-EntryHasProperty($Entry, [string]$Name) {
+    return ($null -ne $Entry -and $Entry.PSObject.Properties.Name -contains $Name)
+}
+
+function Set-InterruptPriorityState([string]$InstanceId, $Entry) {
+    if (-not (Test-EntryHasProperty $Entry 'DevicePriority') -and -not (Test-EntryHasProperty $Entry 'DevicePriorityExists')) {
+        return
+    }
+
+    $priorityPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$InstanceId\Device Parameters\Interrupt Management\Affinity Policy"
+    $priorityExists = if (Test-EntryHasProperty $Entry 'DevicePriorityExists') {
+        [bool]$Entry.DevicePriorityExists
+    } else {
+        $null -ne $Entry.DevicePriority
+    }
+
+    if ($priorityExists) {
+        if (-not (Test-Path -LiteralPath $priorityPath)) {
+            New-Item -Path $priorityPath -Force -ErrorAction Stop | Out-Null
+        }
+        $priorityValue = if ($null -ne $Entry.DevicePriority) { [int]$Entry.DevicePriority } else { 0 }
+        Set-ItemProperty -LiteralPath $priorityPath -Name 'DevicePriority' -Value $priorityValue -Type DWord -Force -ErrorAction Stop
+        return
+    }
+
+    if (Test-Path -LiteralPath $priorityPath) {
+        Remove-ItemProperty -LiteralPath $priorityPath -Name 'DevicePriority' -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $PACK_ROOT = Split-Path (Split-Path (Split-Path $PSScriptRoot))
 if ($StateFile -eq '') { $StateFile = Join-Path $PACK_ROOT '1 - Automated\backup\msi_state_default.json' }
 $StateFile = Resolve-FullPath $StateFile
@@ -108,10 +138,11 @@ $propsNames = $raw | Get-Member -MemberType NoteProperty | Select-Object -Expand
 foreach ($id in $propsNames) {
     if ($id -eq '_meta') { continue }
     $entry = $raw.$id
-    if ($null -ne $entry.MSISupported) { $toApply += $id }
+    $hasPriorityState = (Test-EntryHasProperty $entry 'DevicePriorityExists' -and [bool]$entry.DevicePriorityExists) -or (Test-EntryHasProperty $entry 'DevicePriority' -and $null -ne $entry.DevicePriority)
+    if ($null -ne $entry.MSISupported -or $hasPriorityState) { $toApply += $id }
 }
 
-Write-Info "$($toApply.Count) device(s) from the default MSI backup will be restored."
+Write-Info "$($toApply.Count) device(s) from the default MSI/priority backup will be restored."
 Write-Host ''
 
 if (-not $SkipConfirm) {
@@ -132,7 +163,8 @@ $countErrors = 0
 foreach ($id in $propsNames) {
     if ($id -eq '_meta') { continue }
     $entry = $raw.$id
-    if ($null -eq $entry.MSISupported) {
+    $hasPriorityState = (Test-EntryHasProperty $entry 'DevicePriorityExists' -and [bool]$entry.DevicePriorityExists) -or (Test-EntryHasProperty $entry 'DevicePriority' -and $null -ne $entry.DevicePriority)
+    if ($null -eq $entry.MSISupported -and -not $hasPriorityState) {
         $countSkipped++
         continue
     }
@@ -145,13 +177,16 @@ foreach ($id in $propsNames) {
 
     $msiPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$id\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
     try {
-        if (-not (Test-Path -LiteralPath $msiPath)) { New-Item -Path $msiPath -Force -ErrorAction Stop | Out-Null }
-        Set-ItemProperty -LiteralPath $msiPath -Name 'MSISupported' -Value ([int]$entry.MSISupported) -Type DWord -Force -ErrorAction Stop
-        if ($null -ne $entry.MessageNumberLimit) {
-            Set-ItemProperty -LiteralPath $msiPath -Name 'MessageNumberLimit' -Value ([int]$entry.MessageNumberLimit) -Type DWord -Force -ErrorAction Stop
+        if ($null -ne $entry.MSISupported) {
+            if (-not (Test-Path -LiteralPath $msiPath)) { New-Item -Path $msiPath -Force -ErrorAction Stop | Out-Null }
+            Set-ItemProperty -LiteralPath $msiPath -Name 'MSISupported' -Value ([int]$entry.MSISupported) -Type DWord -Force -ErrorAction Stop
+            if ($null -ne $entry.MessageNumberLimit) {
+                Set-ItemProperty -LiteralPath $msiPath -Name 'MessageNumberLimit' -Value ([int]$entry.MessageNumberLimit) -Type DWord -Force -ErrorAction Stop
+            }
         }
+        Set-InterruptPriorityState $id $entry
         $label = if ($entry.FriendlyName) { $entry.FriendlyName } else { $id }
-        $msiLabel = if ($entry.MSISupported -eq 1) { 'MSI ON' } else { 'MSI OFF' }
+        $msiLabel = if ($entry.MSISupported -eq 1) { 'MSI ON' } elseif ($null -ne $entry.MSISupported) { 'MSI OFF' } else { 'MSI N/A' }
         Write-Ok ("[$msiLabel] $label")
         $countApplied++
     } catch {
