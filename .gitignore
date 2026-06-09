@@ -29,6 +29,9 @@ codex_resume.bat
 # Source locale WinUtil gardee hors git pour reprise ponctuelle de modules
 /winutil-main/
 
+# Tests locaux non distribues
+/Tools/tests/
+
 # Resumes locaux de travail
 /resume.md
 /resume_winutil.md
